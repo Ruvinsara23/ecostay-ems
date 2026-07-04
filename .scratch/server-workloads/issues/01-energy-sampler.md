@@ -37,5 +37,5 @@ None.
 - Emulator proof: fresh room sampled verbatim + stale/unreported skipped; history
   accumulates across runs. Seeder now maintains `ops/roomIndex`; `.env.example` documents
   CRON_SECRET + FIREBASE_SERVICE_ACCOUNT (server-only).
-- Verification: 100 unit + 22 emulator-integration tests, typecheck, lint, build (route
+- Verification: 99 unit + 22 emulator-integration tests, typecheck, lint, build (route
   visible as dynamic) — all green.
