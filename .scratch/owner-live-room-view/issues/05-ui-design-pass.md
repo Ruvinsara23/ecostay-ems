@@ -23,15 +23,27 @@ single-theme commitment; dark mode is out of scope for this pass.**
 
 ### Tokens (mockup-validated; port into Tailwind theme)
 
+**Surfaces are gradient glassmorphism, never solid** (user requirement 2026-07-04):
+- `--glass-grad: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.38))`
+  (strong variant .86/.55 for emphasized pills/active segments)
+- `backdrop-filter: blur(18px) saturate(1.5)` + 1px border rgba(255,255,255,.75)
+  + `inset 0 1px 0 rgba(255,255,255,.85)` top highlight
+- The canvas carries two faint fixed ambient fields (radial green rgba(18,161,94,.16)
+  top-right, neutral rgba(27,28,28,.10) bottom-left, blur 90px) so the glass has
+  something to refract. Fills inside meters/dots use green **gradients**, not flat fills.
+
 | Token | Value | Use |
 |---|---|---|
-| canvas | #E7E8E6 | page background |
-| card / card-2 | #FFFFFF / #F1F2F0 | cards / inset wells & tracks |
-| ink / ink-2 / ink-3 | #1B1C1C / #6D716F / #A3A7A4 | text hierarchy |
-| line | #E2E3E1 | hairlines, marker rings |
-| green / green-deep / green-soft | #12A15E / #0E8A4F / #E3F3EA | THE accent: actions, live, active chips, data fills |
-| warn / warn-soft | #B45309 / #F8EFE1 | Simulated badge only |
-| alarm / alarm-soft | #D6453D / #FBEAE8 | gas alarm, offline |
+| canvas | #E5E6E4 | page background (+ ambient fields above) |
+| glass / glass-strong | gradients above | all cards, rail, pills |
+| well | rgba(27,28,28,.055) | inset tracks, idle chips |
+| ink / ink-2 / ink-3 | #1B1C1C / #686C6A / #9DA19E | text hierarchy |
+| green / green-deep / green-soft | #12A15E / #0E8A4F / rgba(18,161,94,.12) | THE accent: actions, live, active chips, gradient data fills |
+| warn / warn-soft | #A8570E / rgba(180,106,25,.14) | Simulated badge only |
+| alarm / alarm-soft | #D6453D / rgba(214,69,61,.12) | gas alarm, offline |
+
+**Layout density**: the app frame is full-width with 14–16 px gutters (no wide centered
+max-width margins); gaps between panels 14 px.
 
 Status colors (warn/alarm) are reserved for state — never decoration. Typography: Geist
 (already shipped) approximating the reference's geometric sans; **display style mixes
