@@ -84,7 +84,7 @@ Timeouts on device: 10 s (active→idle; entry→vacant-confirmed), 30 s (idle�
 | Term | Status | Meaning |
 |---|---|---|
 | Occupied (boolean) | derived | `occupancyState ∈ {ENTRY_DETECTED, OCCUPIED_ACTIVE, OCCUPIED_IDLE, OCCUPIED_SLEEPING, EXIT_PENDING}` — same predicate as firmware's `isOccupiedState()`. |
-| Energy cost | derived | Block tariff engine over kWh: ordered `{upToKWh, ratePerKWh}[]` + `fixedChargeLKR` (a flat tariff is one block). Currency: LKR. **Rates pending a research task with a current CEB citation before the calculator is implemented.** |
+| Energy cost | derived | **Regime/band tariff engine** over kWh (see Tariff): the month's total selects a regime; within it `method:"flat"` applies the band rate to all units (CEB GP-1/H-1), `method:"slab"` sums incremental blocks (CEB Domestic); fixed charge is per-block; an `sscl` factor grosses up the total. Currency: LKR. Seed rates + full derivation of the model gaps: [ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md) (PUCSL, effective 11 May 2026). |
 | Savings | derived | **Headline: counterfactual avoided energy** — Σ(rated wattage of each cut circuit × time it stayed cut), from `automationLog` × Admin-configured circuit wattages, priced via the tariff engine. **Secondary: kWh per occupied-hour** trend from daily aggregates. |
 | Device online | derived | UI: offline when `now − updatedAt > 15 s` (5 missed write cycles), computed against `.info/serverTimeOffset`. Offline **alert** raised at ~90 s staleness by the 1-min scheduled Function. Offline UI: values grey out with "last seen", **device controls disabled** (no queued commands). |
 
@@ -120,16 +120,47 @@ No background logic ever runs in the browser client.
   no duplicate alert while one of the same type/room is open.
 - Channel: in-app live alert center in v1. **FCM web push in v1.1.** Email rejected.
 
-## Tariff (accepted)
+## Tariff (accepted — revised 2026-07-04 after CEB research)
 
-- Per-property, Admin-editable: category label + ordered blocks `{upToKWh, ratePerKWh}[]`
-  + `fixedChargeLKR`. Covers CEB Domestic slabs and GP/Hotel flat schedules in one structure.
-- Update path: Admin edits when CEB gazettes a revision. No auto-fetching.
-- Time-of-use (peak/day/off-peak) deferred to v1.1 — 5-min samples can support it later.
-- Seed values come from the researched current CEB schedule, cited in the repo.
+Per-property, Admin-editable. The research ([ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md),
+PUCSL decision effective 11 May 2026) proved that CEB/LECO tariffs are **not simple incremental
+slabs** — the naïve `{upToKWh, ratePerKWh}[]` model silently miscomputes real GP-1/H-1 bills
+(the two categories a tourist accommodation is most likely on). The model must express:
+
+- **Regime/band selection by monthly total** — the month's total kWh first selects a *regime*
+  (D-1: ≤60 / 61–180 / >180) or *band* (GP-1 at 180 kWh, H-1 at 300 kWh). This is a **whole-bill
+  discontinuity, not a slab boundary** (H-1: 300 kWh → 3,000; 301 kWh → 6,218).
+- **Two charge methods** within the selected regime:
+  - `flat` — the band's single rate applies to **all** units consumed (CEB GP-1, H-1).
+  - `slab` — incremental blocks, each rate applied only to units in its range (CEB Domestic).
+- **Per-block fixed charge** — the monthly fixed charge is the one attached to the block the total
+  lands in (D-1 varies it 400 / 1000 / 1500 within a regime), not one per-tariff constant.
+- **SSCL gross-up** — an `sscl` factor multiplies the final bill (LECO applies 2.5⁄97.5 ≈ 0.0256).
+  VAT/SSCL on EDL (ex-CEB) bills is unverified — confirm on a real pilot bill before trusting totals.
+
+Model shape:
+
+```
+Tariff = { category, sscl, regimes: Regime[] }        // regimes ordered by upToKWh asc; top regime upToKWh: null
+Regime = { upToKWh, method: "flat" | "slab", blocks: Block[] }
+Block  = { upToKWh, ratePerKWh, fixedChargeLKR }       // fixed = the block the monthly total lands in
+```
+
+Compute: pick regime by monthly total → pick the block the total lands in (its `fixedChargeLKR` is
+the fixed charge) → `flat`: total × block.rate; `slab`: incremental sum over blocks → then
+`(energy + fixed) × (1 + sscl)`. A flat single-rate tariff is one regime with one `flat` block.
+
+- **Update path**: Admin edits when PUCSL revises. No auto-fetching. The 11 May 2026 rates for
+  D-1 ≤180 / GP-1 / H-1 depend on a subsidy **ending Sep 2026** — re-check at the Q4 revision.
+- **TOU** (D-TOU, H-2/H-3) is outside this model — deferred to v1.1, where the 5-min samples
+  attribute kWh to peak/day/off-peak windows.
+- **30-day proration** of block boundaries (`boundary × billingDays/30`) is a known refinement;
+  v1 assumes a 30-day cycle and flags estimates as approximate.
 
 ## Firmware workstream (approved 2026-07-04 — separate ADR; coordinates with the PCB design)
 
+0. **Project retarget (ADR-0009)**: point the node at the `ecostay-ems` Firebase project — two
+   config constants (`API_KEY`, `DATABASE_URL`), human reflash. First and smallest step.
 1. **Provisioning**: property/room IDs configurable per device (no more hardcoded `property_001`/`room_001`).
 2. **Per-device credentials**: email/password identity + `role=device` claim; anonymous auth disabled at cutover.
 3. **Real PZEM-004T reads** replacing `updatePzemDummyReading()`.
@@ -158,7 +189,7 @@ All eight open questions answered; decisions recorded in the sections above:
 1. **Roles** → Owner + Admin, custom claims via Admin SDK API routes (Auth & tenancy).
 2. **Energy history** → Cloud Functions on Blaze, 5-min sampler, two-tier retention (Server runtime).
 3. **Alerts** → persisted lifecycle, server-detected, in-app v1 / FCM v1.1 (Alerts).
-4. **CEB tariff** → per-property block model, TOU deferred (Tariff).
+4. **CEB tariff** → per-property regime/band model (revised after research — ADR-0008), TOU deferred (Tariff).
 5. **Savings** → counterfactual avoided energy + kWh/occupied-hour (Derived terms).
 6. **Offline** → 15 s UI / 90 s alert / controls disabled (Derived terms).
 7. **Override semantics** → transition-epoch precedence (Automation).
@@ -166,8 +197,14 @@ All eight open questions answered; decisions recorded in the sections above:
 
 ### Remaining open items
 
-1. **CEB tariff rates research** — current gazetted schedule with citation, before the cost calculator is implemented.
-2. **Circuit rated wattages** — Admin enters per controlled circuit per room at setup (needed for savings).
-3. ~~ADRs to draft~~ — done 2026-07-04: ADR-0005 (auth & tenancy), ADR-0006 (Cloud Functions/Blaze), ADR-0007 (firmware workstream, amends ADR-0003).
-4. ~~AGENTS.md missing~~ — recreated 2026-07-04 with commands verified against the running app.
-5. **v1.1 queue**: FCM web push, TOU tariffs, entry-restore automation rule.
+0. **Firebase project migration (ADR-0009) in flight** — console setup + `.env.local` retarget +
+   re-seed done/pending per ADR-0009; **live telemetry returns only after the human reflashes the
+   ESP32 with the new `API_KEY`/`DATABASE_URL`** and the write is verified in `ecostay-ems`.
+   Old `esp32led-b6105-c0b99` project: delete after verification.
+1. ~~CEB tariff rates research~~ — done 2026-07-04: [ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md) (PUCSL, effective 11 May 2026). Forced the regime/band model revision (ADR-0008).
+2. **Verify SSCL/VAT on a real EDL (ex-CEB) bill** — SSCL confirmed via LECO's calculator only; confirm both the 2.5% SSCL and any VAT line on the pilot property's actual bill before trusting cost totals.
+3. **Re-check tariff rates at the Q4 2026 PUCSL revision (~Oct 2026)** — the D-1 ≤180 / GP-1 / H-1 freeze rides on a subsidy ending Sep 2026.
+4. **Circuit rated wattages** — Admin enters per controlled circuit per room at setup (needed for savings).
+5. ~~ADRs to draft~~ — done 2026-07-04: ADR-0005 (auth & tenancy), ADR-0006 (Cloud Functions/Blaze), ADR-0007 (firmware workstream, amends ADR-0003), ADR-0008 (tariff engine).
+6. ~~AGENTS.md missing~~ — recreated 2026-07-04 with commands verified against the running app.
+7. **v1.1 queue**: FCM web push, TOU tariffs, entry-restore automation rule.

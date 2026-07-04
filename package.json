@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "firebase emulators:exec --only auth --project demo-ecostay \"vitest run --config vitest.integration.config.ts\"",
+    "seed": "node scripts/seed.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -35,6 +37,8 @@
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "firebase-admin": "^14.1.0",
+    "firebase-tools": "^15.22.4",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",

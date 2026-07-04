@@ -20,7 +20,14 @@ An ESP32 node (firmware/complete.ino) is the data source and command target.
 - Human owns the merge. Passing tests never substitute for human review.
 
 ## Current phase
-Phase 0 (bootstrap, commands verified) and Phase 1 (grilling → CONTEXT.md decision log,
-ADR-0001…0007, AGENTS.md) are complete as of 2026-07-04.
-Next: Phase 2 — research the current CEB tariff schedule (cited) → then Phase 3 PRD → issues.
-Remaining open items live at the bottom of CONTEXT.md.
+Phase 0 (bootstrap, commands verified), Phase 1 (grilling → CONTEXT.md decision log,
+ADR-0001…0007, AGENTS.md), and Phase 2 (CEB tariff research → ADR-0008 regime/band engine)
+are complete as of 2026-07-04.
+Phase 3 in progress: PRD `.scratch/owner-live-room-view/PRD.md` (owner login + live room view,
+walking skeleton) is broken into 4 ready-for-agent vertical slices under
+`.scratch/owner-live-room-view/issues/` (01 auth+bootstrap → 02 live telemetry → {03 tenancy,
+04 offline}). Slice 01 implemented (TDD, all gates green) — awaiting human review/commit.
+ADR-0009: migrating to the fresh `ecostay-ems` Firebase project (contract unchanged; ESP32
+reflash pending — live telemetry blocked on it). Next: finish migration → slice 02.
+Issue tracker = local markdown under `.scratch/`.
+Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.

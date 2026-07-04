@@ -12,7 +12,7 @@ This contract is **fixed** — the hardware integration is kept as-is; the new d
 | Base path | `properties/property_001/rooms/room_001` |
 | Firebase auth | **Anonymous** `Firebase.signUp(&config, &auth, "", "")` |
 | WiFi | SSID `ESP32` / `12345678` (hardcoded) |
-| API key + DB URL | Hardcoded in firmware (`esp32led-b6105-c0b99` project, asia-southeast1) |
+| API key + DB URL | Hardcoded in firmware. ⚠️ **ADR-0009 (2026-07-04): project identity migrated to `ecostay-ems`** — these two constants change at the next human reflash (first step of the ADR-0007 workstream). Until that reflash, the deployed node still writes to the old `esp32led-b6105-c0b99` project. Path layout, field names, and cadence are unchanged. |
 
 ## Telemetry — firmware WRITES `{base}/latest` every 3 s (`updateNode`)
 

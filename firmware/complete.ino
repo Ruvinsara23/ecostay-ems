@@ -13,8 +13,9 @@
 // ======================
 // Firebase Credentials
 // ======================
-#define API_KEY "AIzaSyCO7vsvUvYaLI11r9wjztYuMIteG4AorrY"
-#define DATABASE_URL "https://esp32led-b6105-c0b99-default-rtdb.asia-southeast1.firebasedatabase.app/"
+// ADR-0009 project migration (firmware workstream step 0) — only these two constants changed.
+#define API_KEY "AIzaSyAiPORxuRkkWLdg3ZdAj6gXXgUn0uqf_7Y"
+#define DATABASE_URL "https://ecostay-ems-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 // ======================
 // Firebase Objects

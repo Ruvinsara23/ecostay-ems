@@ -1,0 +1,30 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "properties": {
+      "property_001": {
+        ".read": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
+        "rooms": {
+          "room_001": {
+            "latest": {
+              ".write": "auth != null && auth.provider === 'anonymous'"
+            },
+            "devices": {
+              ".read": "auth != null && auth.provider === 'anonymous'",
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())"
+            }
+          }
+        },
+        "history": {
+          ".write": "auth != null && auth.provider === 'anonymous'"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
