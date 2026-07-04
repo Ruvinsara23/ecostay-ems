@@ -78,5 +78,20 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
     async setDeviceCommand(propertyId, roomId, key, on) {
       await set(ref(db, `properties/${propertyId}/rooms/${roomId}/devices/${key}`), on);
     },
+
+    subscribeAutomationEnabled(propertyId, roomId, callback) {
+      const settingRef = ref(
+        db,
+        `properties/${propertyId}/rooms/${roomId}/settings/automationEnabled`,
+      );
+      return onValue(settingRef, (snapshot) => callback(snapshot.val() === true));
+    },
+
+    async setAutomationEnabled(propertyId, roomId, enabled) {
+      await set(
+        ref(db, `properties/${propertyId}/rooms/${roomId}/settings/automationEnabled`),
+        enabled,
+      );
+    },
   };
 }

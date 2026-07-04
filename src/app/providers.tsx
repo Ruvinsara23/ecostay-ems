@@ -40,6 +40,12 @@ const prerenderRoomDataSource: RoomDataSource = {
   async setDeviceCommand() {
     throw new Error('not available during prerender');
   },
+  subscribeAutomationEnabled() {
+    return () => {};
+  },
+  async setAutomationEnabled() {
+    throw new Error('not available during prerender');
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

@@ -78,6 +78,34 @@ export class FakeRoomDataSource implements RoomDataSource {
     });
   }
 
+  private automationEnabled = new Map<string, boolean>();
+  private automationListeners = new Map<string, Set<(enabled: boolean) => void>>();
+
+  subscribeAutomationEnabled(
+    propertyId: string,
+    roomId: string,
+    callback: (enabled: boolean) => void,
+  ): () => void {
+    const key = `${propertyId}/${roomId}`;
+    const forKey = this.automationListeners.get(key) ?? new Set<(enabled: boolean) => void>();
+    forKey.add(callback);
+    this.automationListeners.set(key, forKey);
+    callback(this.automationEnabled.get(key) ?? false);
+    return () => {
+      forKey.delete(callback);
+    };
+  }
+
+  async setAutomationEnabled(
+    propertyId: string,
+    roomId: string,
+    enabled: boolean,
+  ): Promise<void> {
+    const key = `${propertyId}/${roomId}`;
+    this.automationEnabled.set(key, enabled);
+    this.automationListeners.get(key)?.forEach((listener) => listener(enabled));
+  }
+
   async listAccessibleRooms(_session: Session): Promise<RoomRef[]> {
     return this.accessibleRooms;
   }

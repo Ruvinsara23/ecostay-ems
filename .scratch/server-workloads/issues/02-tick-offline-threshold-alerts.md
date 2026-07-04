@@ -1,7 +1,11 @@
 # 02 — Tick: offline + threshold alerts with lifecycle
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 with slice 03 — one tick, one commit)
 Slice: 2 of 7 · Parent: `.scratch/server-workloads/PRD.md`
+
+> Implemented: `evaluateAlerts` (open/dedupe/auto-resolve via `ops/openAlerts` index; frozen
+> values never judge thresholds — offline carries the situation); `/api/cron/tick` route.
+> Emulator-proven lifecycles for gas and offline. 117 unit + full integration suites green.
 
 ## What to build
 

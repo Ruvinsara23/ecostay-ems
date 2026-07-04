@@ -311,6 +311,23 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     ).rejects.toThrow(/permission/i);
   });
 
+  it('owner can flip the automation toggle through the rules; non-boolean is rejected', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const owner = await signedInDb('owner');
+    const { ref: clientRef, set: clientSet } = await import('firebase/database');
+    const toggleRef = clientRef(
+      owner.db,
+      'properties/property_001/rooms/room_001/settings/automationEnabled',
+    );
+
+    await clientSet(toggleRef, true); // member write allowed
+
+    await expect(clientSet(toggleRef, 'yes' as unknown as boolean)).rejects.toThrow(
+      /permission/i,
+    ); // .validate newData.isBoolean()
+  });
+
   it('mainRelay never surfaces through the subscription even if present in RTDB', async () => {
     await wipe();
     await seedTwoProperties();

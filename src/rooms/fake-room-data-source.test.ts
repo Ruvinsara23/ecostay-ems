@@ -116,6 +116,16 @@ describe('FakeRoomDataSource', () => {
     expect(emissions[1]).toEqual({ lights: true, exhaustFan: true });
   });
 
+  it('reports automation-enabled (default false) and echoes changes', async () => {
+    const source = new FakeRoomDataSource();
+    const emissions: boolean[] = [];
+    source.subscribeAutomationEnabled('property_001', 'room_001', (enabled) =>
+      emissions.push(enabled),
+    );
+    await source.setAutomationEnabled('property_001', 'room_001', true);
+    expect(emissions).toEqual([false, true]);
+  });
+
   it('rejects a command when told to fail, without changing state', async () => {
     const source = new FakeRoomDataSource();
     source.emitDeviceCommands('property_001', 'room_001', { lights: false });

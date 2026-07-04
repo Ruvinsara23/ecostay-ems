@@ -68,4 +68,17 @@ export interface RoomDataSource {
     key: DeviceCommandKey,
     on: boolean,
   ): Promise<void>;
+
+  /**
+   * The room's vacancy-cutoff automation toggle (settings/automationEnabled).
+   * A server setting, not a device command — usable regardless of freshness;
+   * absent means OFF.
+   */
+  subscribeAutomationEnabled(
+    propertyId: string,
+    roomId: string,
+    callback: (enabled: boolean) => void,
+  ): () => void;
+
+  setAutomationEnabled(propertyId: string, roomId: string, enabled: boolean): Promise<void>;
 }

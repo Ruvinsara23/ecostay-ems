@@ -42,7 +42,8 @@ describe('RoomLiveView — device controls', () => {
     expect(screen.getByRole('switch', { name: 'Exhaust fan' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Water pump' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Presence relay' })).toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(4);
+    // 4 device commands + the vacancy-cutoff automation toggle
+    expect(screen.getAllByRole('switch')).toHaveLength(5);
     expect(screen.queryByText(/main relay/i)).not.toBeInTheDocument();
   });
 
@@ -72,15 +73,36 @@ describe('RoomLiveView — device controls', () => {
     expect(screen.getByText(/actual: on/i)).toBeInTheDocument(); // relayStatus true in telemetry
   });
 
-  it('disables every control while the room is offline, with an explanation', () => {
+  it('disables every device command while the room is offline, with an explanation', () => {
     setup({ snapshot: liveSnapshot({ updatedAt: Date.now() - 20_000 }) });
-    screen.getAllByRole('switch').forEach((s) => expect(s).toBeDisabled());
+    ['Lights', 'Exhaust fan', 'Water pump', 'Presence relay'].forEach((name) =>
+      expect(screen.getByRole('switch', { name })).toBeDisabled(),
+    );
     expect(screen.getByText(/controls disabled while offline/i)).toBeInTheDocument();
   });
 
   it('marks the exhaust fan as forced on during a gas alarm', () => {
     setup({ snapshot: liveSnapshot({ gas: 452 }) });
     expect(screen.getByText(/forced on by device/i)).toBeInTheDocument();
+  });
+
+  it('offers the vacancy-cutoff automation toggle, live and writable', async () => {
+    setup();
+    const user = userEvent.setup();
+    const toggle = screen.getByRole('switch', { name: /vacancy cutoff automation/i });
+    expect(toggle).not.toBeChecked(); // default off
+
+    await user.click(toggle);
+    expect(toggle).toBeChecked(); // fake echoes the setting write
+  });
+
+  it('keeps the automation toggle usable while the room is offline (it is a server setting, not a command)', () => {
+    setup({ snapshot: liveSnapshot({ updatedAt: Date.now() - 20_000 }) });
+    expect(
+      screen.getByRole('switch', { name: /vacancy cutoff automation/i }),
+    ).toBeEnabled();
+    // device command switches stay disabled
+    expect(screen.getByRole('switch', { name: 'Lights' })).toBeDisabled();
   });
 
   it('surfaces a failed command and keeps the subscribed truth', async () => {

@@ -1,7 +1,14 @@
 # 03 — Automation: vacancy cutoff with epoch precedence
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 — rules re-publish needed for the toggle)
 Slice: 3 of 7 · Parent: `.scratch/server-workloads/PRD.md`
+
+> Implemented: `runAutomation` (transition-only, toggle-gated, stale-data never advances the
+> state machine, no phantom first-observation transition); cutoff writes lights+exhaustFan
+> only + `automationLog`; owner toggle in the Controls card (usable offline — it's a server
+> setting); rules diff adds owner-writable boolean `settings/automationEnabled` (emulator-
+> validated incl. non-boolean rejection). **Human: re-publish database.rules.json in the
+> console.** Epoch precedence emulator-proven: manual re-on survives the next tick.
 
 ## What to build
 

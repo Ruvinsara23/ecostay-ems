@@ -21,6 +21,8 @@ describe('RoomLiveView — states', () => {
       subscribeServerTimeOffset: () => () => {},
       subscribeDeviceCommands: () => () => {},
       setDeviceCommand: async () => {},
+      subscribeAutomationEnabled: () => () => {},
+      setAutomationEnabled: async () => {},
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();

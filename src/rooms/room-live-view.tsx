@@ -79,13 +79,27 @@ function DeviceControls({
 }) {
   const source = useRoomDataSource();
   const [commands, setCommands] = useState<DeviceCommands | null>(null);
+  const [automationEnabled, setAutomationEnabledState] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return source.subscribeDeviceCommands(propertyId, roomId, setCommands);
   }, [source, propertyId, roomId]);
 
+  useEffect(() => {
+    return source.subscribeAutomationEnabled(propertyId, roomId, setAutomationEnabledState);
+  }, [source, propertyId, roomId]);
+
   const disabled = !online || commands === null;
+
+  async function toggleAutomation() {
+    setError(null);
+    try {
+      await source.setAutomationEnabled(propertyId, roomId, !automationEnabled);
+    } catch {
+      setError('Command failed — the device state was not changed.');
+    }
+  }
 
   async function toggle(key: DeviceCommandKey) {
     setError(null);
@@ -142,6 +156,31 @@ function DeviceControls({
             </button>
           </div>
         ))}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <div className="text-sm text-zinc-800 dark:text-zinc-200">
+          Vacancy cutoff automation
+          <span className="block text-xs text-zinc-500">
+            Turns off lights and fan when the room is confirmed vacant.
+          </span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={automationEnabled === true}
+          aria-label="Vacancy cutoff automation"
+          disabled={automationEnabled === null}
+          onClick={toggleAutomation}
+          className={`relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-40 ${
+            automationEnabled ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-300 dark:bg-zinc-700'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all dark:bg-zinc-900 ${
+              automationEnabled ? 'left-[22px]' : 'left-0.5'
+            }`}
+          />
+        </button>
       </div>
       {error && (
         <p role="alert" className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
