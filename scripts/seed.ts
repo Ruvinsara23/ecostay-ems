@@ -110,6 +110,8 @@ async function main() {
   );
 
   const db = getDatabase(app);
+  // Room registry for the server workloads (ADR-0010) — Admin-only path.
+  await db.ref(`ops/roomIndex/${PROPERTY_ID}/${ROOM_ID}`).set(true);
   // Names are set only when absent so a later Admin-UI rename is never clobbered.
   const propertyNameRef = db.ref(`properties/${PROPERTY_ID}/name`);
   if ((await propertyNameRef.get()).val() === null) {
