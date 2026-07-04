@@ -9,27 +9,43 @@ Mockup: https://claude.ai/code/artifact/e3c44037-5b97-4357-aa80-9d680c28a7be (in
 `.scratch/owner-live-room-view/PRD.md` — extends the walking skeleton with the visual quality
 pass the PRD deliberately deferred.
 
-## Design direction (from the user's reference, 2026-07-04)
+## Design direction (REVISED 2026-07-04 — RentAI branding, light-only)
 
-**Style: "soft smart-home SaaS"** — pastel periwinkle canvas, floating white cards with large
-radii (16–24 px) and soft layered shadows, one indigo accent, icon-rail navigation, an isometric
-glass-walled room as the centerpiece, generous whitespace, pill-shaped controls.
+The first (lavender/indigo) direction was rejected by the user ("need light version…
+color matching not professional"). New authority: the **RentAI dashboard branding**
+(Behance 212040371, boards reviewed 2026-07-04) — follow it exactly.
+
+**Style: monochrome minimalism + one emerald accent.** Neutral warm-grey canvas, white
+floating cards (radius 14–20 px) with hairline-soft shadows, near-black ink, and a single
+brand green used sparingly (primary action, live/active states, data fills). Greyscale
+everything else. Green doubles as the "Eco" in EcoStay. **Light theme only — deliberate
+single-theme commitment; dark mode is out of scope for this pass.**
 
 ### Tokens (mockup-validated; port into Tailwind theme)
 
-| Token | Light | Dark |
+| Token | Value | Use |
 |---|---|---|
-| canvas | #DCDEF2 | #15162A |
-| card / card-2 | #FFFFFF / #F6F7FE | #1E2038 / #24264A |
-| ink / ink-2 / ink-3 | #191A2E / #6E7191 / #9BA0BF | #ECEEFC / #A2A7CD / #6E739C |
-| accent / accent-soft | #4F5BE7 / #EEF0FE | #7C86FF / #272B58 |
-| live (status) | #1F9D66 | #34C98B |
-| warn = Simulated badge | #B45309 | #E8A23D |
-| alarm/offline | #D92D20 | #FF6A5E |
+| canvas | #E7E8E6 | page background |
+| card / card-2 | #FFFFFF / #F1F2F0 | cards / inset wells & tracks |
+| ink / ink-2 / ink-3 | #1B1C1C / #6D716F / #A3A7A4 | text hierarchy |
+| line | #E2E3E1 | hairlines, marker rings |
+| green / green-deep / green-soft | #12A15E / #0E8A4F / #E3F3EA | THE accent: actions, live, active chips, data fills |
+| warn / warn-soft | #B45309 / #F8EFE1 | Simulated badge only |
+| alarm / alarm-soft | #D6453D / #FBEAE8 | gas alarm, offline |
 
-Status colors are reserved for state (live/simulated/alarm) — never decoration. Typography:
-Geist (already shipped), tabular numerals on all readings. Dark theme is a deliberate
-derivation, not an inversion; both themes shipped.
+Status colors (warn/alarm) are reserved for state — never decoration. Typography: Geist
+(already shipped) approximating the reference's geometric sans; **display style mixes
+weights** (light 300 + bold 700 in one heading, e.g. "Room 1 **· EcoStay Property**");
+tabular numerals on all readings.
+
+### RentAI signature elements (adopted)
+
+- **"/Label" slash eyebrows** for section labels (e.g. `/Live view`, `/Activity`).
+- **Dotted progress rows** (10 circles, green-filled) — used for tank level.
+- **Letter-chip device markers** on the room (D/M/T/G/W in white circles), like the
+  reference's L·R·F·B chips.
+- **Segmented pill switcher** (grey track, active = white pill).
+- Rail: white card, active item = near-black filled circle (matches the black logo usage).
 
 ### Layout mapping (reference → EcoStay)
 
@@ -68,15 +84,15 @@ existing tests:
 3. Isometric room SVG component driven by the same `RoomLatest` props (door, presence glow,
    marker states, offline desaturation).
 4. Login page restyled to match.
-5. Responsive: usable at 360 px (rail collapses to a top bar, columns stack); dark mode via
-   the token table.
+5. Responsive: usable at 360 px (rail collapses to a top bar, columns stack). Light-only;
+   remove existing `dark:` variants rather than maintaining a second theme.
 6. shadcn/ui only where it earns its keep (e.g. tooltip, dialog later) — vendored
    one-by-one per ADR-0004; the card system above is bespoke Tailwind.
 
 ## Acceptance criteria
 
 - [ ] All existing unit tests pass without weakening assertions (string/behavior parity).
-- [ ] Both themes match the token table; no unreadable elements in either.
+- [ ] Light theme matches the token table exactly; no stray `dark:` remnants.
 - [ ] Usable at 360 px width; no horizontal body scroll at any width.
 - [ ] Occupancy, gas alarm, offline state, and the Simulated badge are visually prominent
       (state encoded in form + color, never color alone).
@@ -93,3 +109,8 @@ existing tests:
 **2026-07-04 (agent)** — Spec drafted from the user's reference screenshot; interactive mockup
 published (link above) with the real firmware vocabulary and all five preview states. Awaiting
 approval or tweak notes before implementation.
+
+**2026-07-04 (agent) — direction revised.** User rejected the lavender direction and pinned
+the RentAI Behance branding as the authority, light-only. Behance boards downloaded and
+reviewed; tokens/signatures extracted (tables above); mockup rebuilt and republished at the
+same URL. Awaiting approval of the rebranded mockup.
