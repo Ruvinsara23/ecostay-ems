@@ -1,0 +1,139 @@
+import { describe, expect, it } from 'vitest';
+import { colomboDateKey, colomboDayWindow, colomboYesterdayKey } from './colombo-time';
+import type { EnergySample } from './sample-energy';
+import { DailyAggregate, pruneSamples, rollupDaily, RollupDeps } from './rollup';
+
+describe('Colombo time helpers (UTC+5:30, no DST)', () => {
+  it('maps a UTC instant to its Colombo calendar date', () => {
+    // 2026-07-03T19:00Z = 2026-07-04 00:30 in Colombo
+    expect(colomboDateKey(Date.UTC(2026, 6, 3, 19, 0))).toBe('2026-07-04');
+    // 2026-07-03T18:00Z = 2026-07-03 23:30 in Colombo
+    expect(colomboDateKey(Date.UTC(2026, 6, 3, 18, 0))).toBe('2026-07-03');
+  });
+
+  it('produces the [00:00, 24:00) Colombo window for a date key', () => {
+    const { startMs, endMs } = colomboDayWindow('2026-07-04');
+    expect(startMs).toBe(Date.UTC(2026, 6, 3, 18, 30));
+    expect(endMs).toBe(Date.UTC(2026, 6, 4, 18, 30));
+  });
+
+  it('yesterday key at 00:05 Colombo is the just-finished day', () => {
+    const at0005Colombo = Date.UTC(2026, 6, 3, 18, 35); // 2026-07-04 00:05 Colombo
+    expect(colomboYesterdayKey(at0005Colombo)).toBe('2026-07-03');
+  });
+});
+
+function sample(sampledAt: number, energy: number, occupancyState?: string): EnergySample {
+  return {
+    energy,
+    power: 4,
+    sampledAt,
+    ...(occupancyState ? { occupancyState: occupancyState as EnergySample['occupancyState'] } : {}),
+  };
+}
+
+function makeDeps(samplesByRoom: Record<string, EnergySample[]>) {
+  const written: Array<{ key: string; dateKey: string; aggregate: DailyAggregate }> = [];
+  const deleted: Array<{ key: string; sampleKeys: string[] }> = [];
+  const deps: RollupDeps = {
+    async listRooms() {
+      return Object.keys(samplesByRoom).map((key) => {
+        const [propertyId, roomId] = key.split('/');
+        return { propertyId, roomId };
+      });
+    },
+    async readSamplesInWindow(propertyId, roomId, startMs, endMs) {
+      return (samplesByRoom[`${propertyId}/${roomId}`] ?? []).filter(
+        (s) => s.sampledAt >= startMs && s.sampledAt < endMs,
+      );
+    },
+    async writeDailyAggregate(propertyId, roomId, dateKey, aggregate) {
+      written.push({ key: `${propertyId}/${roomId}`, dateKey, aggregate });
+    },
+    async readSampleKeysBefore(propertyId, roomId, cutoffMs) {
+      return (samplesByRoom[`${propertyId}/${roomId}`] ?? [])
+        .filter((s) => s.sampledAt < cutoffMs)
+        .map((s) => `key-${s.sampledAt}`);
+    },
+    async deleteSamples(propertyId, roomId, sampleKeys) {
+      deleted.push({ key: `${propertyId}/${roomId}`, sampleKeys });
+    },
+  };
+  return { deps, written, deleted };
+}
+
+const { startMs } = colomboDayWindow('2026-07-04');
+const T = (minutes: number) => startMs + minutes * 60_000;
+
+describe('rollupDaily', () => {
+  it('sums cumulative deltas and occupied minutes for the day', async () => {
+    const { deps, written } = makeDeps({
+      'property_001/room_001': [
+        sample(T(0), 1.0, 'VACANT'),
+        sample(T(5), 1.004, 'OCCUPIED_ACTIVE'),
+        sample(T(10), 1.01, 'OCCUPIED_IDLE'),
+        sample(T(15), 1.012, 'VACANT_CONFIRMED'),
+      ],
+    });
+
+    await rollupDaily(deps, '2026-07-04');
+
+    expect(written).toEqual([
+      {
+        key: 'property_001/room_001',
+        dateKey: '2026-07-04',
+        aggregate: { kWhUsed: 0.012, costLKR: null, occupiedMinutes: 10 },
+      },
+    ]);
+  });
+
+  it('treats a reboot (negative delta) as consumption restarting from zero', async () => {
+    const { deps, written } = makeDeps({
+      'property_001/room_001': [
+        sample(T(0), 1.0),
+        sample(T(5), 1.004),
+        sample(T(10), 0.002), // reboot: counter reset, then accumulated 0.002
+        sample(T(15), 0.01),
+      ],
+    });
+
+    await rollupDaily(deps, '2026-07-04');
+
+    expect(written[0].aggregate.kWhUsed).toBeCloseTo(0.014, 10); // 0.004 + 0.002 + 0.008
+  });
+
+  it('writes nothing for a day with no samples — a gap, not a zero', async () => {
+    const { deps, written } = makeDeps({ 'property_001/room_001': [] });
+    const report = await rollupDaily(deps, '2026-07-04');
+    expect(written).toEqual([]);
+    expect(report).toEqual({ rooms: 1, aggregatesWritten: 0 });
+  });
+});
+
+describe('pruneSamples', () => {
+  const CUTOFF = T(0);
+
+  it('dry-run reports what it would delete and touches nothing', async () => {
+    const { deps, deleted } = makeDeps({
+      'property_001/room_001': [sample(CUTOFF - 100_000, 1), sample(CUTOFF + 100_000, 2)],
+    });
+
+    const report = await pruneSamples(deps, CUTOFF, { confirm: false });
+
+    expect(report).toEqual({ confirmed: false, samples: 1 });
+    expect(deleted).toEqual([]);
+  });
+
+  it('confirmed run deletes exactly the old samples', async () => {
+    const { deps, deleted } = makeDeps({
+      'property_001/room_001': [sample(CUTOFF - 100_000, 1), sample(CUTOFF + 100_000, 2)],
+    });
+
+    const report = await pruneSamples(deps, CUTOFF, { confirm: true });
+
+    expect(report).toEqual({ confirmed: true, samples: 1 });
+    expect(deleted).toEqual([
+      { key: 'property_001/room_001', sampleKeys: [`key-${CUTOFF - 100_000}`] },
+    ]);
+  });
+});

@@ -2,7 +2,8 @@ import type { Database } from 'firebase-admin/database';
 import type { RoomLatest } from '@/rooms/room-data-source';
 import type { AlertsDeps, AlertType } from './alerts';
 import type { AutomationDeps } from './automation';
-import type { SamplerDeps } from './sample-energy';
+import type { RollupDeps } from './rollup';
+import type { EnergySample, SamplerDeps } from './sample-energy';
 
 /**
  * Rooms come from `ops/roomIndex/{pid}/{rid}: true` — a tiny Admin-only registry
@@ -99,6 +100,44 @@ export function createAutomationDeps(db: Database): AutomationDeps {
 
     async appendAutomationLog(propertyId, entry) {
       await db.ref(`properties/${propertyId}/automationLog`).push(entry);
+    },
+  };
+}
+
+export function createRollupDeps(db: Database): RollupDeps {
+  const historyRef = (propertyId: string, roomId: string) =>
+    db.ref(`properties/${propertyId}/energyHistory/${roomId}`);
+
+  return {
+    listRooms: () => listIndexedRooms(db),
+
+    async readSamplesInWindow(propertyId, roomId, startMs, endMs) {
+      const snapshot = await historyRef(propertyId, roomId)
+        .orderByChild('sampledAt')
+        .startAt(startMs)
+        .endAt(endMs - 1)
+        .get();
+      return Object.values((snapshot.val() ?? {}) as Record<string, EnergySample>);
+    },
+
+    async writeDailyAggregate(propertyId, roomId, dateKey, aggregate) {
+      await db
+        .ref(`properties/${propertyId}/dailyAggregates/${roomId}/${dateKey}`)
+        .set(aggregate);
+    },
+
+    async readSampleKeysBefore(propertyId, roomId, cutoffMs) {
+      const snapshot = await historyRef(propertyId, roomId)
+        .orderByChild('sampledAt')
+        .endAt(cutoffMs - 1)
+        .get();
+      return Object.keys((snapshot.val() ?? {}) as Record<string, unknown>);
+    },
+
+    async deleteSamples(propertyId, roomId, sampleKeys) {
+      const updates: Record<string, null> = {};
+      for (const key of sampleKeys) updates[key] = null;
+      await historyRef(propertyId, roomId).update(updates);
     },
   };
 }

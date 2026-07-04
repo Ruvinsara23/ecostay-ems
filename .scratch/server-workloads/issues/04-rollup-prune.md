@@ -1,7 +1,14 @@
 # 04 — Nightly rollup + 90-day prune (risk gate #4)
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 — prune stays dry-run until human sets PRUNE_ENABLED)
 Slice: 4 of 7 · Parent: `.scratch/server-workloads/PRD.md`
+
+> Implemented: Colombo time helpers (fixed UTC+5:30), `rollupDaily` (reboot-safe kWh deltas,
+> occupied minutes, no-sample days = gaps, idempotent), `pruneSamples` (dry-run default;
+> deletion requires BOTH ?confirmPrune=true and human-set PRUNE_ENABLED=true — risk gate #4),
+> `/api/cron/rollup` route, `.indexOn: sampledAt` added to rules for history queries.
+> Emulator-proven: windowing, prune safety, idempotence. RTDB note: costLKR is absent (not
+> null) until the tariff phase.
 
 ## What to build
 

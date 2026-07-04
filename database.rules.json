@@ -25,6 +25,11 @@
         },
         "history": {
           ".write": "auth != null && auth.provider === 'anonymous'"
+        },
+        "energyHistory": {
+          "$roomId": {
+            ".indexOn": "sampledAt"
+          }
         }
       },
       "$propertyId": {
@@ -40,6 +45,11 @@
                 ".validate": "newData.isBoolean()"
               }
             }
+          }
+        },
+        "energyHistory": {
+          "$roomId": {
+            ".indexOn": "sampledAt"
           }
         }
       }
