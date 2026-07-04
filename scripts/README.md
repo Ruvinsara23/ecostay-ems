@@ -30,3 +30,17 @@ Optional: `--property-name "..."` / `--room-name "..."` (only set when the name
 is absent, so Admin-UI renames are never clobbered).
 
 Runs directly under Node ≥ 23 (native type stripping) — no build step.
+
+## simulate-device.ts — fake firmware writes for UI development
+
+Writes contract-exact `latest` snapshots for `property_001/room_001` every 3 s (sine-wave
+PZEM values, scripted occupancy cycle, server timestamps) so the dashboard shows live,
+moving data without the ESP32. **Dev/rehearsal only — never the demo** (the evaluation runs
+on the real prototype). Stop it with Ctrl+C to exercise the offline behavior.
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
+  node scripts/simulate-device.ts            # runs until Ctrl+C
+# or a bounded run:  node scripts/simulate-device.ts --ticks 20
+```
+
