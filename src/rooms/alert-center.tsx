@@ -73,7 +73,7 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
 
   return (
     <section aria-label="Alerts" className="glass rounded-2xl p-4">
-      <h3 className="mb-2 text-[11.5px] font-semibold tracking-wide text-ink-3">/Alerts</h3>
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">Alerts</h3>
 
       {alerts.length === 0 && (
         <p className="py-3 text-center text-sm text-ink-2">No alerts — all quiet.</p>
@@ -111,8 +111,8 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
 
       {resolved.length > 0 && (
         <>
-          <h4 className="mt-3 mb-1 text-[10.5px] font-semibold tracking-wide text-ink-3">
-            /Resolved
+          <h4 className="mt-3 mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+            Resolved
           </h4>
           <ul aria-label="Resolved alerts" className="grid gap-1">
             {resolved.map((alert) => (

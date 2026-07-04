@@ -40,8 +40,8 @@ function flag(value: boolean | undefined, onLabel: string, offLabel: string): st
 function Group({ title, badge, children }: { title: string; badge?: string; children: ReactNode }) {
   return (
     <section className="glass rounded-2xl p-4">
-      <h3 className="mb-2.5 flex items-center gap-2 text-[11.5px] font-semibold tracking-wide text-ink-3">
-        /{title}
+      <h3 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+        {title}
         {badge && (
           <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
             {badge}
@@ -148,7 +148,9 @@ function DeviceControls({
 
   return (
     <section className="glass rounded-2xl p-4">
-      <h3 className="mb-2.5 text-[11.5px] font-semibold tracking-wide text-ink-3">/Controls</h3>
+      <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+        Controls
+      </h3>
       {!online && (
         <p className="mb-2 text-xs text-ink-2">
           Controls disabled while offline — a queued command would apply unpredictably when
@@ -259,9 +261,9 @@ export function RoomLiveView({
 
   return (
     <section aria-label={`Live view of ${roomName ?? roomId}`} className="flex flex-col gap-3.5">
-      <header className="flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-[22px] font-light tracking-tight text-ink">
+      <header className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-[22px] font-light tracking-tight text-ink">
             <b className="font-bold">{roomName ?? roomId}</b>
           </h2>
           {freshness.online ? (
@@ -278,7 +280,7 @@ export function RoomLiveView({
             </p>
           )}
         </div>
-        <div className="text-right">
+        <div className="flex-none text-right">
           <p
             className={`text-lg font-bold tracking-tight ${
               occupancySummary === 'Occupied' ? 'text-brand-deep' : 'text-ink'

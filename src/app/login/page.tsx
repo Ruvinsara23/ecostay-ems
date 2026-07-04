@@ -61,7 +61,9 @@ function AuthShowcase() {
         <div className="w-full max-w-sm rounded-2xl border border-white/40 bg-white/85 p-4 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold tracking-wide text-ink-3">/Live view</p>
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-ink-3">
+                Live view
+              </p>
               <p className="text-sm font-bold text-ink">Room 1</p>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-deep">

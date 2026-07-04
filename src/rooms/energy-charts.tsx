@@ -203,9 +203,9 @@ export function EnergyHistorySection({
 
   return (
     <section aria-label="Energy history" className="glass rounded-2xl p-4">
-      <h3 className="mb-2 flex items-center gap-2 text-[11.5px] font-semibold tracking-wide text-ink-3">
-        /Energy history
-        <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
+      <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+        Energy history
+        <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-warnbrand">
           Simulated
         </span>
       </h3>

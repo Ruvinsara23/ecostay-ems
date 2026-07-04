@@ -68,9 +68,8 @@ function RoomArea() {
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-ink-3">
-          <span aria-hidden>/</span>
-          <span>{active.propertyName ?? active.propertyId}</span>
+        <p className="text-xs font-medium text-ink-3">
+          {active.propertyName ?? active.propertyId}
         </p>
         {rooms.length > 1 && (
           <button
@@ -114,7 +113,7 @@ function DashboardLanding() {
   const { email, role } = sessionState.session;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full gap-3.5 p-3.5 max-sm:flex-col">
+    <div className="mx-auto flex min-h-screen w-full gap-3.5 overflow-x-clip p-3.5 max-sm:flex-col">
       {/* icon rail */}
       <nav
         aria-label="Navigation"
@@ -147,15 +146,17 @@ function DashboardLanding() {
 
       {/* main column */}
       <main className="flex min-w-0 flex-1 flex-col gap-3.5">
-        <header className="flex flex-wrap items-center gap-3 px-1">
-          <div>
-            <p className="text-[12px] text-ink-3">/Live view</p>
+        <header className="flex items-center gap-3 px-1">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+              Live view
+            </p>
             <h1 className="text-2xl font-light tracking-tight text-ink">
               EcoStay <b className="font-bold">EMS</b>
             </h1>
           </div>
           <div className="ml-auto flex items-center gap-2.5">
-            <p className="text-xs text-ink-2">
+            <p className="hidden text-xs text-ink-2 md:block">
               Signed in as {email} ({role})
             </p>
             <button
@@ -167,7 +168,7 @@ function DashboardLanding() {
             </button>
             <span
               title={`${email} (${role})`}
-              className="glass-lite grid h-9 w-9 place-items-center rounded-full text-sm font-bold text-ink"
+              className="glass-lite grid h-9 w-9 flex-none place-items-center rounded-full text-sm font-bold text-ink"
             >
               {(email ?? '?').charAt(0).toUpperCase()}
             </span>
