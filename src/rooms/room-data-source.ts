@@ -81,4 +81,32 @@ export interface RoomDataSource {
   ): () => void;
 
   setAutomationEnabled(propertyId: string, roomId: string, enabled: boolean): Promise<void>;
+
+  /** 5-min samples recorded by the server sampler (ADR-0010), from sinceMs onward, live. */
+  subscribeEnergyHistory(
+    propertyId: string,
+    roomId: string,
+    sinceMs: number,
+    callback: (samples: EnergyHistorySample[]) => void,
+  ): () => void;
+
+  /** Nightly per-day aggregates for the room, keyed 'yyyy-mm-dd' (Colombo dates), live. */
+  subscribeDailyAggregates(
+    propertyId: string,
+    roomId: string,
+    callback: (byDate: Record<string, DailyAggregateView>) => void,
+  ): () => void;
 }
+
+export type EnergyHistorySample = {
+  energy: number; // cumulative kWh (simulated until real PZEM — ADR-0003 labeling applies)
+  power: number; // W
+  occupancyState?: RoomTelemetry['occupancyState'];
+  sampledAt: number;
+};
+
+export type DailyAggregateView = {
+  kWhUsed: number;
+  occupiedMinutes: number;
+  costLKR?: number; // absent until the tariff engine phase
+};

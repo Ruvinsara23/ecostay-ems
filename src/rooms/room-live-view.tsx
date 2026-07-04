@@ -12,6 +12,7 @@ import {
 } from '@/telemetry/contract';
 import { deviceFreshness } from '@/telemetry/device-freshness';
 import { isOccupied } from '@/telemetry/is-occupied';
+import { EnergyHistorySection } from './energy-charts';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 
@@ -319,6 +320,8 @@ export function RoomLiveView({
           <Value label="Light level">No sensor</Value>
         </Group>
       </div>
+
+      <EnergyHistorySection propertyId={propertyId} roomId={roomId} />
 
       <DeviceControls
         propertyId={propertyId}

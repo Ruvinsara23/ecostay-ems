@@ -1,7 +1,15 @@
 # 05 — Energy history charts on the room view
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04)
 Slice: 5 of 7 · Parent: `.scratch/server-workloads/PRD.md`
+
+> Implemented: port gains `subscribeEnergyHistory` (windowed, live) +
+> `subscribeDailyAggregates`; Energy history section on the room view — 24 h power line
+> (single series, thin marks, area fill, emphasized endpoint, per-point hover titles,
+> Simulated badge) + 7-day kWh bars (missing days render as gaps, max day direct-labeled).
+> Honest empty states before first sample / first rollup. Emulator-proven: owner reads
+> windowed history + aggregates through the rules (client-side .indexOn works).
+> 131 unit + 30 integration tests, all gates green.
 
 ## What to build
 

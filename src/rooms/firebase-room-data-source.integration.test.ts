@@ -328,6 +328,41 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     ); // .validate newData.isBoolean()
   });
 
+  it('owner reads windowed energy history and daily aggregates through the rules', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const historyRef = adminDb.ref('properties/property_001/energyHistory/room_001');
+    await historyRef.push({ energy: 1.0, power: 4.0, sampledAt: 1_000 });
+    await historyRef.push({ energy: 1.1, power: 4.2, sampledAt: 5_000 });
+    await adminDb
+      .ref('properties/property_001/dailyAggregates/room_001/2026-07-03')
+      .set({ kWhUsed: 0.4, occupiedMinutes: 300 });
+
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const historyEmissions: number[][] = [];
+    const unsubHistory = source.subscribeEnergyHistory(
+      'property_001',
+      'room_001',
+      2_000,
+      (samples) => historyEmissions.push(samples.map((s) => s.sampledAt)),
+    );
+    await waitUntil(() => historyEmissions.length >= 1);
+    expect(historyEmissions[0]).toEqual([5_000]); // window + .indexOn work client-side
+    unsubHistory();
+
+    const aggregateEmissions: string[][] = [];
+    const unsubAggregates = source.subscribeDailyAggregates(
+      'property_001',
+      'room_001',
+      (byDate) => aggregateEmissions.push(Object.keys(byDate)),
+    );
+    await waitUntil(() => aggregateEmissions.length >= 1);
+    expect(aggregateEmissions[0]).toEqual(['2026-07-03']);
+    unsubAggregates();
+  });
+
   it('mainRelay never surfaces through the subscription even if present in RTDB', async () => {
     await wipe();
     await seedTwoProperties();

@@ -23,6 +23,8 @@ describe('RoomLiveView — states', () => {
       setDeviceCommand: async () => {},
       subscribeAutomationEnabled: () => () => {},
       setAutomationEnabled: async () => {},
+      subscribeEnergyHistory: () => () => {},
+      subscribeDailyAggregates: () => () => {},
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();

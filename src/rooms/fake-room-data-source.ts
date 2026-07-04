@@ -1,6 +1,12 @@
 import type { Session } from '@/auth/auth-gateway';
 import type { DeviceCommandKey, DeviceCommands } from '@/telemetry/contract';
-import type { RoomDataSource, RoomLatest, RoomRef } from './room-data-source';
+import type {
+  DailyAggregateView,
+  EnergyHistorySample,
+  RoomDataSource,
+  RoomLatest,
+  RoomRef,
+} from './room-data-source';
 
 type Listener = (latest: RoomLatest | null) => void;
 type CommandListener = (commands: DeviceCommands) => void;
@@ -104,6 +110,72 @@ export class FakeRoomDataSource implements RoomDataSource {
     const key = `${propertyId}/${roomId}`;
     this.automationEnabled.set(key, enabled);
     this.automationListeners.get(key)?.forEach((listener) => listener(enabled));
+  }
+
+  private history = new Map<string, EnergyHistorySample[]>();
+  private historyListeners = new Map<
+    string,
+    Set<{ sinceMs: number; callback: (samples: EnergyHistorySample[]) => void }>
+  >();
+  private aggregates = new Map<string, Record<string, DailyAggregateView>>();
+  private aggregateListeners = new Map<
+    string,
+    Set<(byDate: Record<string, DailyAggregateView>) => void>
+  >();
+
+  emitEnergyHistory(propertyId: string, roomId: string, samples: EnergyHistorySample[]): void {
+    const key = `${propertyId}/${roomId}`;
+    this.history.set(key, samples);
+    this.historyListeners
+      .get(key)
+      ?.forEach(({ sinceMs, callback }) =>
+        callback(samples.filter((s) => s.sampledAt >= sinceMs)),
+      );
+  }
+
+  subscribeEnergyHistory(
+    propertyId: string,
+    roomId: string,
+    sinceMs: number,
+    callback: (samples: EnergyHistorySample[]) => void,
+  ): () => void {
+    const key = `${propertyId}/${roomId}`;
+    const entry = { sinceMs, callback };
+    const forKey =
+      this.historyListeners.get(key) ?? new Set<typeof entry>();
+    forKey.add(entry);
+    this.historyListeners.set(key, forKey);
+    callback((this.history.get(key) ?? []).filter((s) => s.sampledAt >= sinceMs));
+    return () => {
+      forKey.delete(entry);
+    };
+  }
+
+  emitDailyAggregates(
+    propertyId: string,
+    roomId: string,
+    byDate: Record<string, DailyAggregateView>,
+  ): void {
+    const key = `${propertyId}/${roomId}`;
+    this.aggregates.set(key, byDate);
+    this.aggregateListeners.get(key)?.forEach((listener) => listener(byDate));
+  }
+
+  subscribeDailyAggregates(
+    propertyId: string,
+    roomId: string,
+    callback: (byDate: Record<string, DailyAggregateView>) => void,
+  ): () => void {
+    const key = `${propertyId}/${roomId}`;
+    const forKey =
+      this.aggregateListeners.get(key) ??
+      new Set<(byDate: Record<string, DailyAggregateView>) => void>();
+    forKey.add(callback);
+    this.aggregateListeners.set(key, forKey);
+    callback(this.aggregates.get(key) ?? {});
+    return () => {
+      forKey.delete(callback);
+    };
   }
 
   async listAccessibleRooms(_session: Session): Promise<RoomRef[]> {

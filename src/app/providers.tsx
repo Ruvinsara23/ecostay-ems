@@ -46,6 +46,12 @@ const prerenderRoomDataSource: RoomDataSource = {
   async setAutomationEnabled() {
     throw new Error('not available during prerender');
   },
+  subscribeEnergyHistory() {
+    return () => {};
+  },
+  subscribeDailyAggregates() {
+    return () => {};
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

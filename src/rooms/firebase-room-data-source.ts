@@ -1,6 +1,21 @@
-import { Database, get, onValue, ref, set } from 'firebase/database';
+import {
+  Database,
+  get,
+  onValue,
+  orderByChild,
+  query,
+  ref,
+  set,
+  startAt,
+} from 'firebase/database';
 import { DEVICE_COMMAND_KEYS, DeviceCommands } from '@/telemetry/contract';
-import type { RoomDataSource, RoomLatest, RoomRef } from './room-data-source';
+import type {
+  DailyAggregateView,
+  EnergyHistorySample,
+  RoomDataSource,
+  RoomLatest,
+  RoomRef,
+} from './room-data-source';
 
 type PropertyNode = {
   name?: string;
@@ -91,6 +106,29 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       await set(
         ref(db, `properties/${propertyId}/rooms/${roomId}/settings/automationEnabled`),
         enabled,
+      );
+    },
+
+    subscribeEnergyHistory(propertyId, roomId, sinceMs, callback) {
+      const windowed = query(
+        ref(db, `properties/${propertyId}/energyHistory/${roomId}`),
+        orderByChild('sampledAt'),
+        startAt(sinceMs),
+      );
+      return onValue(windowed, (snapshot) => {
+        const samples = Object.values(
+          (snapshot.val() ?? {}) as Record<string, EnergyHistorySample>,
+        ).sort((a, b) => a.sampledAt - b.sampledAt);
+        callback(samples);
+      });
+    },
+
+    subscribeDailyAggregates(propertyId, roomId, callback) {
+      return onValue(
+        ref(db, `properties/${propertyId}/dailyAggregates/${roomId}`),
+        (snapshot) => {
+          callback((snapshot.val() ?? {}) as Record<string, DailyAggregateView>);
+        },
       );
     },
   };

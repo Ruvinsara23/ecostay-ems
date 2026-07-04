@@ -116,6 +116,38 @@ describe('FakeRoomDataSource', () => {
     expect(emissions[1]).toEqual({ lights: true, exhaustFan: true });
   });
 
+  it('serves energy history filtered to the requested window, live', () => {
+    const source = new FakeRoomDataSource();
+    source.emitEnergyHistory('property_001', 'room_001', [
+      { energy: 1.0, power: 4.0, sampledAt: 1_000 },
+      { energy: 1.1, power: 4.2, sampledAt: 5_000 },
+    ]);
+    const emissions: number[][] = [];
+    source.subscribeEnergyHistory('property_001', 'room_001', 2_000, (samples) =>
+      emissions.push(samples.map((s) => s.sampledAt)),
+    );
+    expect(emissions).toEqual([[5_000]]); // sample before the window excluded
+
+    source.emitEnergyHistory('property_001', 'room_001', [
+      { energy: 1.0, power: 4.0, sampledAt: 1_000 },
+      { energy: 1.1, power: 4.2, sampledAt: 5_000 },
+      { energy: 1.2, power: 4.4, sampledAt: 9_000 },
+    ]);
+    expect(emissions[1]).toEqual([5_000, 9_000]);
+  });
+
+  it('serves daily aggregates keyed by date, live', () => {
+    const source = new FakeRoomDataSource();
+    source.emitDailyAggregates('property_001', 'room_001', {
+      '2026-07-03': { kWhUsed: 0.4, occupiedMinutes: 300 },
+    });
+    const emissions: string[][] = [];
+    source.subscribeDailyAggregates('property_001', 'room_001', (byDate) =>
+      emissions.push(Object.keys(byDate)),
+    );
+    expect(emissions).toEqual([['2026-07-03']]);
+  });
+
   it('reports automation-enabled (default false) and echoes changes', async () => {
     const source = new FakeRoomDataSource();
     const emissions: boolean[] = [];
