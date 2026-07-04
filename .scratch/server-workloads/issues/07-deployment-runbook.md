@@ -1,7 +1,12 @@
 # 07 — Deployment runbook + live cron verification
 
-Status: ready-for-agent
+Status: ready-for-human (runbook written 2026-07-04 — the deployment itself is yours)
 Slice: 7 of 7 · Parent: `.scratch/server-workloads/PRD.md`
+
+> `docs/runbook-free-runtime.md` written: rules publish, secret generation, Vercel setup
+> (CLI or GitHub path, env table), the three cron-job.org jobs with bearer header, a
+> verification checklist, and the two-key prune enablement. Live verification checkboxes
+> stay open until you run it.
 
 ## What to build
 

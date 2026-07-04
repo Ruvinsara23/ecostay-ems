@@ -36,10 +36,12 @@ Issue 05 (UI design pass): direction approved-in-principle (RentAI branding + gl
 room, spec + mockup in the issue) — ON HOLD by user decision; resume after device control.
 PRD 2 (device control) implemented 2026-07-04 — risk gate #3 approved; 87 unit + 20
 emulator-integration tests green; live relay click-test pending next bench session.
-Phase 5 (free server runtime, ADR-0010): slices 01–04 implemented 2026-07-04 — sampler,
-tick (alert lifecycle + vacancy-cutoff automation + owner toggle), rollup + dry-run-gated
-prune. 125 unit + 29 emulator-integration tests green; cron routes /api/cron/{sample,tick,rollup}.
-**Pending human console step: re-publish database.rules.json** (automationEnabled + .indexOn).
-Next: slices 05 (charts UI), 06 (alert center), 07 (deployment runbook: Vercel + cron-job.org).
-Issue 05 (UI pass) still on hold. Issue tracker = local markdown under `.scratch/`.
+Phase 5 (free server runtime, ADR-0010) agent-side COMPLETE 2026-07-04: sampler, tick
+(alerts + vacancy-cutoff automation + owner toggle), rollup + dry-run-gated prune, energy
+charts, alert center, deployment runbook (docs/runbook-free-runtime.md). 137 unit + 31
+emulator-integration tests green.
+**Pending human steps**: publish database.rules.json (toggle + .indexOn + alert-ack), then
+run the runbook (Vercel + cron-job.org) for live verification.
+Next after that: tariff engine (ADR-0008) wiring costLKR → savings (OBJ-07), or resume
+issue 05 (UI pass). Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.
