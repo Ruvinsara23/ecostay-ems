@@ -1,6 +1,6 @@
 # 05 — UI design pass (dashboard visual quality)
 
-Status: ready-for-agent — ON HOLD (user 2026-07-04: direction "just fine", implementation deferred until after the next phase; resume from the spec + mockup below)
+Status: ready-for-human (IMPLEMENTED 2026-07-04 — resumed on user request after the server-workloads phase)
 Slice: follow-up to the walking skeleton
 Mockup: https://claude.ai/code/artifact/e3c44037-5b97-4357-aa80-9d680c28a7be (interactive — preview Occupied / Sleeping / Vacant / Gas alarm / Offline)
 
@@ -129,3 +129,22 @@ approval or tweak notes before implementation.
 the RentAI Behance branding as the authority, light-only. Behance boards downloaded and
 reviewed; tokens/signatures extracted (tables above); mockup rebuilt and republished at the
 same URL. Awaiting approval of the rebranded mockup.
+
+**2026-07-04 (agent) — IMPLEMENTED in the app.**
+
+- Tokens + gradient-glass system + ambient canvas fields in `globals.css` (@theme brand
+  colors; `.glass`/`.glass-strong`/`.glass-lite` — lite variant for tiny elements per the
+  GPU-budget note). Light-only: `color-scheme: light`, all `dark:` variants stripped, the
+  unused scaffold shadcn button deleted (repo now has zero `dark:` in src/).
+- **RoomScene** (`src/rooms/room-scene.tsx`, 6 new tests): the 2.5D isometric room —
+  greyscale geometry, brand-green presence glow, swinging door, letter-chip markers
+  (D/M/T/G/W) with keyboard-accessible live-reading tooltips, gas-alarm ring, pointer-tilt
+  parallax (reduced-motion aware), offline desaturation.
+- App shell: glass icon rail (Live active, Rooms/Alerts honest disabled stubs), /Live view
+  eyebrow, mixed-weight brand heading, sign-out pill + avatar; 14 px gutters, full-width;
+  rail collapses to a top bar under 640 px.
+- Restyled with zero string/semantics changes (all 137 prior tests untouched): live view
+  (freshness pill, occupancy hero, slash-eyebrow glass groups, brand-green switches),
+  login, energy charts (green gradient fills), alert center.
+- Verification: **143 unit tests** + typecheck + lint + build green. All acceptance
+  criteria met. Remaining for the human: eyeball at 360 px + in the browser, review, merge.

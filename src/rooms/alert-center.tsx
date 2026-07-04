@@ -32,11 +32,11 @@ function timeLabel(ms: number): string {
 
 function SeverityChip({ severity }: { severity: AlertView['severity'] }) {
   return severity === 'critical' ? (
-    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:bg-red-950 dark:text-red-300">
+    <span className="rounded-md bg-alarm-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-alarm">
       Critical
     </span>
   ) : (
-    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+    <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
       Warning
     </span>
   );
@@ -72,14 +72,11 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <section
-      aria-label="Alerts"
-      className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
-    >
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Alerts</h3>
+    <section aria-label="Alerts" className="glass rounded-2xl p-4">
+      <h3 className="mb-2 text-[11.5px] font-semibold tracking-wide text-ink-3">/Alerts</h3>
 
       {alerts.length === 0 && (
-        <p className="py-3 text-center text-sm text-zinc-500">No alerts — all quiet.</p>
+        <p className="py-3 text-center text-sm text-ink-2">No alerts — all quiet.</p>
       )}
 
       {open.length > 0 && (
@@ -87,24 +84,22 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
           {open.map((alert) => (
             <li
               key={alert.id}
-              className="flex items-center justify-between gap-3 rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900"
+              className="glass-lite flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5"
             >
               <div className="text-sm">
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                  {TYPE_LABELS[alert.type]}
-                </span>{' '}
+                <span className="font-semibold text-ink">{TYPE_LABELS[alert.type]}</span>{' '}
                 <SeverityChip severity={alert.severity} />
-                <span className="block text-xs text-zinc-500">
+                <span className="block text-xs text-ink-2 [font-variant-numeric:tabular-nums]">
                   {valueLabel(alert)} · {alert.roomId} · started {timeLabel(alert.startedAt)}
                 </span>
               </div>
               {alert.acknowledgedBy ? (
-                <span className="text-xs font-medium text-zinc-500">Acknowledged</span>
+                <span className="text-xs font-semibold text-ink-3">Acknowledged</span>
               ) : (
                 <button
                   type="button"
                   onClick={() => acknowledge(alert.id)}
-                  className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  className="rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-white hover:bg-ink/80"
                 >
                   Acknowledge
                 </button>
@@ -116,16 +111,17 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
 
       {resolved.length > 0 && (
         <>
-          <h4 className="mt-3 mb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-            Resolved
+          <h4 className="mt-3 mb-1 text-[10.5px] font-semibold tracking-wide text-ink-3">
+            /Resolved
           </h4>
           <ul aria-label="Resolved alerts" className="grid gap-1">
             {resolved.map((alert) => (
-              <li key={alert.id} className="text-xs text-zinc-500">
-                <span className="font-medium text-zinc-600 dark:text-zinc-400">
-                  {TYPE_LABELS[alert.type]}
-                </span>{' '}
-                · {valueLabel(alert)} · {alert.roomId} · {timeLabel(alert.startedAt)}–
+              <li
+                key={alert.id}
+                className="text-xs text-ink-3 [font-variant-numeric:tabular-nums]"
+              >
+                <span className="font-semibold text-ink-2">{TYPE_LABELS[alert.type]}</span> ·{' '}
+                {valueLabel(alert)} · {alert.roomId} · {timeLabel(alert.startedAt)}–
                 {timeLabel(alert.resolvedAt ?? alert.startedAt)}
               </li>
             ))}
@@ -134,7 +130,7 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
       )}
 
       {error && (
-        <p role="alert" className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+        <p role="alert" className="mt-2 text-xs font-semibold text-alarm">
           {error}
         </p>
       )}

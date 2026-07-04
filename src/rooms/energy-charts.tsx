@@ -12,6 +12,9 @@ const W = 560;
 const H = 130;
 const PLOT = { left: 34, right: 552, top: 12, bottom: 104 };
 
+const BRAND = '#12a15e';
+const BRAND_DEEP = '#0e8a4f';
+
 function timeLabel(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -21,7 +24,7 @@ function timeLabel(ms: number): string {
 function PowerLine({ samples, sinceMs }: { samples: EnergyHistorySample[]; sinceMs: number }) {
   if (samples.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-zinc-500">
+      <p className="py-6 text-center text-sm text-ink-2">
         No history yet — the sampler records every 5 minutes.
       </p>
     );
@@ -44,6 +47,12 @@ function PowerLine({ samples, sinceMs }: { samples: EnergyHistorySample[]; since
       aria-label="Power over the last 24 hours"
       className="w-full"
     >
+      <defs>
+        <linearGradient id="ecostayArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={BRAND} stopOpacity="0.22" />
+          <stop offset="1" stopColor={BRAND} stopOpacity="0.04" />
+        </linearGradient>
+      </defs>
       {[0, 0.5, 1].map((f) => (
         <line
           key={f}
@@ -51,42 +60,35 @@ function PowerLine({ samples, sinceMs }: { samples: EnergyHistorySample[]; since
           x2={PLOT.right}
           y1={PLOT.bottom - f * (PLOT.bottom - PLOT.top)}
           y2={PLOT.bottom - f * (PLOT.bottom - PLOT.top)}
-          stroke="currentColor"
-          className="text-zinc-200 dark:text-zinc-800"
+          stroke="rgba(27,28,28,0.08)"
           strokeWidth="1"
         />
       ))}
-      <text x="2" y={PLOT.top + 4} fontSize="9" className="fill-zinc-400">
+      <text x="2" y={PLOT.top + 4} fontSize="9" className="fill-ink-3">
         {yMax.toFixed(1)} W
       </text>
-      <text x="2" y={PLOT.bottom + 2} fontSize="9" className="fill-zinc-400">
+      <text x="2" y={PLOT.bottom + 2} fontSize="9" className="fill-ink-3">
         0
       </text>
-      <polygon points={area} className="fill-zinc-900/10 dark:fill-zinc-100/10" />
+      <polygon points={area} fill="url(#ecostayArea)" />
       <polyline
         points={points.join(' ')}
         fill="none"
-        stroke="currentColor"
+        stroke={BRAND}
         strokeWidth="2"
         strokeLinejoin="round"
         strokeLinecap="round"
-        className="text-zinc-900 dark:text-zinc-100"
       />
-      <circle
-        cx={x(last.sampledAt)}
-        cy={y(last.power)}
-        r="3.5"
-        className="fill-zinc-900 dark:fill-zinc-100"
-      />
+      <circle cx={x(last.sampledAt)} cy={y(last.power)} r="3.5" fill={BRAND_DEEP} />
       {samples.map((s) => (
         <circle key={s.sampledAt} cx={x(s.sampledAt)} cy={y(s.power)} r="7" fill="transparent">
           <title>{`${s.power} W · ${timeLabel(s.sampledAt)}`}</title>
         </circle>
       ))}
-      <text x={PLOT.left} y={H - 6} fontSize="9" className="fill-zinc-400">
+      <text x={PLOT.left} y={H - 6} fontSize="9" className="fill-ink-3">
         {timeLabel(sinceMs)}
       </text>
-      <text x={PLOT.right} y={H - 6} fontSize="9" textAnchor="end" className="fill-zinc-400">
+      <text x={PLOT.right} y={H - 6} fontSize="9" textAnchor="end" className="fill-ink-3">
         now
       </text>
     </svg>
@@ -110,7 +112,7 @@ function DailyBars({
 
   if (days.every((d) => d.aggregate === undefined)) {
     return (
-      <p className="py-4 text-center text-sm text-zinc-500">
+      <p className="py-4 text-center text-sm text-ink-2">
         No daily totals yet — the first rollup runs tonight.
       </p>
     );
@@ -121,6 +123,12 @@ function DailyBars({
 
   return (
     <svg viewBox={`0 0 ${W} 96`} role="img" aria-label="Daily energy, last 7 days" className="w-full">
+      <defs>
+        <linearGradient id="ecostayBar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={BRAND} />
+          <stop offset="1" stopColor={BRAND} stopOpacity="0.75" />
+        </linearGradient>
+      </defs>
       {days.map(({ dateKey, aggregate }, i) => {
         const cx = i * BW + BW / 2;
         const weekday = 'SMTWTFS'[new Date(dateKey).getUTCDay()];
@@ -133,11 +141,10 @@ function DailyBars({
                 x2={cx + 10}
                 y1={72}
                 y2={72}
-                stroke="currentColor"
+                stroke="rgba(27,28,28,0.10)"
                 strokeWidth="2"
-                className="text-zinc-200 dark:text-zinc-800"
               />
-              <text x={cx} y={88} fontSize="9" textAnchor="middle" className="fill-zinc-400">
+              <text x={cx} y={88} fontSize="9" textAnchor="middle" className="fill-ink-3">
                 {weekday}
               </text>
             </g>
@@ -148,7 +155,7 @@ function DailyBars({
         return (
           <g key={dateKey}>
             {isMax && (
-              <text x={cx} y={72 - height - 4} fontSize="9" textAnchor="middle" className="fill-zinc-500">
+              <text x={cx} y={72 - height - 4} fontSize="9" textAnchor="middle" className="fill-ink-2">
                 {aggregate.kWhUsed.toFixed(2)}
               </text>
             )}
@@ -159,11 +166,11 @@ function DailyBars({
               width="24"
               height={height}
               rx="4"
-              className="fill-zinc-900 dark:fill-zinc-100"
+              fill="url(#ecostayBar)"
             >
               <title>{`${dateKey}: ${aggregate.kWhUsed.toFixed(3)} kWh, occupied ${aggregate.occupiedMinutes} min`}</title>
             </rect>
-            <text x={cx} y={88} fontSize="9" textAnchor="middle" className="fill-zinc-400">
+            <text x={cx} y={88} fontSize="9" textAnchor="middle" className="fill-ink-3">
               {weekday}
             </text>
           </g>
@@ -195,18 +202,15 @@ export function EnergyHistorySection({
   }, [source, propertyId, roomId]);
 
   return (
-    <section
-      aria-label="Energy history"
-      className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
-    >
-      <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Energy history
-        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold normal-case text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+    <section aria-label="Energy history" className="glass rounded-2xl p-4">
+      <h3 className="mb-2 flex items-center gap-2 text-[11.5px] font-semibold tracking-wide text-ink-3">
+        /Energy history
+        <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
           Simulated
         </span>
       </h3>
       <PowerLine samples={samples} sinceMs={sinceMs} />
-      <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-900">
+      <div className="mt-2 border-t border-hairline pt-2">
         <DailyBars byDate={byDate} nowMs={nowMs} />
       </div>
     </section>

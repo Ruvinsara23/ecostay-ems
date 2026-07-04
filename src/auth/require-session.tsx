@@ -27,7 +27,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (sessionState.status === 'loading') {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className="text-sm text-ink-2">Loading…</p>
       </main>
     );
   }

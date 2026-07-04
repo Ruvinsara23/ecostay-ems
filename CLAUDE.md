@@ -42,6 +42,8 @@ charts, alert center, deployment runbook (docs/runbook-free-runtime.md). 137 uni
 emulator-integration tests green.
 **Pending human steps**: publish database.rules.json (toggle + .indexOn + alert-ack), then
 run the runbook (Vercel + cron-job.org) for live verification.
-Next after that: tariff engine (ADR-0008) wiring costLKR → savings (OBJ-07), or resume
-issue 05 (UI pass). Issue tracker = local markdown under `.scratch/`.
+Issue 05 (UI pass) IMPLEMENTED 2026-07-04: RentAI branding, gradient glass, interactive
+isometric RoomScene, light-only — 143 unit tests green, strings/semantics unchanged.
+Next: tariff engine (ADR-0008) wiring costLKR → savings (OBJ-07).
+Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.
