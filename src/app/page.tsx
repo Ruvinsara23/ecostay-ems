@@ -2,6 +2,12 @@
 
 import { useAuth } from '@/auth/auth-context';
 import { RequireSession } from '@/auth/require-session';
+import { RoomLiveView } from '@/rooms/room-live-view';
+
+// Slice 02 shows the one seeded room (firmware-hardcoded IDs); slice 03 replaces
+// these constants with the tenancy-driven room list.
+const SEEDED_PROPERTY_ID = 'property_001';
+const SEEDED_ROOM_ID = 'room_001';
 
 function DashboardLanding() {
   const { gateway, sessionState } = useAuth();
@@ -27,9 +33,7 @@ function DashboardLanding() {
           Sign out
         </button>
       </header>
-      <section className="rounded-lg border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-        Live room telemetry arrives in the next slice (issue 02).
-      </section>
+      <RoomLiveView propertyId={SEEDED_PROPERTY_ID} roomId={SEEDED_ROOM_ID} />
     </main>
   );
 }

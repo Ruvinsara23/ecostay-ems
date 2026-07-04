@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/auth/auth-context';
 import { FakeAuthGateway } from '@/auth/fake-auth-gateway';
+import { FakeRoomDataSource } from '@/rooms/fake-room-data-source';
+import { RoomDataSourceProvider } from '@/rooms/room-data-source-context';
 import Page from '@/app/page';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
@@ -12,10 +14,15 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
-function renderPage(gateway: FakeAuthGateway) {
+function renderPage(
+  gateway: FakeAuthGateway,
+  source: FakeRoomDataSource = new FakeRoomDataSource(),
+) {
   return render(
     <AuthProvider gateway={gateway}>
-      <Page />
+      <RoomDataSourceProvider source={source}>
+        <Page />
+      </RoomDataSourceProvider>
     </AuthProvider>,
   );
 }
@@ -64,5 +71,30 @@ describe('dashboard landing', () => {
     renderPage(new FakeAuthGateway());
     await waitFor(() => expect(routerMock.replace).toHaveBeenCalled());
     expect(screen.queryByText(/signed in as/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the seeded room's live telemetry instead of a placeholder", () => {
+    const source = new FakeRoomDataSource();
+    source.emitLatest('property_001', 'room_001', {
+      occupancyState: 'OCCUPIED_ACTIVE',
+      temperature: 27.5,
+      humidity: 62,
+      updatedAt: 1_751_600_000_000,
+    });
+    renderPage(
+      new FakeAuthGateway({
+        initialSession: {
+          uid: 'fake-uid-owner@ecostay.test',
+          email: 'owner@ecostay.test',
+          role: 'owner',
+        },
+      }),
+      source,
+    );
+
+    expect(screen.getByText('room_001')).toBeInTheDocument();
+    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+    expect(screen.getByText('Occupied')).toBeInTheDocument();
+    expect(screen.queryByText(/next slice/i)).not.toBeInTheDocument();
   });
 });

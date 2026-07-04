@@ -26,8 +26,9 @@ are complete as of 2026-07-04.
 Phase 3 in progress: PRD `.scratch/owner-live-room-view/PRD.md` (owner login + live room view,
 walking skeleton) is broken into 4 ready-for-agent vertical slices under
 `.scratch/owner-live-room-view/issues/` (01 auth+bootstrap → 02 live telemetry → {03 tenancy,
-04 offline}). Slice 01 implemented (TDD, all gates green) — awaiting human review/commit.
-ADR-0009: migrating to the fresh `ecostay-ems` Firebase project (contract unchanged; ESP32
-reflash pending — live telemetry blocked on it). Next: finish migration → slice 02.
+04 offline}). Slices 01+02 implemented (TDD, all gates green) — committed locally, human review
+owns the merge. ADR-0009 migration to `ecostay-ems` done data-side; ESP32 reflash pending
+(firmware constants already edited) — live-device verify blocked on it.
+Next: reflash + verify → slices 03 (tenancy) / 04 (offline honesty).
 Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.

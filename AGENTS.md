@@ -75,3 +75,6 @@ npx shadcn@latest add <component>   # vendor a ui component into src/components/
 - Dev server port 3000; kill strays with `netstat -ano | grep :3000` → `taskkill //F //PID <pid>`.
 - `.env.local` carries the Firebase web config (values match the firmware's project). `.env.example` is the committed template.
 - npm on this network occasionally drops (`ECONNRESET`) — retry with `--fetch-retries=5`.
+- `npm run test:integration` (Firebase emulators) needs **Java 21+**. System Java is 17; a portable
+  Temurin 21 JRE lives at `C:\Users\pansi\.jdks\jdk-21.0.11+10-jre` — prefix its `bin` onto PATH
+  for the run: `$env:PATH = "C:\Users\pansi\.jdks\jdk-21.0.11+10-jre\bin;$env:PATH"`.

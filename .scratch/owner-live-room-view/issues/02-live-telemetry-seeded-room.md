@@ -1,6 +1,6 @@
 # 02 — Live telemetry for the seeded Room
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 — awaiting human review; live-device verify blocked on ESP32 reflash)
 Slice: 2 of 4
 Covers user stories: 10, 15–26, 32–34
 
@@ -61,3 +61,24 @@ New machinery introduced here:
 ## Blocked by
 
 - `.scratch/owner-live-room-view/issues/01-owner-authentication-bootstrap.md`
+
+## Comments
+
+**2026-07-04 (agent) — implemented via TDD, all acceptance criteria testable-green.**
+
+- 8 red→green cycles. Verification: **56 unit tests** (fake-backed) + **13 emulator integration
+  tests** (Auth + RTDB) + typecheck, lint, `next build` all green.
+- Firmware-contract types (`src/telemetry/contract.ts`) mirror `latest` verbatim; `isOccupied`
+  matches the firmware predicate for all seven states; unknown states render '—', never a guess.
+- `RoomDataSource` port emits `Partial<RoomTelemetry> | null` — the type itself forces per-field
+  resilience in the view. Fake + real `firebase/database` adapter; UI imports the port only.
+- The RTDB integration tests run **through the transitional ruleset** (`database.rules.json`):
+  they prove a membership-holding owner can read `latest` and that firmware-shaped writes surface
+  typed through `subscribeLatest`. Emulators need Java 21 — portable Temurin JRE documented in
+  AGENTS.md environment notes.
+- View renders all contract groups with units, "Simulated" badge on the PZEM group (ADR-0003),
+  gas alarm banner above 300, light level honestly "No sensor", distinct loading /
+  never-reported states.
+- **Remaining for the human**: reflash the ESP32 (new API_KEY/DATABASE_URL already edited into
+  firmware/complete.ino) — then verify live: dashboard shows real telemetry updating every ~3 s
+  in the `ecostay-ems` project. Freshness/offline honesty is slice 04.

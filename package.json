@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "firebase emulators:exec --only auth --project demo-ecostay \"vitest run --config vitest.integration.config.ts\"",
+    "test:integration": "firebase emulators:exec --only auth,database --project demo-ecostay \"vitest run --config vitest.integration.config.ts\"",
     "seed": "node scripts/seed.ts",
     "typecheck": "tsc --noEmit"
   },
