@@ -32,6 +32,11 @@ reflashed ESP32 → anonymous auth → rules → live dashboard). Device simulat
 (scripts/simulate-device.ts) covers dev work; sensor bring-up waits for the PCB.
 Slice 04 (offline honesty) implemented 2026-07-04 — **the walking skeleton (01–04) is complete**:
 78 unit + 17 emulator-integration tests, all gates green, committed locally.
-Next: issue 05 (UI design pass — specify then implement) → then next PRD (device control).
+Issue 05 (UI design pass): direction approved-in-principle (RentAI branding + glass + interactive
+room, spec + mockup in the issue) — ON HOLD by user decision; resume after device control.
+PRD 2 (device control) implemented 2026-07-04 — risk gate #3 approved; 87 unit + 20
+emulator-integration tests green; live relay click-test pending next bench session.
+Next: Cloud Functions phase (ADR-0006: Blaze upgrade [billing gate], energy sampler →
+charts, offline alerts, automation) OR resume issue 05 (UI pass) — user's pick.
 Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.

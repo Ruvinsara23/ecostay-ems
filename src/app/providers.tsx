@@ -34,6 +34,12 @@ const prerenderRoomDataSource: RoomDataSource = {
   subscribeServerTimeOffset() {
     return () => {};
   },
+  subscribeDeviceCommands() {
+    return () => {};
+  },
+  async setDeviceCommand() {
+    throw new Error('not available during prerender');
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

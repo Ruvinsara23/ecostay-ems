@@ -1,6 +1,6 @@
 # 05 — UI design pass (dashboard visual quality)
 
-Status: needs-triage (spec drafted 2026-07-04; awaiting human approval of the mockup direction)
+Status: ready-for-agent — ON HOLD (user 2026-07-04: direction "just fine", implementation deferred until after the next phase; resume from the spec + mockup below)
 Slice: follow-up to the walking skeleton
 Mockup: https://claude.ai/code/artifact/e3c44037-5b97-4357-aa80-9d680c28a7be (interactive — preview Occupied / Sleeping / Vacant / Gas alarm / Offline)
 

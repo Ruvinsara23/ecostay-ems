@@ -39,3 +39,28 @@ export type RoomTelemetry = {
 
 /** Firmware sounds the gas alarm above this value (docs/firmware-contract.md). */
 export const GAS_ALARM_THRESHOLD = 300;
+
+/**
+ * Command booleans the firmware polls every 500 ms under `{base}/devices/*`.
+ * `mainRelay` is deliberately NOT here: the firmware reads it but never uses it
+ * (ADR-0003) — excluding it at the type level makes it impossible to target.
+ */
+export const DEVICE_COMMAND_KEYS = [
+  'lights',
+  'exhaustFan',
+  'waterPump',
+  'motionDetection',
+] as const;
+
+export type DeviceCommandKey = (typeof DEVICE_COMMAND_KEYS)[number];
+
+/** Commanded state as stored in RTDB — leaves may be absent until first written. */
+export type DeviceCommands = Partial<Record<DeviceCommandKey, boolean>>;
+
+/** UI labels; motionDetection drives the presence relay directly (firmware contract). */
+export const DEVICE_COMMAND_LABELS: Record<DeviceCommandKey, string> = {
+  lights: 'Lights',
+  exhaustFan: 'Exhaust fan',
+  waterPump: 'Water pump',
+  motionDetection: 'Presence relay',
+};

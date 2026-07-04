@@ -19,6 +19,8 @@ describe('RoomLiveView — states', () => {
       listAccessibleRooms: async () => [],
       subscribeLatest: () => () => {},
       subscribeServerTimeOffset: () => () => {},
+      subscribeDeviceCommands: () => () => {},
+      setDeviceCommand: async () => {},
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();
@@ -211,8 +213,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
     act(() => {
       vi.advanceTimersByTime(16_000);
     });
-    expect(screen.getByText(/offline/i)).toBeInTheDocument();
-    expect(screen.getByText(/last seen 16s ago/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/offline — last seen 16s ago/i);
     expect(document.querySelector('[data-stale="true"]')).not.toBeNull();
     // readings remain visible (greyed, not blanked)
     expect(screen.getByText('27.5 °C')).toBeInTheDocument();
@@ -223,7 +224,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
     act(() => {
       vi.advanceTimersByTime(26_000);
     });
-    expect(screen.getByText(/last seen 26s ago/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/last seen 26s ago/i);
   });
 
   it('formats minute-scale silences', () => {
@@ -231,7 +232,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
     act(() => {
       vi.advanceTimersByTime(190_000);
     });
-    expect(screen.getByText(/last seen 3m ago/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/last seen 3m ago/i);
   });
 
   it('recovers to Live automatically when writes resume', () => {
@@ -239,7 +240,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
     act(() => {
       vi.advanceTimersByTime(20_000);
     });
-    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
 
     act(() => {
       source.emitLatest('property_001', 'room_001', {
@@ -248,7 +249,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
       });
     });
 
-    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(document.querySelector('[data-stale="true"]')).toBeNull();
   });
 
@@ -260,13 +261,13 @@ describe('RoomLiveView — freshness & offline honesty', () => {
       offsetMs: 1_528_000,
       updatedAt: T0 + 1_528_000 - 128_000,
     });
-    expect(screen.getByText(/offline/i)).toBeInTheDocument();
-    expect(screen.getByText(/last seen 2m ago/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/last seen 2m ago/i);
   });
 
   it('treats a snapshot without updatedAt as offline with unknown last-seen', () => {
     renderFreshness({ updatedAt: null });
-    expect(screen.getByText(/offline/i)).toBeInTheDocument();
-    expect(screen.getByText(/last seen unknown/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/last seen unknown/i);
   });
 });

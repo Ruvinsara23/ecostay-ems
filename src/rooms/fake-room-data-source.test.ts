@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { DeviceCommands } from '@/telemetry/contract';
 import type { RoomLatest } from './room-data-source';
 import { FakeRoomDataSource } from './fake-room-data-source';
 
@@ -99,5 +100,35 @@ describe('FakeRoomDataSource', () => {
       role: 'owner',
     });
     expect(rooms).toEqual([]);
+  });
+
+  it('reports device commands immediately and echoes writes to subscribers', async () => {
+    const source = new FakeRoomDataSource();
+    source.emitDeviceCommands('property_001', 'room_001', { lights: true });
+    const emissions: DeviceCommands[] = [];
+    source.subscribeDeviceCommands('property_001', 'room_001', (commands) =>
+      emissions.push(commands),
+    );
+    expect(emissions).toEqual([{ lights: true }]);
+
+    await source.setDeviceCommand('property_001', 'room_001', 'exhaustFan', true);
+
+    expect(emissions[1]).toEqual({ lights: true, exhaustFan: true });
+  });
+
+  it('rejects a command when told to fail, without changing state', async () => {
+    const source = new FakeRoomDataSource();
+    source.emitDeviceCommands('property_001', 'room_001', { lights: false });
+    const emissions: DeviceCommands[] = [];
+    source.subscribeDeviceCommands('property_001', 'room_001', (commands) =>
+      emissions.push(commands),
+    );
+    source.failNextCommand();
+
+    await expect(
+      source.setDeviceCommand('property_001', 'room_001', 'lights', true),
+    ).rejects.toThrow();
+
+    expect(emissions).toEqual([{ lights: false }]); // no echo, no state change
   });
 });

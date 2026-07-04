@@ -8,8 +8,17 @@ import { getApps as getAdminApps, initializeApp as initializeAdminApp } from 'fi
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { getDatabase as getAdminDatabase } from 'firebase-admin/database';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { DeviceCommands } from '@/telemetry/contract';
 import type { RoomLatest } from './room-data-source';
 import { createFirebaseRoomDataSource } from './firebase-room-data-source';
+
+async function waitUntil(predicate: () => boolean, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error('waitUntil timed out');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
 
 const PROJECT_ID = 'demo-ecostay';
 const NAMESPACE = `${PROJECT_ID}-default-rtdb`;
@@ -249,5 +258,75 @@ describe('tenancy through the ruleset', () => {
     await expect(
       clientGet(clientRef(owner.db, 'properties/property_002')),
     ).rejects.toThrow(/permission/i);
+  });
+});
+
+describe('device commands through the ruleset (risk gate #3)', () => {
+  it("a member's command write round-trips through the subscription", async () => {
+    await wipe();
+    await seedTwoProperties();
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const emissions: DeviceCommands[] = [];
+    const unsubscribe = source.subscribeDeviceCommands('property_001', 'room_001', (c) =>
+      emissions.push(c),
+    );
+    await waitUntil(() => emissions.length >= 1); // initial {}
+
+    await source.setDeviceCommand('property_001', 'room_001', 'lights', true);
+
+    await waitUntil(() => emissions[emissions.length - 1]?.lights === true);
+    expect(emissions[emissions.length - 1]).toEqual({ lights: true });
+    unsubscribe();
+  });
+
+  it("a signed-in NON-member's command write is denied by the rules", async () => {
+    await wipe();
+    await seedTwoProperties();
+    // Owner-role user with NO membership record — rules must reject the write.
+    const stranger = await adminAuth.createUser({
+      email: 'stranger@ecostay.test',
+      password: 'stranger-pass-1',
+    });
+    await adminAuth.setCustomUserClaims(stranger.uid, { role: 'owner' });
+    const app = initializeApp(
+      {
+        apiKey: 'fake-emulator-key',
+        projectId: PROJECT_ID,
+        databaseURL: `https://${NAMESPACE}.firebaseio.com`,
+      },
+      `stranger-${appCounter++}`,
+    );
+    liveApps.push(app);
+    const auth = getAuth(app);
+    connectAuthEmulator(auth, `http://${AUTH_EMULATOR}`, { disableWarnings: true });
+    const db = getDatabase(app);
+    connectDatabaseEmulator(db, DB_EMULATOR_HOST, DB_EMULATOR_PORT);
+    await signInWithEmailAndPassword(auth, 'stranger@ecostay.test', 'stranger-pass-1');
+    const source = createFirebaseRoomDataSource(db);
+
+    await expect(
+      source.setDeviceCommand('property_001', 'room_001', 'lights', true),
+    ).rejects.toThrow(/permission/i);
+  });
+
+  it('mainRelay never surfaces through the subscription even if present in RTDB', async () => {
+    await wipe();
+    await seedTwoProperties();
+    await adminDb
+      .ref('properties/property_001/rooms/room_001/devices')
+      .set({ lights: true, mainRelay: true });
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const emissions: DeviceCommands[] = [];
+    const unsubscribe = source.subscribeDeviceCommands('property_001', 'room_001', (c) =>
+      emissions.push(c),
+    );
+    await waitUntil(() => emissions.length >= 1);
+
+    expect(emissions[0]).toEqual({ lights: true }); // mainRelay filtered
+    unsubscribe();
   });
 });

@@ -1,4 +1,5 @@
-import { Database, get, onValue, ref } from 'firebase/database';
+import { Database, get, onValue, ref, set } from 'firebase/database';
+import { DEVICE_COMMAND_KEYS, DeviceCommands } from '@/telemetry/contract';
 import type { RoomDataSource, RoomLatest, RoomRef } from './room-data-source';
 
 type PropertyNode = {
@@ -60,6 +61,22 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       return onValue(ref(db, '.info/serverTimeOffset'), (snapshot) => {
         callback((snapshot.val() as number | null) ?? 0);
       });
+    },
+
+    subscribeDeviceCommands(propertyId, roomId, callback) {
+      const devicesRef = ref(db, `properties/${propertyId}/rooms/${roomId}/devices`);
+      return onValue(devicesRef, (snapshot) => {
+        const raw = (snapshot.val() ?? {}) as Record<string, unknown>;
+        const commands: DeviceCommands = {};
+        for (const key of DEVICE_COMMAND_KEYS) {
+          if (typeof raw[key] === 'boolean') commands[key] = raw[key] as boolean;
+        }
+        callback(commands); // mainRelay never surfaces
+      });
+    },
+
+    async setDeviceCommand(propertyId, roomId, key, on) {
+      await set(ref(db, `properties/${propertyId}/rooms/${roomId}/devices/${key}`), on);
     },
   };
 }

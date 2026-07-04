@@ -1,7 +1,15 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
-import { GAS_ALARM_THRESHOLD, OCCUPANCY_STATES, OccupancyState } from '@/telemetry/contract';
+import {
+  DEVICE_COMMAND_KEYS,
+  DEVICE_COMMAND_LABELS,
+  DeviceCommandKey,
+  DeviceCommands,
+  GAS_ALARM_THRESHOLD,
+  OCCUPANCY_STATES,
+  OccupancyState,
+} from '@/telemetry/contract';
 import { deviceFreshness } from '@/telemetry/device-freshness';
 import { isOccupied } from '@/telemetry/is-occupied';
 import type { RoomLatest } from './room-data-source';
@@ -49,6 +57,98 @@ function Value({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{children}</dd>
     </div>
+  );
+}
+
+/**
+ * Risk gate #3 (approved 2026-07-04): switches show the COMMANDED state from
+ * devices/* — no invented acks. Disabled offline (no queued commands, ever).
+ */
+function DeviceControls({
+  propertyId,
+  roomId,
+  online,
+  gasAlarm,
+  relayActual,
+}: {
+  propertyId: string;
+  roomId: string;
+  online: boolean;
+  gasAlarm: boolean;
+  relayActual: boolean | undefined;
+}) {
+  const source = useRoomDataSource();
+  const [commands, setCommands] = useState<DeviceCommands | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return source.subscribeDeviceCommands(propertyId, roomId, setCommands);
+  }, [source, propertyId, roomId]);
+
+  const disabled = !online || commands === null;
+
+  async function toggle(key: DeviceCommandKey) {
+    setError(null);
+    try {
+      await source.setDeviceCommand(propertyId, roomId, key, !(commands?.[key] ?? false));
+    } catch {
+      setError('Command failed — the device state was not changed.');
+    }
+  }
+
+  return (
+    <section className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+        Controls
+      </h3>
+      {!online && (
+        <p className="mb-2 text-xs text-zinc-500">
+          Controls disabled while offline — a queued command would apply unpredictably when
+          the device reconnects.
+        </p>
+      )}
+      <div className="grid gap-2">
+        {DEVICE_COMMAND_KEYS.map((key) => (
+          <div key={key} className="flex items-center justify-between gap-3">
+            <div className="text-sm text-zinc-800 dark:text-zinc-200">
+              {DEVICE_COMMAND_LABELS[key]}
+              {key === 'motionDetection' && (
+                <span className="ml-2 text-xs text-zinc-500">
+                  Actual: {relayActual === undefined ? '—' : relayActual ? 'On' : 'Off'}
+                </span>
+              )}
+              {key === 'exhaustFan' && gasAlarm && (
+                <span className="ml-2 text-xs font-medium text-red-600 dark:text-red-400">
+                  Forced on by device during the alarm
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!commands?.[key]}
+              aria-label={DEVICE_COMMAND_LABELS[key]}
+              disabled={disabled}
+              onClick={() => toggle(key)}
+              className={`relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-40 ${
+                commands?.[key] ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-300 dark:bg-zinc-700'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all dark:bg-zinc-900 ${
+                  commands?.[key] ? 'left-[22px]' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -180,6 +280,14 @@ export function RoomLiveView({
           <Value label="Light level">No sensor</Value>
         </Group>
       </div>
+
+      <DeviceControls
+        propertyId={propertyId}
+        roomId={roomId}
+        online={freshness.online}
+        gasAlarm={latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD}
+        relayActual={latest.relayStatus}
+      />
     </section>
   );
 }

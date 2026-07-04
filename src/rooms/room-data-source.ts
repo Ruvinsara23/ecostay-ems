@@ -1,5 +1,5 @@
 import type { Session } from '@/auth/auth-gateway';
-import type { RoomTelemetry } from '@/telemetry/contract';
+import type { DeviceCommandKey, DeviceCommands, RoomTelemetry } from '@/telemetry/contract';
 
 /** One room an authenticated user may see, with display names when set (Admin metadata). */
 export type RoomRef = {
@@ -46,4 +46,26 @@ export interface RoomDataSource {
    * a real ~25-min dev-machine skew was measured in the field (issue 04).
    */
   subscribeServerTimeOffset(callback: (offsetMs: number) => void): () => void;
+
+  /**
+   * The room's commanded state (`devices/*` booleans), immediately-then-on-change.
+   * This is what the device has been TOLD — only the presence relay's actual state
+   * is ever known (telemetry `relayStatus`).
+   */
+  subscribeDeviceCommands(
+    propertyId: string,
+    roomId: string,
+    callback: (commands: DeviceCommands) => void,
+  ): () => void;
+
+  /**
+   * Write one command boolean. Plain leaf write, no ack (firmware contract);
+   * rejects on rules denial or network failure. RISK GATE #3: flips real relays.
+   */
+  setDeviceCommand(
+    propertyId: string,
+    roomId: string,
+    key: DeviceCommandKey,
+    on: boolean,
+  ): Promise<void>;
 }
