@@ -363,6 +363,44 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     unsubAggregates();
   });
 
+  it('owner acknowledges an alert through the rules; forgery and edits are denied', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const alertRef = adminDb.ref('properties/property_001/alerts').push();
+    await alertRef.set({
+      roomId: 'room_001',
+      type: 'gas',
+      severity: 'critical',
+      value: 452,
+      startedAt: 1_000,
+    });
+
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    await source.acknowledgeAlert('property_001', alertRef.key as string, owner.uid);
+
+    const stored = (await adminDb.ref(`properties/property_001/alerts/${alertRef.key}`).get()).val();
+    expect(stored.acknowledgedBy).toBe(owner.uid);
+    expect(typeof stored.acknowledgedAt).toBe('number');
+
+    const { ref: clientRef, update: clientUpdate } = await import('firebase/database');
+    // forging someone else's acknowledgement is denied (.validate uid match)
+    await expect(
+      clientUpdate(
+        clientRef(owner.db, `properties/property_001/alerts/${alertRef.key}`),
+        { acknowledgedBy: 'someone-else' },
+      ),
+    ).rejects.toThrow(/permission/i);
+    // editing any other field is denied (no write rule exists for it)
+    await expect(
+      clientUpdate(
+        clientRef(owner.db, `properties/property_001/alerts/${alertRef.key}`),
+        { value: 1 },
+      ),
+    ).rejects.toThrow(/permission/i);
+  });
+
   it('mainRelay never surfaces through the subscription even if present in RTDB', async () => {
     await wipe();
     await seedTwoProperties();

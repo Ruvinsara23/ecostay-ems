@@ -1,6 +1,7 @@
 import type { Session } from '@/auth/auth-gateway';
 import type { DeviceCommandKey, DeviceCommands } from '@/telemetry/contract';
 import type {
+  AlertView,
   DailyAggregateView,
   EnergyHistorySample,
   RoomDataSource,
@@ -176,6 +177,33 @@ export class FakeRoomDataSource implements RoomDataSource {
     return () => {
       forKey.delete(callback);
     };
+  }
+
+  private alerts = new Map<string, AlertView[]>();
+  private alertListeners = new Map<string, Set<(alerts: AlertView[]) => void>>();
+
+  emitAlerts(propertyId: string, alerts: AlertView[]): void {
+    this.alerts.set(propertyId, alerts);
+    this.alertListeners.get(propertyId)?.forEach((listener) => listener(alerts));
+  }
+
+  subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void {
+    const forKey = this.alertListeners.get(propertyId) ?? new Set<typeof callback>();
+    forKey.add(callback);
+    this.alertListeners.set(propertyId, forKey);
+    callback(this.alerts.get(propertyId) ?? []);
+    return () => {
+      forKey.delete(callback);
+    };
+  }
+
+  async acknowledgeAlert(propertyId: string, alertId: string, uid: string): Promise<void> {
+    const updated = (this.alerts.get(propertyId) ?? []).map((alert) =>
+      alert.id === alertId
+        ? { ...alert, acknowledgedBy: uid, acknowledgedAt: Date.now() }
+        : alert,
+    );
+    this.emitAlerts(propertyId, updated);
   }
 
   async listAccessibleRooms(_session: Session): Promise<RoomRef[]> {

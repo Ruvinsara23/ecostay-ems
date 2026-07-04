@@ -96,6 +96,15 @@ export interface RoomDataSource {
     roomId: string,
     callback: (byDate: Record<string, DailyAggregateView>) => void,
   ): () => void;
+
+  /** The property's alert records (open and resolved), live. */
+  subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void;
+
+  /**
+   * Acknowledge an open alert as the given user. Rules permit writing ONLY
+   * acknowledgedBy (must equal the caller's uid) + acknowledgedAt.
+   */
+  acknowledgeAlert(propertyId: string, alertId: string, uid: string): Promise<void>;
 }
 
 export type EnergyHistorySample = {
@@ -109,4 +118,17 @@ export type DailyAggregateView = {
   kWhUsed: number;
   occupiedMinutes: number;
   costLKR?: number; // absent until the tariff engine phase
+};
+
+/** A lifecycle alert record as the tick writes it (src/server/alerts.ts), plus its id. */
+export type AlertView = {
+  id: string;
+  roomId: string;
+  type: 'device-offline' | 'gas' | 'temperature' | 'water-level';
+  severity: 'critical' | 'warning';
+  value: number;
+  startedAt: number;
+  resolvedAt?: number;
+  acknowledgedBy?: string;
+  acknowledgedAt?: number;
 };

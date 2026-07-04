@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { RequireSession } from '@/auth/require-session';
+import { AlertCenter } from '@/rooms/alert-center';
 import type { RoomRef } from '@/rooms/room-data-source';
 import { useRoomDataSource } from '@/rooms/room-data-source-context';
 import { RoomLiveView } from '@/rooms/room-live-view';
@@ -83,6 +84,7 @@ function RoomArea() {
         roomId={active.roomId}
         roomName={active.roomName}
       />
+      <AlertCenter propertyId={active.propertyId} />
     </div>
   );
 }

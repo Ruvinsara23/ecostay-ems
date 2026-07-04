@@ -1,7 +1,15 @@
 # 06 — Alert center UI with acknowledge
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 — rules re-publish covers the ack rules)
 Slice: 6 of 7 · Parent: `.scratch/server-workloads/PRD.md`
+
+> Implemented: `subscribeAlerts` + `acknowledgeAlert(uid)` on the port (adapter stamps
+> serverTimestamp); AlertCenter on the dashboard under the active room — open alerts with
+> type/severity chips (text labels, not color alone), value+unit per type, acknowledge
+> button → "Acknowledged"; resolved history (last 10) below; all-quiet empty state.
+> Rules: ONLY acknowledgedBy (must equal caller uid) + acknowledgedAt (number) are
+> client-writable on alerts — emulator-proven incl. forgery and field-edit denials.
+> 137 unit + 31 integration tests, all gates green.
 
 ## What to build
 

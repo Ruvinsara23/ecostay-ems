@@ -5,11 +5,14 @@ import {
   orderByChild,
   query,
   ref,
+  serverTimestamp,
   set,
   startAt,
+  update,
 } from 'firebase/database';
 import { DEVICE_COMMAND_KEYS, DeviceCommands } from '@/telemetry/contract';
 import type {
+  AlertView,
   DailyAggregateView,
   EnergyHistorySample,
   RoomDataSource,
@@ -130,6 +133,21 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
           callback((snapshot.val() ?? {}) as Record<string, DailyAggregateView>);
         },
       );
+    },
+
+    subscribeAlerts(propertyId, callback) {
+      return onValue(ref(db, `properties/${propertyId}/alerts`), (snapshot) => {
+        const raw = (snapshot.val() ?? {}) as Record<string, Omit<AlertView, 'id'>>;
+        callback(Object.entries(raw).map(([id, alert]) => ({ ...alert, id })));
+      });
+    },
+
+    async acknowledgeAlert(propertyId, alertId, uid) {
+      // Rules allow exactly these two leaves; acknowledgedBy must equal the caller's uid.
+      await update(ref(db, `properties/${propertyId}/alerts/${alertId}`), {
+        acknowledgedBy: uid,
+        acknowledgedAt: serverTimestamp(),
+      });
     },
   };
 }

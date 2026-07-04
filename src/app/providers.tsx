@@ -52,6 +52,12 @@ const prerenderRoomDataSource: RoomDataSource = {
   subscribeDailyAggregates() {
     return () => {};
   },
+  subscribeAlerts() {
+    return () => {};
+  },
+  async acknowledgeAlert() {
+    throw new Error('not available during prerender');
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

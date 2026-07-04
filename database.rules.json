@@ -30,6 +30,18 @@
           "$roomId": {
             ".indexOn": "sampledAt"
           }
+        },
+        "alerts": {
+          "$alertId": {
+            "acknowledgedBy": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
+              ".validate": "newData.val() === auth.uid"
+            },
+            "acknowledgedAt": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
+              ".validate": "newData.isNumber()"
+            }
+          }
         }
       },
       "$propertyId": {
@@ -50,6 +62,18 @@
         "energyHistory": {
           "$roomId": {
             ".indexOn": "sampledAt"
+          }
+        },
+        "alerts": {
+          "$alertId": {
+            "acknowledgedBy": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
+              ".validate": "newData.val() === auth.uid"
+            },
+            "acknowledgedAt": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
+              ".validate": "newData.isNumber()"
+            }
           }
         }
       }

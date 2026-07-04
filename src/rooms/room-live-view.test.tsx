@@ -25,6 +25,8 @@ describe('RoomLiveView — states', () => {
       setAutomationEnabled: async () => {},
       subscribeEnergyHistory: () => () => {},
       subscribeDailyAggregates: () => () => {},
+      subscribeAlerts: () => () => {},
+      acknowledgeAlert: async () => {},
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();

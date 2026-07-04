@@ -148,6 +148,27 @@ describe('FakeRoomDataSource', () => {
     expect(emissions).toEqual([['2026-07-03']]);
   });
 
+  it('serves property alerts live and applies acknowledgements', async () => {
+    const source = new FakeRoomDataSource();
+    source.emitAlerts('property_001', [
+      {
+        id: 'a1',
+        roomId: 'room_001',
+        type: 'gas',
+        severity: 'critical',
+        value: 452,
+        startedAt: 1_000,
+      },
+    ]);
+    const emissions: Array<Array<{ id: string; acknowledgedBy?: string }>> = [];
+    source.subscribeAlerts('property_001', (alerts) => emissions.push(alerts));
+    expect(emissions[0]).toHaveLength(1);
+
+    await source.acknowledgeAlert('property_001', 'a1', 'uid-owner');
+
+    expect(emissions[1][0].acknowledgedBy).toBe('uid-owner');
+  });
+
   it('reports automation-enabled (default false) and echoes changes', async () => {
     const source = new FakeRoomDataSource();
     const emissions: boolean[] = [];
