@@ -94,7 +94,10 @@ existing tests:
    Safety meter, Water tank, Activity/Relays chips). Same displayed strings and semantics —
    tests keep passing with at most selector/a11y improvements.
 3. Isometric room SVG component driven by the same `RoomLatest` props (door, presence glow,
-   marker states, offline desaturation).
+   marker states, offline desaturation) — **interactive**: pointer-tilt 3D parallax
+   (perspective transform, disabled under prefers-reduced-motion) and click/tap sensor
+   markers opening glass tooltips with that sensor's live readings (keyboard-accessible).
+   Room panel padding is minimal (~4 px) — the model owns the card.
 4. Login page restyled to match.
 5. Responsive: usable at 360 px (rail collapses to a top bar, columns stack). Light-only;
    remove existing `dark:` variants rather than maintaining a second theme.
