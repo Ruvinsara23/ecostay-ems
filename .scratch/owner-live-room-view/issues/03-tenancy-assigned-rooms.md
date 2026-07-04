@@ -1,6 +1,6 @@
 # 03 — Tenancy: Owner sees only assigned Rooms; Admin sees all
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 — awaiting human review; rules re-publish required)
 Slice: 3 of 4
 Covers user stories: 9, 11–14
 
@@ -47,3 +47,22 @@ New machinery:
 ## Blocked by
 
 - `.scratch/owner-live-room-view/issues/02-live-telemetry-seeded-room.md`
+
+## Comments
+
+**2026-07-04 (agent) — implemented via TDD.**
+
+- `listAccessibleRooms(session)` added to the RoomDataSource port: owners resolve via
+  `users/{uid}/properties` then read their member properties; admins read all of `properties`.
+  Names surface with ID fallback. Dashboard lands a single-room owner directly on the live view,
+  shows a "no property assigned" state, and gives multi-room sessions a minimal picker
+  (rich switcher stays deferred per the PRD).
+- **Ruleset generalized** (`database.rules.json`): human reads now use a `$propertyId` wildcard
+  with membership checks; admin has a root-level `properties` read; the anonymous device write
+  stays pinned to `property_001/room_001` only (transitional hole unchanged).
+- Verification: 61 unit tests + **16 emulator integration tests** — including: owner lists only
+  their property (with names), admin lists across properties, and **rules deny an owner's direct
+  read of a foreign property**. Typecheck, lint, build green.
+- **Remaining for the human**: re-publish the updated `database.rules.json` in the Firebase
+  console (RTDB → Rules) — the emulator validated it; production still runs the previous rules
+  until pasted. Then review + merge.

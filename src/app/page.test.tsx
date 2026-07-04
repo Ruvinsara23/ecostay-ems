@@ -73,28 +73,92 @@ describe('dashboard landing', () => {
     expect(screen.queryByText(/signed in as/i)).not.toBeInTheDocument();
   });
 
-  it("shows the seeded room's live telemetry instead of a placeholder", () => {
+});
+
+const OWNER_SESSION = {
+  uid: 'fake-uid-owner@ecostay.test',
+  email: 'owner@ecostay.test',
+  role: 'owner',
+} as const;
+
+describe('dashboard tenancy', () => {
+  it('lands an owner with one room directly on its live view, by name', async () => {
     const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+    ]);
     source.emitLatest('property_001', 'room_001', {
       occupancyState: 'OCCUPIED_ACTIVE',
       temperature: 27.5,
       humidity: 62,
       updatedAt: 1_751_600_000_000,
     });
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
+
+    expect(await screen.findByText('Room 1')).toBeInTheDocument();
+    expect(screen.getByText('EcoStay Property')).toBeInTheDocument();
+    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+    expect(screen.getByText('Occupied')).toBeInTheDocument();
+  });
+
+  it('falls back to raw IDs when names are not set', async () => {
+    const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([{ propertyId: 'property_001', roomId: 'room_001' }]);
+    source.emitLatest('property_001', 'room_001', {
+      occupancyState: 'VACANT',
+      updatedAt: 1_751_600_000_000,
+    });
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
+
+    expect(await screen.findByText('room_001')).toBeInTheDocument();
+    expect(screen.getByText('property_001')).toBeInTheDocument();
+  });
+
+  it('explains when no property is assigned instead of a blank screen', async () => {
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }));
+    expect(await screen.findByText(/no property assigned/i)).toBeInTheDocument();
+    expect(screen.getByText(/contact your administrator/i)).toBeInTheDocument();
+  });
+
+  it('lists multiple rooms and opens the picked one', async () => {
+    const user = userEvent.setup();
+    const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+      {
+        propertyId: 'property_002',
+        roomId: 'room_001',
+        propertyName: 'Lagoon Villa',
+        roomName: 'Garden Room',
+      },
+    ]);
+    source.emitLatest('property_002', 'room_001', {
+      occupancyState: 'VACANT',
+      temperature: 24.5,
+      updatedAt: 1_751_600_000_000,
+    });
     renderPage(
       new FakeAuthGateway({
-        initialSession: {
-          uid: 'fake-uid-owner@ecostay.test',
-          email: 'owner@ecostay.test',
-          role: 'owner',
-        },
+        initialSession: { uid: 'fake-uid-admin', email: 'admin@ecostay.test', role: 'admin' },
       }),
       source,
     );
 
-    expect(screen.getByText('room_001')).toBeInTheDocument();
-    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
-    expect(screen.getByText('Occupied')).toBeInTheDocument();
-    expect(screen.queryByText(/next slice/i)).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /garden room/i }));
+    expect(screen.getByText('24.5 °C')).toBeInTheDocument();
+    expect(screen.getByText('Vacant')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /all rooms/i }));
+    expect(await screen.findByRole('button', { name: /room 1/i })).toBeInTheDocument();
   });
 });

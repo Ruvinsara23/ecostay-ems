@@ -3,6 +3,7 @@
     ".read": false,
     ".write": false,
     "properties": {
+      ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
       "property_001": {
         ".read": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
         "rooms": {
@@ -18,6 +19,16 @@
         },
         "history": {
           ".write": "auth != null && auth.provider === 'anonymous'"
+        }
+      },
+      "$propertyId": {
+        ".read": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
+        "rooms": {
+          "$roomId": {
+            "devices": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())"
+            }
+          }
         }
       }
     },

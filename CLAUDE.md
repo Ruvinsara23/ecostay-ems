@@ -26,9 +26,11 @@ are complete as of 2026-07-04.
 Phase 3 in progress: PRD `.scratch/owner-live-room-view/PRD.md` (owner login + live room view,
 walking skeleton) is broken into 4 ready-for-agent vertical slices under
 `.scratch/owner-live-room-view/issues/` (01 auth+bootstrap → 02 live telemetry → {03 tenancy,
-04 offline}). Slices 01+02 implemented (TDD, all gates green) — committed locally, human review
-owns the merge. ADR-0009 migration to `ecostay-ems` done data-side; ESP32 reflash pending
-(firmware constants already edited) — live-device verify blocked on it.
-Next: reflash + verify → slices 03 (tenancy) / 04 (offline honesty).
+04 offline}). Slices 01+02+03 implemented (TDD, all gates green) — committed locally, human
+review owns the merge. ADR-0009 migration to `ecostay-ems` done data-side; ESP32 reflash
+deliberately deferred to the end (firmware constants already edited).
+Issue 05 (UI design pass) filed as a stub — specified after 04.
+Next: slice 04 (offline honesty) → UI pass → reflash + live verify.
+Pending human console step: re-publish updated database.rules.json (slice 03 changed it).
 Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.

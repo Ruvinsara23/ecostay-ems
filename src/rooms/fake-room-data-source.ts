@@ -1,4 +1,5 @@
-import type { RoomDataSource, RoomLatest } from './room-data-source';
+import type { Session } from '@/auth/auth-gateway';
+import type { RoomDataSource, RoomLatest, RoomRef } from './room-data-source';
 
 type Listener = (latest: RoomLatest | null) => void;
 
@@ -6,6 +7,15 @@ type Listener = (latest: RoomLatest | null) => void;
 export class FakeRoomDataSource implements RoomDataSource {
   private snapshots = new Map<string, RoomLatest>();
   private listeners = new Map<string, Set<Listener>>();
+  private accessibleRooms: RoomRef[] = [];
+
+  setAccessibleRooms(rooms: RoomRef[]): void {
+    this.accessibleRooms = rooms;
+  }
+
+  async listAccessibleRooms(_session: Session): Promise<RoomRef[]> {
+    return this.accessibleRooms;
+  }
 
   emitLatest(propertyId: string, roomId: string, latest: RoomLatest): void {
     const key = `${propertyId}/${roomId}`;

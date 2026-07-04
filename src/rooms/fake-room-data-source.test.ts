@@ -55,4 +55,33 @@ describe('FakeRoomDataSource', () => {
     source.emitLatest('property_001', 'room_002', SNAPSHOT);
     expect(emissions).toEqual([null]);
   });
+
+  it('returns the configured accessible rooms', async () => {
+    const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+    ]);
+    const rooms = await source.listAccessibleRooms({
+      uid: 'fake-uid',
+      email: 'owner@ecostay.test',
+      role: 'owner',
+    });
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0].roomName).toBe('Room 1');
+  });
+
+  it('returns no rooms by default (owner with no assignment)', async () => {
+    const source = new FakeRoomDataSource();
+    const rooms = await source.listAccessibleRooms({
+      uid: 'fake-uid',
+      email: 'owner@ecostay.test',
+      role: 'owner',
+    });
+    expect(rooms).toEqual([]);
+  });
 });

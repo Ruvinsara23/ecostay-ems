@@ -25,6 +25,9 @@ const prerenderGateway: AuthGateway = {
 };
 
 const prerenderRoomDataSource: RoomDataSource = {
+  async listAccessibleRooms() {
+    return [];
+  },
   subscribeLatest() {
     return () => {};
   },

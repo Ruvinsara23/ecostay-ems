@@ -16,6 +16,7 @@ function renderView(source: RoomDataSource) {
 describe('RoomLiveView — states', () => {
   it('shows a loading state until the first report arrives', () => {
     const silentSource: RoomDataSource = {
+      listAccessibleRooms: async () => [],
       subscribeLatest: () => () => {},
     };
     renderView(silentSource);

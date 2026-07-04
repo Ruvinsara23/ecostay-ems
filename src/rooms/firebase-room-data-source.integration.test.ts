@@ -63,17 +63,17 @@ async function wipe() {
   if (!response.ok) throw new Error(`account wipe failed: ${response.status}`);
 }
 
-/** Provision an owner with membership, sign them in, return their client Database. */
-async function signedInOwnerDb() {
-  const user = await adminAuth.createUser({
-    email: 'owner@ecostay.test',
-    password: 'owner-pass-1',
-  });
-  await adminAuth.setCustomUserClaims(user.uid, { role: 'owner' });
-  await adminDb.ref().update({
-    [`properties/property_001/members/${user.uid}`]: 'owner',
-    [`users/${user.uid}/properties/property_001`]: true,
-  });
+/** Provision a role-claimed user (owner gets property_001 membership), sign in, return their client Database + session. */
+async function signedInDb(role: 'owner' | 'admin') {
+  const email = `${role}@ecostay.test`;
+  const user = await adminAuth.createUser({ email, password: `${role}-pass-1` });
+  await adminAuth.setCustomUserClaims(user.uid, { role });
+  if (role === 'owner') {
+    await adminDb.ref().update({
+      [`properties/property_001/members/${user.uid}`]: 'owner',
+      [`users/${user.uid}/properties/property_001`]: true,
+    });
+  }
 
   const app = initializeApp(
     {
@@ -88,8 +88,23 @@ async function signedInOwnerDb() {
   connectAuthEmulator(auth, `http://${AUTH_EMULATOR}`, { disableWarnings: true });
   const db = getDatabase(app);
   connectDatabaseEmulator(db, DB_EMULATOR_HOST, DB_EMULATOR_PORT);
-  await signInWithEmailAndPassword(auth, 'owner@ecostay.test', 'owner-pass-1');
-  return db;
+  await signInWithEmailAndPassword(auth, email, `${role}-pass-1`);
+  return { db, uid: user.uid, email, role };
+}
+
+async function signedInOwnerDb() {
+  return (await signedInDb('owner')).db;
+}
+
+/** Two-property world: owner is a member of property_001 only. */
+async function seedTwoProperties() {
+  await adminDb.ref().update({
+    'properties/property_001/name': 'EcoStay Property',
+    'properties/property_001/rooms/room_001/name': 'Room 1',
+    'properties/property_002/name': 'Lagoon Villa',
+    'properties/property_002/rooms/room_001/name': 'Garden Room',
+    'properties/property_002/rooms/room_002/name': 'Lake Room',
+  });
 }
 
 function collectEmissions(db: ReturnType<typeof getDatabase>) {
@@ -161,5 +176,60 @@ describe('FirebaseRoomDataSource against the transitional ruleset', () => {
     expect(recorder.emissions[2]?.temperature).toBe(28.1);
     expect(recorder.emissions[2]?.occupancyState).toBe('OCCUPIED_IDLE');
     recorder.unsubscribe();
+  });
+});
+
+describe('tenancy through the ruleset', () => {
+  it('an owner lists only the rooms of properties they are a member of, with names', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const rooms = await source.listAccessibleRooms({
+      uid: owner.uid,
+      email: owner.email,
+      role: 'owner',
+    });
+
+    expect(rooms).toEqual([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+    ]);
+  });
+
+  it('an admin lists rooms across every property', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const admin = await signedInDb('admin');
+    const source = createFirebaseRoomDataSource(admin.db);
+
+    const rooms = await source.listAccessibleRooms({
+      uid: admin.uid,
+      email: admin.email,
+      role: 'admin',
+    });
+
+    expect(rooms.map((room) => `${room.propertyId}/${room.roomId}`)).toEqual([
+      'property_001/room_001',
+      'property_002/room_001',
+      'property_002/room_002',
+    ]);
+    expect(rooms[1].roomName).toBe('Garden Room');
+  });
+
+  it('rules deny an owner reading a property they are not a member of', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const owner = await signedInDb('owner');
+
+    const { get: clientGet, ref: clientRef } = await import('firebase/database');
+    await expect(
+      clientGet(clientRef(owner.db, 'properties/property_002')),
+    ).rejects.toThrow(/permission/i);
   });
 });
