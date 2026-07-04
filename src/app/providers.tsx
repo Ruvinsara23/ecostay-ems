@@ -31,6 +31,9 @@ const prerenderRoomDataSource: RoomDataSource = {
   subscribeLatest() {
     return () => {};
   },
+  subscribeServerTimeOffset() {
+    return () => {};
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

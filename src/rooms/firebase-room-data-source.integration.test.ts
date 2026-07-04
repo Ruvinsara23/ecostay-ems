@@ -179,6 +179,24 @@ describe('FirebaseRoomDataSource against the transitional ruleset', () => {
   });
 });
 
+describe('server-time offset', () => {
+  it('surfaces a numeric offset from .info/serverTimeOffset', async () => {
+    await wipe();
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const offsets: number[] = [];
+    const unsubscribe = source.subscribeServerTimeOffset((offset) => offsets.push(offset));
+    const deadline = Date.now() + 8000;
+    while (offsets.length === 0) {
+      if (Date.now() > deadline) throw new Error('no offset emission');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(Number.isFinite(offsets[0])).toBe(true);
+    unsubscribe();
+  });
+});
+
 describe('tenancy through the ruleset', () => {
   it('an owner lists only the rooms of properties they are a member of, with names', async () => {
     await wipe();

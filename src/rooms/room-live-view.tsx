@@ -2,9 +2,17 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { GAS_ALARM_THRESHOLD, OCCUPANCY_STATES, OccupancyState } from '@/telemetry/contract';
+import { deviceFreshness } from '@/telemetry/device-freshness';
 import { isOccupied } from '@/telemetry/is-occupied';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
+
+function ageLabel(ageSeconds: number | null): string {
+  if (ageSeconds === null) return 'unknown';
+  if (ageSeconds < 60) return `${ageSeconds}s ago`;
+  if (ageSeconds < 3600) return `${Math.floor(ageSeconds / 60)}m ago`;
+  return `${Math.floor(ageSeconds / 3600)}h ago`;
+}
 
 type ViewState = { status: 'loading' } | { status: 'ready'; latest: RoomLatest | null };
 
@@ -55,12 +63,24 @@ export function RoomLiveView({
 }) {
   const source = useRoomDataSource();
   const [state, setState] = useState<ViewState>({ status: 'loading' });
+  const [offsetMs, setOffsetMs] = useState(0);
+  const [localNowMs, setLocalNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     return source.subscribeLatest(propertyId, roomId, (latest) =>
       setState({ status: 'ready', latest }),
     );
   }, [source, propertyId, roomId]);
+
+  useEffect(() => {
+    return source.subscribeServerTimeOffset(setOffsetMs);
+  }, [source]);
+
+  // 1 s heartbeat so staleness advances (and flips to offline) without new writes.
+  useEffect(() => {
+    const timer = setInterval(() => setLocalNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (state.status === 'loading') {
     return <p className="text-sm text-zinc-500">Loading room…</p>;
@@ -82,12 +102,29 @@ export function RoomLiveView({
   const occupancySummary =
     knownState === undefined ? '—' : isOccupied(knownState) ? 'Occupied' : 'Vacant';
 
+  // Freshness on the SERVER-corrected clock — never raw Date.now() (issue 04 field evidence).
+  const freshness = deviceFreshness(latest.updatedAt, localNowMs + offsetMs);
+
   return (
     <section aria-label={`Live view of ${roomName ?? roomId}`} className="flex flex-col gap-4">
       <header className="flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          {roomName ?? roomId}
-        </h2>
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            {roomName ?? roomId}
+          </h2>
+          {freshness.online ? (
+            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              Live · {ageLabel(freshness.ageSeconds)}
+            </p>
+          ) : (
+            <p
+              role="status"
+              className="text-xs font-semibold text-red-600 dark:text-red-400"
+            >
+              Offline — last seen {ageLabel(freshness.ageSeconds)}
+            </p>
+          )}
+        </div>
         <div className="text-right">
           <p className="text-base font-medium text-zinc-900 dark:text-zinc-100">
             {occupancySummary}
@@ -105,7 +142,10 @@ export function RoomLiveView({
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div
+        data-stale={freshness.online ? undefined : 'true'}
+        className={`grid gap-3 sm:grid-cols-2 ${freshness.online ? '' : 'opacity-50'}`}
+      >
         <Group title="Climate">
           <Value label="Temperature">{reading(latest.temperature, '°C')}</Value>
           <Value label="Humidity">{reading(latest.humidity, '%')}</Value>

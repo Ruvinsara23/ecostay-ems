@@ -1,6 +1,6 @@
 # 04 — Freshness & offline honesty
 
-Status: ready-for-agent
+Status: ready-for-human (implemented 2026-07-04 — awaiting human review)
 Slice: 4 of 4
 Covers user stories: 27–31
 
@@ -61,3 +61,18 @@ later Cloud Functions slice (ADR-0006) and is out of scope here. Device controls
 - **Real clock skew measured on the dev machine: ~25 minutes** (a naive `Date.now() − updatedAt`
   computed −1528 s staleness). The server-offset-corrected clock (`.info/serverTimeOffset`)
   is load-bearing, not defensive theory. Test the skewed-clock case explicitly.
+
+**2026-07-04 (agent) — implemented via TDD, all acceptance criteria green.**
+
+- `deviceFreshness(updatedAt, nowMs, 15000)` pure function: exclusive 15 s boundary, future
+  timestamps clamp to 0, missing `updatedAt` → offline/unknown, injected clock throughout.
+  The measured 1528 s skew case is a named unit test at both the function and view level.
+- Port gained `subscribeServerTimeOffset` (fake settable; real adapter reads
+  `.info/serverTimeOffset`; emulator test proves a numeric emission).
+- View: "Live · Ns ago" heartbeat, flips to a role=status "Offline — last seen …" past 15 s
+  with readings greyed (`data-stale`, opacity) but never blanked; ticks while offline
+  (1 s interval); auto-recovers on the next write; distinct from never-reported.
+- Verification: **78 unit tests + 17 emulator integration tests**, typecheck, lint, build all
+  green. Manual demo: run the device/simulator, Ctrl+C, watch the flip at 15 s.
+- Remaining for the human: review + merge. The ~90 s offline *alert* stays with the Cloud
+  Functions slice (ADR-0006), as scoped.

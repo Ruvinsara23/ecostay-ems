@@ -39,4 +39,11 @@ export interface RoomDataSource {
     roomId: string,
     callback: (latest: RoomLatest | null) => void,
   ): () => void;
+
+  /**
+   * Milliseconds to ADD to the local clock to get server time (RTDB
+   * `.info/serverTimeOffset`). Freshness must be judged on the corrected clock —
+   * a real ~25-min dev-machine skew was measured in the field (issue 04).
+   */
+  subscribeServerTimeOffset(callback: (offsetMs: number) => void): () => void;
 }

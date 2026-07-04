@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RoomDataSource, RoomLatest } from './room-data-source';
 import { FakeRoomDataSource } from './fake-room-data-source';
 import { RoomDataSourceProvider } from './room-data-source-context';
@@ -18,6 +18,7 @@ describe('RoomLiveView — states', () => {
     const silentSource: RoomDataSource = {
       listAccessibleRooms: async () => [],
       subscribeLatest: () => () => {},
+      subscribeServerTimeOffset: () => () => {},
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();
@@ -171,5 +172,101 @@ describe('RoomLiveView — updates & resilience', () => {
     expect(screen.queryByText('Occupied')).not.toBeInTheDocument();
     expect(screen.queryByText('Vacant')).not.toBeInTheDocument();
     expect(screen.getByText('62 %')).toBeInTheDocument(); // rest of the view intact
+  });
+});
+
+describe('RoomLiveView — freshness & offline honesty', () => {
+  const T0 = 1_751_600_000_000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderFreshness({
+    offsetMs = 0,
+    updatedAt = T0,
+  }: { offsetMs?: number; updatedAt?: number | null } = {}) {
+    const source = new FakeRoomDataSource();
+    source.setServerTimeOffset(offsetMs);
+    const snapshot: RoomLatest = { ...FULL_SNAPSHOT, updatedAt: updatedAt ?? undefined };
+    if (updatedAt === null) delete snapshot.updatedAt;
+    source.emitLatest('property_001', 'room_001', snapshot);
+    renderView(source);
+    return source;
+  }
+
+  it('shows Live while snapshots are fresh', () => {
+    renderFreshness();
+    expect(screen.getByText(/live · /i)).toBeInTheDocument();
+    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-stale="true"]')).toBeNull();
+  });
+
+  it('flips to Offline past 15 s of silence, greys the readings, shows last seen', () => {
+    renderFreshness();
+    act(() => {
+      vi.advanceTimersByTime(16_000);
+    });
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    expect(screen.getByText(/last seen 16s ago/i)).toBeInTheDocument();
+    expect(document.querySelector('[data-stale="true"]')).not.toBeNull();
+    // readings remain visible (greyed, not blanked)
+    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+  });
+
+  it('keeps the last-seen age ticking while offline', () => {
+    renderFreshness();
+    act(() => {
+      vi.advanceTimersByTime(26_000);
+    });
+    expect(screen.getByText(/last seen 26s ago/i)).toBeInTheDocument();
+  });
+
+  it('formats minute-scale silences', () => {
+    renderFreshness();
+    act(() => {
+      vi.advanceTimersByTime(190_000);
+    });
+    expect(screen.getByText(/last seen 3m ago/i)).toBeInTheDocument();
+  });
+
+  it('recovers to Live automatically when writes resume', () => {
+    const source = renderFreshness();
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+
+    act(() => {
+      source.emitLatest('property_001', 'room_001', {
+        ...FULL_SNAPSHOT,
+        updatedAt: T0 + 20_000,
+      });
+    });
+
+    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-stale="true"]')).toBeNull();
+  });
+
+  it('judges freshness on the server clock, not the skewed local clock', () => {
+    // The measured field case: local clock 1528 s behind server time. The device
+    // last wrote 128 s ago in server terms — naively that timestamp is "in the
+    // future" locally and would look permanently live. It must read offline.
+    renderFreshness({
+      offsetMs: 1_528_000,
+      updatedAt: T0 + 1_528_000 - 128_000,
+    });
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    expect(screen.getByText(/last seen 2m ago/i)).toBeInTheDocument();
+  });
+
+  it('treats a snapshot without updatedAt as offline with unknown last-seen', () => {
+    renderFreshness({ updatedAt: null });
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    expect(screen.getByText(/last seen unknown/i)).toBeInTheDocument();
   });
 });

@@ -30,7 +30,8 @@ walking skeleton) is broken into 4 ready-for-agent vertical slices under
 review owns the merge. ADR-0009 migration **hardware-verified** (Stage A smoke test 2026-07-04:
 reflashed ESP32 → anonymous auth → rules → live dashboard). Device simulator
 (scripts/simulate-device.ts) covers dev work; sensor bring-up waits for the PCB.
-Issue 05 (UI design pass) filed as a stub — specified after 04.
-Next: slice 04 (offline honesty; field evidence incl. real 25-min dev-machine clock skew is
-logged in issue 04) → UI pass. Issue tracker = local markdown under `.scratch/`.
+Slice 04 (offline honesty) implemented 2026-07-04 — **the walking skeleton (01–04) is complete**:
+78 unit + 17 emulator-integration tests, all gates green, committed locally.
+Next: issue 05 (UI design pass — specify then implement) → then next PRD (device control).
+Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.

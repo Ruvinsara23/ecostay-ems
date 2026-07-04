@@ -8,9 +8,24 @@ export class FakeRoomDataSource implements RoomDataSource {
   private snapshots = new Map<string, RoomLatest>();
   private listeners = new Map<string, Set<Listener>>();
   private accessibleRooms: RoomRef[] = [];
+  private serverTimeOffsetMs = 0;
+  private offsetListeners = new Set<(offsetMs: number) => void>();
 
   setAccessibleRooms(rooms: RoomRef[]): void {
     this.accessibleRooms = rooms;
+  }
+
+  setServerTimeOffset(offsetMs: number): void {
+    this.serverTimeOffsetMs = offsetMs;
+    this.offsetListeners.forEach((listener) => listener(offsetMs));
+  }
+
+  subscribeServerTimeOffset(callback: (offsetMs: number) => void): () => void {
+    this.offsetListeners.add(callback);
+    callback(this.serverTimeOffsetMs);
+    return () => {
+      this.offsetListeners.delete(callback);
+    };
   }
 
   async listAccessibleRooms(_session: Session): Promise<RoomRef[]> {

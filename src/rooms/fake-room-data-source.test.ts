@@ -75,6 +75,22 @@ describe('FakeRoomDataSource', () => {
     expect(rooms[0].roomName).toBe('Room 1');
   });
 
+  it('reports the configured server-time offset immediately, and again on change', () => {
+    const source = new FakeRoomDataSource();
+    source.setServerTimeOffset(1_528_000);
+    const offsets: number[] = [];
+    source.subscribeServerTimeOffset((offset) => offsets.push(offset));
+    source.setServerTimeOffset(-4_000);
+    expect(offsets).toEqual([1_528_000, -4_000]);
+  });
+
+  it('defaults the server-time offset to zero', () => {
+    const source = new FakeRoomDataSource();
+    const offsets: number[] = [];
+    source.subscribeServerTimeOffset((offset) => offsets.push(offset));
+    expect(offsets).toEqual([0]);
+  });
+
   it('returns no rooms by default (owner with no assignment)', async () => {
     const source = new FakeRoomDataSource();
     const rooms = await source.listAccessibleRooms({

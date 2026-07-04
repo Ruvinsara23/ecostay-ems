@@ -55,5 +55,11 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
         callback(snapshot.exists() ? (snapshot.val() as RoomLatest) : null);
       });
     },
+
+    subscribeServerTimeOffset(callback) {
+      return onValue(ref(db, '.info/serverTimeOffset'), (snapshot) => {
+        callback((snapshot.val() as number | null) ?? 0);
+      });
+    },
   };
 }
