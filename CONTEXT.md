@@ -197,10 +197,10 @@ All eight open questions answered; decisions recorded in the sections above:
 
 ### Remaining open items
 
-0. **Firebase project migration (ADR-0009) in flight** — console setup + `.env.local` retarget +
-   re-seed done/pending per ADR-0009; **live telemetry returns only after the human reflashes the
-   ESP32 with the new `API_KEY`/`DATABASE_URL`** and the write is verified in `ecostay-ems`.
-   Old `esp32led-b6105-c0b99` project: delete after verification.
+0. ~~Firebase project migration (ADR-0009)~~ — **complete and hardware-verified 2026-07-04**
+   (Stage A smoke test: reflashed ESP32 signed in anonymously and wrote `latest` through the
+   transitional rules; dashboard rendered it live). Old `esp32led-b6105-c0b99` project and its
+   service-account key in `~\.secrets` may now be deleted.
 1. ~~CEB tariff rates research~~ — done 2026-07-04: [ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md) (PUCSL, effective 11 May 2026). Forced the regime/band model revision (ADR-0008).
 2. **Verify SSCL/VAT on a real EDL (ex-CEB) bill** — SSCL confirmed via LECO's calculator only; confirm both the 2.5% SSCL and any VAT line on the pilot property's actual bill before trusting cost totals.
 3. **Re-check tariff rates at the Q4 2026 PUCSL revision (~Oct 2026)** — the D-1 ≤180 / GP-1 / H-1 freeze rides on a subsidy ending Sep 2026.

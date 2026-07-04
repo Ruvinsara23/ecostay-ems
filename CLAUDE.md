@@ -27,10 +27,10 @@ Phase 3 in progress: PRD `.scratch/owner-live-room-view/PRD.md` (owner login + l
 walking skeleton) is broken into 4 ready-for-agent vertical slices under
 `.scratch/owner-live-room-view/issues/` (01 auth+bootstrap → 02 live telemetry → {03 tenancy,
 04 offline}). Slices 01+02+03 implemented (TDD, all gates green) — committed locally, human
-review owns the merge. ADR-0009 migration to `ecostay-ems` done data-side; ESP32 reflash
-deliberately deferred to the end (firmware constants already edited).
+review owns the merge. ADR-0009 migration **hardware-verified** (Stage A smoke test 2026-07-04:
+reflashed ESP32 → anonymous auth → rules → live dashboard). Device simulator
+(scripts/simulate-device.ts) covers dev work; sensor bring-up waits for the PCB.
 Issue 05 (UI design pass) filed as a stub — specified after 04.
-Next: slice 04 (offline honesty) → UI pass → reflash + live verify.
-Pending human console step: re-publish updated database.rules.json (slice 03 changed it).
-Issue tracker = local markdown under `.scratch/`.
+Next: slice 04 (offline honesty; field evidence incl. real 25-min dev-machine clock skew is
+logged in issue 04) → UI pass. Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.

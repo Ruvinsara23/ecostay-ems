@@ -50,3 +50,14 @@ later Cloud Functions slice (ADR-0006) and is out of scope here. Device controls
 ## Blocked by
 
 - `.scratch/owner-live-room-view/issues/02-live-telemetry-seeded-room.md`
+
+## Comments
+
+**2026-07-04 (agent) — field evidence from the Stage A hardware smoke test.**
+
+- After the ESP32 stopped writing (12:34:31Z), the dashboard kept showing its last snapshot
+  (EXIT_PENDING, sine-wave power) as if live — the exact failure this slice exists to fix,
+  now reproduced on real hardware.
+- **Real clock skew measured on the dev machine: ~25 minutes** (a naive `Date.now() − updatedAt`
+  computed −1528 s staleness). The server-offset-corrected clock (`.info/serverTimeOffset`)
+  is load-bearing, not defensive theory. Test the skewed-clock case explicitly.

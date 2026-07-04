@@ -79,6 +79,9 @@ New machinery introduced here:
 - View renders all contract groups with units, "Simulated" badge on the PZEM group (ADR-0003),
   gas alarm banner above 300, light level honestly "No sensor", distinct loading /
   never-reported states.
-- **Remaining for the human**: reflash the ESP32 (new API_KEY/DATABASE_URL already edited into
-  firmware/complete.ino) — then verify live: dashboard shows real telemetry updating every ~3 s
-  in the `ecostay-ems` project. Freshness/offline honesty is slice 04.
+- ~~Remaining for the human: reflash + live verify~~ — **DONE 2026-07-04 (Stage A smoke test,
+  bare board, 15 min)**: anonymous sign-in succeeded in `ecostay-ems` (1 device account),
+  transitional rules admitted the write, contract-shaped `latest` arrived (simulated PZEM sine
+  wave alive; zeroed sensor fields as expected with no sensors attached), dashboard rendered it
+  live. ADR-0009 migration fully verified end-to-end. Sensor-by-sensor bring-up happens later
+  with the PCB. Issue closed pending human review/merge.
