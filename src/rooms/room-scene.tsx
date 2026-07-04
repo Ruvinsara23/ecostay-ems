@@ -116,38 +116,55 @@ export function RoomScene({ latest, online }: { latest: RoomLatest; online: bool
           aria-label="Isometric view of the room"
           className="mx-auto block w-full max-w-[720px]"
         >
+          <defs>
+            <linearGradient id="sceneFloor" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
+              <stop offset="1" stopColor="#eef4f0" stopOpacity="0.7" />
+            </linearGradient>
+            <linearGradient id="sceneWallL" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor="#12a15e" stopOpacity="0.10" />
+              <stop offset="1" stopColor="#12a15e" stopOpacity="0.02" />
+            </linearGradient>
+            <linearGradient id="sceneWallR" x1="1" y1="0" x2="0" y2="0">
+              <stop offset="0" stopColor="#0e8a4f" stopOpacity="0.16" />
+              <stop offset="1" stopColor="#0e8a4f" stopOpacity="0.04" />
+            </linearGradient>
+            <radialGradient id="sceneGlow">
+              <stop offset="0" stopColor="#12a15e" stopOpacity={present ? 0.42 : 0.1} />
+              <stop offset="1" stopColor="#12a15e" stopOpacity="0" />
+            </radialGradient>
+          </defs>
           {/* floor */}
           <polygon
             points="320,88 596,232 320,376 44,232"
-            fill="rgba(255,255,255,0.55)"
-            stroke="rgba(27,28,28,0.10)"
+            fill="url(#sceneFloor)"
+            stroke="rgba(27,28,28,0.12)"
             strokeWidth="2"
           />
           {/* occupancy glow */}
           <ellipse
             data-glow={present ? 'on' : 'off'}
             cx="320"
-            cy="235"
-            rx="150"
-            ry="72"
-            fill="#12a15e"
-            opacity={present ? 0.18 : 0.05}
+            cy="238"
+            rx="168"
+            ry="82"
+            fill="url(#sceneGlow)"
           />
-          {/* glass walls */}
+          {/* glass walls (tinted) */}
           <polygon
             points="44,232 320,88 320,20 44,164"
-            fill="rgba(27,28,28,0.045)"
-            stroke="rgba(27,28,28,0.16)"
+            fill="url(#sceneWallL)"
+            stroke="rgba(18,161,94,0.28)"
             strokeWidth="2"
           />
           <polygon
             points="320,88 596,232 596,164 320,20"
-            fill="rgba(27,28,28,0.045)"
-            stroke="rgba(27,28,28,0.16)"
+            fill="url(#sceneWallR)"
+            stroke="rgba(18,161,94,0.34)"
             strokeWidth="2"
           />
-          <line x1="412" y1="68" x2="412" y2="136" stroke="rgba(27,28,28,0.16)" strokeWidth="2" />
-          <line x1="504" y1="116" x2="504" y2="184" stroke="rgba(27,28,28,0.16)" strokeWidth="2" />
+          <line x1="412" y1="68" x2="412" y2="136" stroke="rgba(18,161,94,0.22)" strokeWidth="2" />
+          <line x1="504" y1="116" x2="504" y2="184" stroke="rgba(18,161,94,0.22)" strokeWidth="2" />
 
           {/* bed */}
           <g>

@@ -73,62 +73,52 @@
   }
   html {
     @apply font-sans;
-    background: var(--background);
+    /* Living mesh: soft neutral base with emerald blooms so frosted glass has
+       colour to refract. This is what makes the glass read as glass. */
+    background-color: #dfe6e0;
+    background-image:
+      radial-gradient(64rem 48rem at 90% -10%, rgb(18 161 94 / 0.45), transparent 56%),
+      radial-gradient(54rem 46rem at 2% 104%, rgb(13 138 79 / 0.38), transparent 56%),
+      radial-gradient(44rem 38rem at 52% 38%, rgb(255 255 255 / 0.45), transparent 60%),
+      radial-gradient(50rem 44rem at 112% 100%, rgb(20 130 95 / 0.28), transparent 58%),
+      radial-gradient(40rem 40rem at -8% 30%, rgb(180 200 190 / 0.35), transparent 60%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
   body {
     @apply text-foreground;
     background: transparent;
   }
-  /* ambient fields the glass refracts — faint, fixed, behind everything */
-  body::before,
-  body::after {
-    content: "";
-    position: fixed;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: -1;
-    filter: blur(90px);
-  }
-  body::before {
-    width: 720px;
-    height: 720px;
-    top: -220px;
-    right: -160px;
-    background: radial-gradient(circle, rgb(18 161 94 / 0.16), transparent 65%);
-  }
-  body::after {
-    width: 640px;
-    height: 640px;
-    bottom: -260px;
-    left: -180px;
-    background: radial-gradient(circle, rgb(27 28 28 / 0.10), transparent 65%);
-  }
 }
 
 @layer components {
-  /* gradient glass, never solid (issue 05) */
+  /* gradient glass, never solid (issue 05) — tuned to read frosted over the mesh */
   .glass {
-    background: linear-gradient(135deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.38));
-    -webkit-backdrop-filter: blur(18px) saturate(1.5);
-    backdrop-filter: blur(18px) saturate(1.5);
-    border: 1px solid rgb(255 255 255 / 0.75);
+    background: linear-gradient(140deg, rgb(255 255 255 / 0.62), rgb(255 255 255 / 0.30));
+    -webkit-backdrop-filter: blur(22px) saturate(1.7);
+    backdrop-filter: blur(22px) saturate(1.7);
+    border: 1px solid rgb(255 255 255 / 0.65);
     box-shadow:
-      0 4px 16px rgb(27 28 28 / 0.06),
-      inset 0 1px 0 rgb(255 255 255 / 0.85);
-  }
-  .glass-strong {
-    background: linear-gradient(135deg, rgb(255 255 255 / 0.86), rgb(255 255 255 / 0.55));
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    backdrop-filter: blur(14px) saturate(1.4);
-    border: 1px solid rgb(255 255 255 / 0.8);
-    box-shadow:
-      0 4px 16px rgb(27 28 28 / 0.07),
+      0 10px 34px rgb(20 40 30 / 0.10),
+      0 2px 6px rgb(20 40 30 / 0.05),
       inset 0 1px 0 rgb(255 255 255 / 0.9);
   }
-  /* lightweight variant for tiny elements — gradient without blur (GPU budget) */
+  .glass-strong {
+    background: linear-gradient(140deg, rgb(255 255 255 / 0.82), rgb(255 255 255 / 0.5));
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid rgb(255 255 255 / 0.8);
+    box-shadow:
+      0 10px 30px rgb(20 40 30 / 0.12),
+      inset 0 1px 0 rgb(255 255 255 / 0.95);
+  }
+  /* lightweight variant for tiny elements — gradient + light blur */
   .glass-lite {
-    background: linear-gradient(135deg, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.6));
-    border: 1px solid rgb(255 255 255 / 0.7);
+    background: linear-gradient(140deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.42));
+    -webkit-backdrop-filter: blur(8px) saturate(1.3);
+    backdrop-filter: blur(8px) saturate(1.3);
+    border: 1px solid rgb(255 255 255 / 0.6);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7);
   }
 }
 
