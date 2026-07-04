@@ -36,9 +36,10 @@ Issue 05 (UI design pass): direction approved-in-principle (RentAI branding + gl
 room, spec + mockup in the issue) — ON HOLD by user decision; resume after device control.
 PRD 2 (device control) implemented 2026-07-04 — risk gate #3 approved; 87 unit + 20
 emulator-integration tests green; live relay click-test pending next bench session.
-Phase 5 decided 2026-07-04: **free server runtime** (ADR-0010 amends ADR-0006 — Vercel +
-cron-job.org; no Blaze). PRD `.scratch/server-workloads/PRD.md`: sampler, tick
-(offline+alerts), automation, rollup+prune [risk gate #4], charts UI, alert center,
-deployment runbook. Next: break into issues → implement slice-by-slice.
+Phase 5 (free server runtime, ADR-0010): slices 01–04 implemented 2026-07-04 — sampler,
+tick (alert lifecycle + vacancy-cutoff automation + owner toggle), rollup + dry-run-gated
+prune. 125 unit + 29 emulator-integration tests green; cron routes /api/cron/{sample,tick,rollup}.
+**Pending human console step: re-publish database.rules.json** (automationEnabled + .indexOn).
+Next: slices 05 (charts UI), 06 (alert center), 07 (deployment runbook: Vercel + cron-job.org).
 Issue 05 (UI pass) still on hold. Issue tracker = local markdown under `.scratch/`.
 Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.
