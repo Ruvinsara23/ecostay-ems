@@ -88,9 +88,16 @@ Timeouts on device: 10 s (active→idle; entry→vacant-confirmed), 30 s (idle�
 | Savings | derived | **Headline: counterfactual avoided energy** — Σ(rated wattage of each cut circuit × time it stayed cut), from `automationLog` × Admin-configured circuit wattages, priced via the tariff engine. **Secondary: kWh per occupied-hour** trend from daily aggregates. |
 | Device online | derived | UI: offline when `now − updatedAt > 15 s` (5 missed write cycles), computed against `.info/serverTimeOffset`. Offline **alert** raised at ~90 s staleness by the 1-min scheduled Function. Offline UI: values grey out with "last seen", **device controls disabled** (no queued commands). |
 
-## Server runtime (accepted)
+## Server runtime (accepted — runtime amended 2026-07-04 by ADR-0010)
 
-**Firebase Cloud Functions on the Blaze plan** is the system's only always-on runtime:
+**Amendment**: Blaze/Cloud Functions is not possible (no billing card — user decision).
+The same five workloads run on the **free runtime**: runtime-agnostic handlers in this repo,
+executed by Next API routes on **Vercel Hobby**, triggered by **cron-job.org** schedules
+(1-min tick, 5-min sampler, daily rollup; secret-protected). Event triggers become 1-min
+polling (~60 s worst-case reaction — acceptable; gas safety is on-device and instant).
+Handlers lift unchanged into Cloud Functions if Blaze ever becomes available.
+
+Original decision (workload list unchanged):
 
 1. 5-min scheduled energy sampler → `energyHistory`
 2. Nightly rollup → daily aggregates + 90-day raw pruning
