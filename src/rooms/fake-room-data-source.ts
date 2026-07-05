@@ -179,6 +179,27 @@ export class FakeRoomDataSource implements RoomDataSource {
     };
   }
 
+  private tariffCategory = new Map<string, string | null>();
+  private tariffListeners = new Map<string, Set<(category: string | null) => void>>();
+
+  setTariffCategory(propertyId: string, category: string | null): void {
+    this.tariffCategory.set(propertyId, category);
+    this.tariffListeners.get(propertyId)?.forEach((listener) => listener(category));
+  }
+
+  subscribeTariffCategory(
+    propertyId: string,
+    callback: (category: string | null) => void,
+  ): () => void {
+    const forKey = this.tariffListeners.get(propertyId) ?? new Set<typeof callback>();
+    forKey.add(callback);
+    this.tariffListeners.set(propertyId, forKey);
+    callback(this.tariffCategory.get(propertyId) ?? null);
+    return () => {
+      forKey.delete(callback);
+    };
+  }
+
   private alerts = new Map<string, AlertView[]>();
   private alertListeners = new Map<string, Set<(alerts: AlertView[]) => void>>();
 

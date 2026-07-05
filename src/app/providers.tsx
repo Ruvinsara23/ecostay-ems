@@ -52,6 +52,9 @@ const prerenderRoomDataSource: RoomDataSource = {
   subscribeDailyAggregates() {
     return () => {};
   },
+  subscribeTariffCategory() {
+    return () => {};
+  },
   subscribeAlerts() {
     return () => {};
   },

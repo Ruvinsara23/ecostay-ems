@@ -363,6 +363,21 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     unsubAggregates();
   });
 
+  it('owner reads the property tariff category through the rules', async () => {
+    await wipe();
+    await seedTwoProperties();
+    await adminDb.ref('properties/property_001/settings/tariffCategory').set('H-1');
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const emissions: Array<string | null> = [];
+    const unsubscribe = source.subscribeTariffCategory('property_001', (c) => emissions.push(c));
+    await waitUntil(() => emissions.length >= 1);
+
+    expect(emissions[0]).toBe('H-1');
+    unsubscribe();
+  });
+
   it('owner acknowledges an alert through the rules; forgery and edits are denied', async () => {
     await wipe();
     await seedTwoProperties();

@@ -25,6 +25,7 @@ describe('RoomLiveView — states', () => {
       setAutomationEnabled: async () => { },
       subscribeEnergyHistory: () => () => { },
       subscribeDailyAggregates: () => () => { },
+      subscribeTariffCategory: () => () => { },
       subscribeAlerts: () => () => { },
       acknowledgeAlert: async () => { },
     };

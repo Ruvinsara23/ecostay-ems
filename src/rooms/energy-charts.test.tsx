@@ -21,6 +21,27 @@ function sampleAt(agoMs: number, power: number) {
 }
 
 describe('EnergyHistorySection', () => {
+  it('shows the estimated monthly bill from month-to-date kWh × the H-1 tariff', () => {
+    const source = new FakeRoomDataSource();
+    source.emitDailyAggregates('property_001', 'room_001', {
+      [colomboDateKey(Date.now())]: { kWhUsed: 250, occupiedMinutes: 300 },
+    });
+    source.setTariffCategory('property_001', 'H-1');
+    renderSection(source);
+    // H-1 ≤300: 250×9 + 300 fixed = 2550, +SSCL 2.5⁄97.5 → 2615.38
+    expect(screen.getByText(/estimated bill this month/i)).toBeInTheDocument();
+    expect(screen.getByText(/2,615\.38/)).toBeInTheDocument();
+  });
+
+  it('prompts to set a tariff when none is configured', () => {
+    const source = new FakeRoomDataSource();
+    source.emitDailyAggregates('property_001', 'room_001', {
+      [colomboDateKey(Date.now())]: { kWhUsed: 100, occupiedMinutes: 0 },
+    });
+    renderSection(source);
+    expect(screen.getByText(/set a tariff/i)).toBeInTheDocument();
+  });
+
   it('is honest before any history exists, and carries the Simulated badge', () => {
     renderSection();
     expect(screen.getByText(/no history yet/i)).toBeInTheDocument();

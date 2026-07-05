@@ -112,6 +112,10 @@ async function main() {
   const db = getDatabase(app);
   // Room registry for the server workloads (ADR-0010) — Admin-only path.
   await db.ref(`ops/roomIndex/${PROPERTY_ID}/${ROOM_ID}`).set(true);
+  // CEB tariff category for cost estimates (ADR-0008). Set from the owner's actual
+  // bill; H-1 = SLTDA-approved hotel. Set only when absent so an Admin edit isn't clobbered.
+  const tariffRef = db.ref(`properties/${PROPERTY_ID}/settings/tariffCategory`);
+  if ((await tariffRef.get()).val() === null) await tariffRef.set('H-1');
   // Names are set only when absent so a later Admin-UI rename is never clobbered.
   const propertyNameRef = db.ref(`properties/${PROPERTY_ID}/name`);
   if ((await propertyNameRef.get()).val() === null) {

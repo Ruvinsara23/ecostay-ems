@@ -136,6 +136,14 @@ describe('FakeRoomDataSource', () => {
     expect(emissions[1]).toEqual([5_000, 9_000]);
   });
 
+  it('serves the property tariff category (null until set), live', () => {
+    const source = new FakeRoomDataSource();
+    const emissions: Array<string | null> = [];
+    source.subscribeTariffCategory('property_001', (category) => emissions.push(category));
+    source.setTariffCategory('property_001', 'H-1');
+    expect(emissions).toEqual([null, 'H-1']);
+  });
+
   it('serves daily aggregates keyed by date, live', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {

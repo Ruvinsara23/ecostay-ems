@@ -97,6 +97,12 @@ export interface RoomDataSource {
     callback: (byDate: Record<string, DailyAggregateView>) => void,
   ): () => void;
 
+  /** The property's CEB tariff category (e.g. 'H-1'), null until set; live. */
+  subscribeTariffCategory(
+    propertyId: string,
+    callback: (category: string | null) => void,
+  ): () => void;
+
   /** The property's alert records (open and resolved), live. */
   subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void;
 

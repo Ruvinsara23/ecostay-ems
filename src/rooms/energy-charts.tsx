@@ -2,8 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { colomboDateKey } from '@/server/colombo-time';
+import { CEB_TARIFFS } from '@/tariff/ceb-tariffs';
+import { computeBill } from '@/tariff/compute-bill';
+import { monthToDateKWh } from '@/tariff/month-to-date';
 import type { DailyAggregateView, EnergyHistorySample } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
+
+const LKR = new Intl.NumberFormat('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const DAY_MS = 86_400_000;
 
@@ -192,6 +197,7 @@ export function EnergyHistorySection({
   const sinceMs = nowMs - DAY_MS;
   const [samples, setSamples] = useState<EnergyHistorySample[]>([]);
   const [byDate, setByDate] = useState<Record<string, DailyAggregateView>>({});
+  const [tariffCategory, setTariffCategory] = useState<string | null>(null);
 
   useEffect(() => {
     return source.subscribeEnergyHistory(propertyId, roomId, sinceMs, setSamples);
@@ -200,6 +206,15 @@ export function EnergyHistorySection({
   useEffect(() => {
     return source.subscribeDailyAggregates(propertyId, roomId, setByDate);
   }, [source, propertyId, roomId]);
+
+  useEffect(() => {
+    return source.subscribeTariffCategory(propertyId, setTariffCategory);
+  }, [source, propertyId]);
+
+  // Monthly bill — CEB tariffs are monthly, so run month-to-date kWh through the tariff.
+  const mtdKWh = monthToDateKWh(byDate, nowMs);
+  const tariff = tariffCategory ? CEB_TARIFFS[tariffCategory] : undefined;
+  const bill = tariff ? computeBill(tariff, mtdKWh) : null;
 
   return (
     <section aria-label="Energy history" className="glass rounded-2xl p-4">
@@ -212,6 +227,25 @@ export function EnergyHistorySection({
       <PowerLine samples={samples} sinceMs={sinceMs} />
       <div className="mt-2 border-t border-hairline pt-2">
         <DailyBars byDate={byDate} nowMs={nowMs} />
+      </div>
+      <div className="mt-2 flex items-baseline justify-between border-t border-hairline pt-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+            Estimated bill this month
+          </p>
+          {bill ? (
+            <p className="text-[11px] text-ink-3">
+              {tariff?.category} · {mtdKWh.toFixed(2)} kWh so far
+            </p>
+          ) : (
+            <p className="text-[11px] text-ink-3">Set a tariff to estimate cost</p>
+          )}
+        </div>
+        {bill && (
+          <p className="text-lg font-bold text-ink [font-variant-numeric:tabular-nums]">
+            LKR {LKR.format(bill.totalLKR)}
+          </p>
+        )}
       </div>
     </section>
   );

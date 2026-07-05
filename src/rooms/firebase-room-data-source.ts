@@ -135,6 +135,13 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       );
     },
 
+    subscribeTariffCategory(propertyId, callback) {
+      return onValue(
+        ref(db, `properties/${propertyId}/settings/tariffCategory`),
+        (snapshot) => callback((snapshot.val() as string | null) ?? null),
+      );
+    },
+
     subscribeAlerts(propertyId, callback) {
       return onValue(ref(db, `properties/${propertyId}/alerts`), (snapshot) => {
         const raw = (snapshot.val() ?? {}) as Record<string, Omit<AlertView, 'id'>>;
