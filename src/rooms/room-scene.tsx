@@ -12,11 +12,12 @@ const MARKERS: Array<{
   x: number;
   y: number;
 }> = [
-  { key: 'door', letter: 'D', label: 'Door sensor readings', x: 150, y: 150 },
-  { key: 'pir', letter: 'M', label: 'Motion sensor readings', x: 320, y: 12 },
-  { key: 'dht', letter: 'T', label: 'Climate sensor readings', x: 560, y: 150 },
-  { key: 'gas', letter: 'G', label: 'Gas sensor readings', x: 470, y: 300 },
-  { key: 'water', letter: 'W', label: 'Water sensor readings', x: 180, y: 320 },
+  // Kept in the open centre of the room so none sit under the floating cards.
+  { key: 'door', letter: 'D', label: 'Door sensor readings', x: 215, y: 205 },
+  { key: 'pir', letter: 'M', label: 'Motion sensor readings', x: 330, y: 110 },
+  { key: 'dht', letter: 'T', label: 'Climate sensor readings', x: 430, y: 165 },
+  { key: 'gas', letter: 'G', label: 'Gas sensor readings', x: 360, y: 255 },
+  { key: 'water', letter: 'W', label: 'Water sensor readings', x: 255, y: 150 },
 ];
 
 function reading(value: number | undefined, unit: string): string {
@@ -135,6 +136,7 @@ export function RoomScene({ latest, online }: { latest: RoomLatest; online: bool
                   (marker.key === 'pir' && latest.motionDetected === true) ||
                   (marker.key === 'door' && doorOpen);
                 const alarm = marker.key === 'gas' && gasAlarm;
+                const selected = openSensor === marker.key;
                 return (
                   <g
                     key={marker.key}
@@ -156,14 +158,19 @@ export function RoomScene({ latest, online }: { latest: RoomLatest; online: bool
                       }
                     }}
                   >
-                    <circle r="22" fill="transparent" />
+                    <circle r="24" fill="transparent" />
+                    {selected && (
+                      <circle r="22" fill="none" stroke="#7c3aed" strokeWidth="2" opacity="0.5" />
+                    )}
                     <circle
                       r="16"
-                      fill="rgba(255,255,255,0.95)"
-                      stroke={alarm ? '#d6453d' : active ? '#7c3aed' : 'rgba(28,26,39,0.15)'}
-                      strokeWidth={alarm || active ? 4 : 2}
+                      fill={selected ? '#7c3aed' : 'rgba(255,255,255,0.98)'}
+                      stroke={
+                        alarm ? '#d6453d' : selected || active ? '#7c3aed' : 'rgba(28,26,39,0.25)'
+                      }
+                      strokeWidth={alarm || selected || active ? 3.5 : 2}
                     />
-                    <text x="0" y="4" textAnchor="middle" fill="#1c1a27">
+                    <text x="0" y="4" textAnchor="middle" fill={selected ? '#ffffff' : '#1c1a27'}>
                       {marker.letter}
                     </text>
                   </g>
@@ -171,23 +178,37 @@ export function RoomScene({ latest, online }: { latest: RoomLatest; online: bool
               })}
             </g>
           </svg>
+
+          {/* Reading popover — anchored to the selected letter */}
+          {openSensor &&
+            (() => {
+              const m = MARKERS.find((mk) => mk.key === openSensor);
+              if (!m) return null;
+              const leftPct = ((m.x - 34) / 574) * 100;
+              const topPct = ((m.y + 10) / 400) * 100;
+              const below = topPct < 30; // top markers open downward so they don't clip
+              return (
+                <div
+                  role="status"
+                  style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+                  className={`glass-strong pointer-events-none absolute z-50 min-w-[168px] -translate-x-1/2 rounded-2xl px-4 py-3 text-xs shadow-2xl ${
+                    below ? 'translate-y-8' : '-translate-y-[calc(100%+2rem)]'
+                  }`}
+                >
+                  <b className="mb-1.5 block text-[13px] font-bold text-ink">
+                    {SENSOR_TITLES[openSensor]}
+                  </b>
+                  {sensorRows(openSensor, latest).map(([label, value]) => (
+                    <div key={label} className="mt-1 flex justify-between gap-5">
+                      <span className="font-medium text-ink-3">{label}</span>
+                      <b className="text-brand [font-variant-numeric:tabular-nums]">{value}</b>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
         </div>
       </div>
-
-      {openSensor && (
-        <div
-          role="status"
-          className="glass-strong pointer-events-none absolute left-1/2 top-[-40px] z-50 min-w-[180px] -translate-x-1/2 rounded-2xl px-4 py-3 text-xs text-ink-2 shadow-2xl"
-        >
-          <b className="mb-1.5 block text-[13px] font-bold text-ink">{SENSOR_TITLES[openSensor]}</b>
-          {sensorRows(openSensor, latest).map(([label, value]) => (
-            <div key={label} className="mt-1 flex justify-between gap-5">
-              <span className="font-medium text-ink-3">{label}</span>
-              <b className="text-brand [font-variant-numeric:tabular-nums]">{value}</b>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

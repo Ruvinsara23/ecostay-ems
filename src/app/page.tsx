@@ -10,6 +10,17 @@ import { RoomLiveView } from '@/rooms/room-live-view';
 
 type RoomsState = { status: 'loading' } | { status: 'ready'; rooms: RoomRef[] };
 
+function Spinner({ label }: { label: string }) {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-12">
+      <div className="flex flex-col items-center gap-3">
+        <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand/25 border-t-brand" />
+        <span className="text-xs font-medium text-ink-3">{label}</span>
+      </div>
+    </div>
+  );
+}
+
 function RoomArea() {
   const { sessionState } = useAuth();
   const source = useRoomDataSource();
@@ -30,7 +41,7 @@ function RoomArea() {
   }, [source, session]);
 
   if (roomsState.status === 'loading') {
-    return <p className="text-sm text-ink-2">Loading your rooms…</p>;
+    return <Spinner label="Loading rooms" />;
   }
 
   const { rooms } = roomsState;
@@ -92,28 +103,66 @@ function RoomArea() {
   );
 }
 
-function RailIcon({ children, label, active }: { children: React.ReactNode; label: string; active?: boolean }) {
+function RailIcon({
+  children,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <div className={`flex flex-col items-center gap-1.5 w-full py-2 cursor-pointer transition-colors ${active ? 'text-brand' : 'text-ink-3 hover:text-ink'}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      title={disabled ? `${label} — coming soon` : label}
+      aria-label={label}
+      className={`flex w-full flex-col items-center gap-1.5 py-2 transition-colors ${
+        active ? 'text-brand' : disabled ? 'text-ink-3/60 hover:text-ink-3' : 'text-ink-3 hover:text-ink'
+      }`}
+    >
       <span
         aria-hidden
-        className={`grid h-10 w-10 place-items-center rounded-2xl ${active ? 'bg-brand text-white shadow-md' : 'bg-transparent text-current'
-          }`}
+        className={`grid h-10 w-10 place-items-center rounded-2xl transition-colors ${
+          active ? 'bg-brand text-white shadow-md' : 'bg-transparent text-current hover:bg-brand/10'
+        }`}
       >
         {children}
       </span>
       <span className="text-[11px] font-medium max-sm:hidden">{label}</span>
-    </div>
+    </button>
   );
 }
 
 function DashboardLanding() {
   const { gateway, sessionState } = useAuth();
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 2200);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   if (sessionState.status !== 'signed-in') return null;
   const { email, role } = sessionState.session;
+  const soon = (label: string) => setToast(`${label} is coming soon`);
 
   return (
     <div className="mx-auto flex h-screen w-full bg-transparent overflow-hidden max-sm:flex-col">
+      {toast && (
+        <div
+          role="status"
+          className="glass-strong fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full px-5 py-2.5 text-sm font-semibold text-ink shadow-lg"
+        >
+          {toast}
+        </div>
+      )}
       {/* icon rail */}
       <nav
         aria-label="Navigation"
@@ -122,14 +171,12 @@ function DashboardLanding() {
         <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand">
           i
         </span>
-        <span title="Home — coming soon" aria-disabled="true" className="w-full opacity-60">
-          <RailIcon label="Home">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-              <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-          </RailIcon>
-        </span>
+        <RailIcon label="Home" disabled onClick={() => soon('Home')}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </RailIcon>
         <RailIcon label="Live View" active>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
@@ -137,39 +184,30 @@ function DashboardLanding() {
             <polyline points="2 12 12 17 22 12"></polyline>
           </svg>
         </RailIcon>
-        <span title="Devices — coming soon" aria-disabled="true" className="w-full opacity-60">
-          <RailIcon label="Devices">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="8" rx="2" />
-              <rect x="3" y="13" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" />
-            </svg>
-          </RailIcon>
-        </span>
-        <span title="Routines — coming soon" aria-disabled="true" className="w-full opacity-60">
-          <RailIcon label="Routines">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </RailIcon>
-        </span>
-        <span title="Activity — coming soon" aria-disabled="true" className="w-full opacity-60">
-          <RailIcon label="Activity">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-            </svg>
-          </RailIcon>
-        </span>
+        <RailIcon label="Devices" disabled onClick={() => soon('Devices')}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="8" rx="2" />
+            <rect x="3" y="13" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" />
+          </svg>
+        </RailIcon>
+        <RailIcon label="Routines" disabled onClick={() => soon('Routines')}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </RailIcon>
+        <RailIcon label="Activity" disabled onClick={() => soon('Activity')}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+        </RailIcon>
         <div className="mt-auto w-full">
-          <span title="Settings — coming soon" aria-disabled="true" className="w-full opacity-60">
-            <RailIcon label="">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="1"></circle>
-                <circle cx="19" cy="12" r="1"></circle>
-                <circle cx="5" cy="12" r="1"></circle>
-              </svg>
-            </RailIcon>
-          </span>
+          <RailIcon label="Settings" disabled onClick={() => soon('Settings')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </RailIcon>
         </div>
       </nav>
 
