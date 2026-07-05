@@ -39,8 +39,8 @@ function flag(value: boolean | undefined, onLabel: string, offLabel: string): st
 
 function Group({ title, badge, children }: { title: string; badge?: string; children: ReactNode }) {
   return (
-    <section className="glass rounded-2xl p-4">
-      <h3 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+    <section className="glass rounded-[1.25rem] p-5 shadow-sm">
+      <h3 className="mb-4 flex items-center justify-between text-sm font-bold text-ink">
         {title}
         {badge && (
           <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
@@ -48,16 +48,16 @@ function Group({ title, badge, children }: { title: string; badge?: string; chil
           </span>
         )}
       </h3>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">{children}</dl>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
     </section>
   );
 }
 
 function Value({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <dt className="text-xs text-ink-2">{label}</dt>
-      <dd className="text-sm font-semibold text-ink [font-variant-numeric:tabular-nums]">
+    <div className="flex flex-col gap-1">
+      <dt className="text-[11px] font-medium text-ink-3 uppercase tracking-wider">{label}</dt>
+      <dd className="text-sm font-bold text-ink [font-variant-numeric:tabular-nums]">
         {children}
       </dd>
     </div>
@@ -83,14 +83,12 @@ function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={onToggle}
-      className={`relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-40 ${
-        checked ? 'bg-brand' : 'bg-ink/15'
-      }`}
+      className={`relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-40 ${checked ? 'bg-brand' : 'bg-ink-3/20'
+        }`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${
-          checked ? 'left-[22px]' : 'left-0.5'
-        }`}
+        className={`absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-[22px]' : 'translate-x-[2px]'
+          }`}
       />
     </button>
   );
@@ -147,29 +145,28 @@ function DeviceControls({
   }
 
   return (
-    <section className="glass rounded-2xl p-4">
-      <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
-        Controls
+    <section className="glass rounded-[1.25rem] p-5 shadow-sm">
+      <h3 className="mb-4 text-sm font-bold text-ink">
+        Device Controls
       </h3>
       {!online && (
-        <p className="mb-2 text-xs text-ink-2">
-          Controls disabled while offline — a queued command would apply unpredictably when
-          the device reconnects.
+        <p className="mb-3 rounded-lg bg-ink-3/10 px-3 py-2 text-xs text-ink-2">
+          Controls disabled while offline.
         </p>
       )}
-      <div className="grid gap-2.5">
+      <div className="grid gap-3">
         {DEVICE_COMMAND_KEYS.map((key) => (
           <div key={key} className="flex items-center justify-between gap-3">
-            <div className="text-sm text-ink">
+            <div className="text-sm font-medium text-ink">
               {DEVICE_COMMAND_LABELS[key]}
               {key === 'motionDetection' && (
-                <span className="ml-2 text-xs text-ink-3">
+                <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-3">
                   Actual: {relayActual === undefined ? '—' : relayActual ? 'On' : 'Off'}
                 </span>
               )}
               {key === 'exhaustFan' && gasAlarm && (
-                <span className="ml-2 text-xs font-semibold text-alarm">
-                  Forced on by device during the alarm
+                <span className="ml-2 text-[10px] font-bold uppercase text-alarm">
+                  Forced on
                 </span>
               )}
             </div>
@@ -182,11 +179,11 @@ function DeviceControls({
           </div>
         ))}
       </div>
-      <div className="mt-3.5 flex items-center justify-between gap-3 border-t border-hairline pt-3.5">
-        <div className="text-sm text-ink">
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-hairline pt-4">
+        <div className="text-sm font-medium text-ink">
           Vacancy cutoff automation
-          <span className="block text-xs text-ink-3">
-            Turns off lights and fan when the room is confirmed vacant.
+          <span className="block mt-0.5 text-xs font-normal text-ink-3">
+            Turns off lights and fan when vacant.
           </span>
         </div>
         <Toggle
@@ -197,7 +194,7 @@ function DeviceControls({
         />
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-xs font-semibold text-alarm">
+        <p role="alert" className="mt-3 text-xs font-semibold text-alarm">
           {error}
         </p>
       )}
@@ -209,10 +206,12 @@ export function RoomLiveView({
   propertyId,
   roomId,
   roomName,
+  propertyName,
 }: {
   propertyId: string;
   roomId: string;
   roomName?: string;
+  propertyName?: string;
 }) {
   const source = useRoomDataSource();
   const [state, setState] = useState<ViewState>({ status: 'loading' });
@@ -260,101 +259,91 @@ export function RoomLiveView({
   const gasAlarm = latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD;
 
   return (
-    <section aria-label={`Live view of ${roomName ?? roomId}`} className="flex flex-col gap-3.5">
-      <header className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-[22px] font-light tracking-tight text-ink">
-            <b className="font-bold">{roomName ?? roomId}</b>
-          </h2>
-          {freshness.online ? (
-            <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-deep">
-              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-current" />
-              Live · {ageLabel(freshness.ageSeconds)}
-            </p>
-          ) : (
-            <p
-              role="status"
-              className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-alarm-soft px-2.5 py-0.5 text-xs font-bold text-alarm"
-            >
-              Offline — last seen {ageLabel(freshness.ageSeconds)}
-            </p>
-          )}
-        </div>
-        <div className="flex-none text-right">
-          <p
-            className={`text-lg font-bold tracking-tight ${
-              occupancySummary === 'Occupied' ? 'text-brand-deep' : 'text-ink'
-            }`}
-          >
-            {occupancySummary}
-          </p>
-          <p className="text-[11px] font-semibold tracking-wide text-ink-3">
-            {latest.occupancyState ?? 'no state reported'}
-          </p>
-        </div>
-      </header>
+    <section aria-label={`Live view of ${roomName ?? roomId}`} className="relative h-full w-full overflow-hidden bg-transparent">
 
-      {gasAlarm && (
-        <p
-          role="alert"
-          className="rounded-xl bg-alarm-soft px-4 py-2.5 text-sm font-bold text-alarm"
-        >
-          Gas alarm — {latest.gas} ppm (threshold {GAS_ALARM_THRESHOLD})
-        </p>
-      )}
-
-      <div className="glass rounded-2xl p-1.5">
-        <RoomScene latest={latest} online={freshness.online} />
+      {/* Background 3D Scene */}
+      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none p-12">
+        <div className="w-full max-w-5xl opacity-100 pointer-events-auto">
+          <RoomScene latest={latest} online={freshness.online} />
+        </div>
       </div>
 
+      {/* Floating Status Header (Overrides page.tsx title somewhat, but nice for status) */}
+      <div className="absolute left-1/2 top-4 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
+        <span className="text-sm font-bold tracking-tight text-ink">{roomName ?? roomId}</span>
+        <span className="text-[11px] font-medium text-ink-3">{propertyName ?? propertyId}</span>
+        <div className="mt-0.5">
+        {gasAlarm ? (
+          <div role="status" className="rounded-full bg-alarm px-6 py-2 shadow-lg text-sm font-bold text-white uppercase tracking-wider animate-pulse">
+            Gas alarm active — {latest.gas} ppm
+          </div>
+        ) : !freshness.online ? (
+          <div role="status" className="rounded-full bg-ink px-6 py-2 shadow-lg text-sm font-bold text-white uppercase tracking-wider opacity-80">
+            Offline — last seen {ageLabel(freshness.ageSeconds)}
+          </div>
+        ) : (
+          <div role="status" className="rounded-full bg-white/60 backdrop-blur-md px-6 py-2 shadow-sm text-xs font-bold text-ink-2 uppercase tracking-wider border border-white">
+            Status: {occupancySummary}
+          </div>
+        )}
+        </div>
+      </div>
+
+      {/* Overlay Content */}
       <div
+        className={`absolute inset-0 z-10 flex flex-col justify-between p-6 pointer-events-none overflow-y-auto transition-opacity ${!freshness.online ? 'opacity-70' : ''}`}
         data-stale={freshness.online ? undefined : 'true'}
-        className={`grid gap-3.5 sm:grid-cols-2 ${freshness.online ? '' : 'opacity-50'}`}
       >
-        <Group title="Climate">
-          <Value label="Temperature">{reading(latest.temperature, '°C')}</Value>
-          <Value label="Humidity">{reading(latest.humidity, '%')}</Value>
-        </Group>
 
-        <Group title="Power" badge="Simulated">
-          <Value label="Power">{reading(latest.power, 'W')}</Value>
-          <Value label="Energy">{reading(latest.energy, 'kWh')}</Value>
-          <Value label="Voltage">{reading(latest.voltage, 'V')}</Value>
-          <Value label="Current">{reading(latest.current, 'A')}</Value>
-        </Group>
+        {/* Top layer widgets */}
+        <div className="flex justify-between items-start pt-16">
+          {/* Left Widgets */}
+          <div className="flex flex-col gap-5 w-72 pointer-events-auto">
+            <Group title="Activity">
+              <Value label="Door">{flag(latest.doorOpen, 'Open', 'Closed')}</Value>
+              <Value label="Motion">{flag(latest.motionDetected, 'Detected', 'None')}</Value>
+              <Value label="Presence">{flag(latest.humanPresent, 'Present', 'Away')}</Value>
+            </Group>
+            <Group title="Water">
+              <Value label="Tank level">{reading(latest.waterLevel, '%')}</Value>
+              <Value label="Flow">{reading(latest.flowRate, 'L/min')}</Value>
+              <Value label="Usage">{reading(latest.totalLiters, 'L')}</Value>
+            </Group>
+            <Group title="Safety">
+              <Value label="Gas Level">{reading(latest.gas, 'ppm')}</Value>
+            </Group>
+          </div>
 
-        <Group title="Safety">
-          <Value label="Gas">{reading(latest.gas, 'ppm')}</Value>
-          <Value label="Buzzer">{flag(latest.buzzerStatus, 'On', 'Off')}</Value>
-        </Group>
+          {/* Right Widgets */}
+          <div className="flex flex-col gap-5 w-72 pointer-events-auto">
+            <Group title="Lighting & Relays">
+              <Value label="Presence relay">{flag(latest.relayStatus, 'On', 'Off')}</Value>
+              <Value label="Buzzer">{flag(latest.buzzerStatus, 'On', 'Off')}</Value>
+              <Value label="Light level">No sensor</Value>
+            </Group>
+            <Group title="Climate Control">
+              <Value label="Temperature">{reading(latest.temperature, '°C')}</Value>
+              <Value label="Humidity">{reading(latest.humidity, '%')}</Value>
+            </Group>
+            <Group title="Power Usage" badge="Simulated">
+              <Value label="Power">{reading(latest.power, 'W')}</Value>
+              <Value label="Energy">{reading(latest.energy, 'kWh')}</Value>
+              <Value label="Voltage">{reading(latest.voltage, 'V')}</Value>
+              <Value label="Current">{reading(latest.current, 'A')}</Value>
+            </Group>
+          </div>
+        </div>
 
-        <Group title="Water">
-          <Value label="Tank level">{reading(latest.waterLevel, '%')}</Value>
-          <Value label="Flow">{reading(latest.flowRate, 'L/min')}</Value>
-          <Value label="Used since boot">{reading(latest.totalLiters, 'L')}</Value>
-        </Group>
-
-        <Group title="Activity">
-          <Value label="Door">{flag(latest.doorOpen, 'Open', 'Closed')}</Value>
-          <Value label="Motion">{flag(latest.motionDetected, 'Detected', 'None')}</Value>
-          <Value label="Human presence">{flag(latest.humanPresent, 'Present', 'Away')}</Value>
-        </Group>
-
-        <Group title="Relays">
-          <Value label="Presence relay">{flag(latest.relayStatus, 'On', 'Off')}</Value>
-          <Value label="Light level">No sensor</Value>
-        </Group>
+        {/* Bottom layer widgets */}
+        <div className="flex justify-between items-end mt-auto pointer-events-auto gap-5 pt-8 pb-4">
+          <div className="w-80">
+            <DeviceControls propertyId={propertyId} roomId={roomId} online={freshness.online} gasAlarm={gasAlarm} relayActual={latest.relayStatus} />
+          </div>
+          <div className="flex-1 max-w-2xl glass rounded-[1.25rem] shadow-sm overflow-hidden p-2">
+            <EnergyHistorySection propertyId={propertyId} roomId={roomId} />
+          </div>
+        </div>
       </div>
-
-      <EnergyHistorySection propertyId={propertyId} roomId={roomId} />
-
-      <DeviceControls
-        propertyId={propertyId}
-        roomId={roomId}
-        online={freshness.online}
-        gasAlarm={gasAlarm}
-        relayActual={latest.relayStatus}
-      />
-    </section>
+    </section >
   );
 }

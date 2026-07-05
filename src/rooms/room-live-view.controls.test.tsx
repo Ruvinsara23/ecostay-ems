@@ -83,7 +83,7 @@ describe('RoomLiveView — device controls', () => {
 
   it('marks the exhaust fan as forced on during a gas alarm', () => {
     setup({ snapshot: liveSnapshot({ gas: 452 }) });
-    expect(screen.getByText(/forced on by device/i)).toBeInTheDocument();
+    expect(screen.getByText(/forced on/i)).toBeInTheDocument();
   });
 
   it('offers the vacancy-cutoff automation toggle, live and writable', async () => {

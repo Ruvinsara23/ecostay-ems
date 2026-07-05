@@ -13,20 +13,20 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-heading: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* brand tokens */
-  --color-canvas: #e5e6e4;
-  --color-ink: #1b1c1c;
-  --color-ink-2: #686c6a;
-  --color-ink-3: #9da19e;
-  --color-brand: #12a15e;
-  --color-brand-deep: #0e8a4f;
-  --color-brand-soft: rgb(18 161 94 / 0.12);
-  --color-well: rgb(27 28 28 / 0.055);
-  --color-hairline: rgb(27 28 28 / 0.09);
+  --color-canvas: #f0eff5;
+  --color-ink: #1c1a27;
+  --color-ink-2: #69657a;
+  --color-ink-3: #9e9ba8;
+  --color-brand: #7c3aed;
+  --color-brand-deep: #5b21b6;
+  --color-brand-soft: rgb(124 58 237 / 0.12);
+  --color-well: rgb(28 26 39 / 0.055);
+  --color-hairline: rgb(28 26 39 / 0.09);
   --color-warnbrand: #a8570e;
   --color-warnbrand-soft: rgb(180 106 25 / 0.14);
   --color-alarm: #d6453d;
@@ -52,18 +52,18 @@
 
 :root {
   color-scheme: light;
-  --background: #e5e6e4;
-  --foreground: #1b1c1c;
+  --background: #f0eff5;
+  --foreground: #1c1a27;
   --card: #ffffff;
-  --card-foreground: #1b1c1c;
-  --primary: #1b1c1c;
+  --card-foreground: #1c1a27;
+  --primary: #1c1a27;
   --primary-foreground: #ffffff;
-  --muted: #f1f2f0;
-  --muted-foreground: #686c6a;
+  --muted: #f4f3f8;
+  --muted-foreground: #69657a;
   --destructive: #d6453d;
-  --border: rgb(27 28 28 / 0.09);
-  --input: rgb(27 28 28 / 0.12);
-  --ring: #12a15e;
+  --border: rgb(28 26 39 / 0.09);
+  --input: rgb(28 26 39 / 0.12);
+  --ring: #7c3aed;
   --radius: 0.875rem;
 }
 
@@ -71,20 +71,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   html {
     @apply font-sans;
     overflow-x: hidden;
-    /* Living mesh: soft neutral base with emerald blooms so frosted glass has
-       colour to refract. This is what makes the glass read as glass. */
-    /* Calm neutral environment; emerald only as faint corner accents. Green is an
-       ACCENT, never the whole surface — clarity first. */
-    background-color: #eef1f0;
+    /* Soft Lavender theme: very light purple tinted background with soft purple glows */
+    background-color: #f7f6fb;
     background-image:
-      radial-gradient(34rem 26rem at 100% -4%, rgb(18 161 94 / 0.13), transparent 58%),
-      radial-gradient(30rem 26rem at -4% 104%, rgb(18 161 94 / 0.07), transparent 58%);
+      radial-gradient(34rem 26rem at 100% -4%, rgb(124 58 237 / 0.15), transparent 58%),
+      radial-gradient(30rem 26rem at -4% 104%, rgb(124 58 237 / 0.12), transparent 58%);
     background-attachment: fixed;
     background-repeat: no-repeat;
   }
+
   body {
     @apply text-foreground;
     background: transparent;
@@ -94,29 +93,31 @@
 }
 
 @layer components {
-  /* Clean frosted white — high enough opacity that text is crisp and cards read
-     clearly on the calm neutral canvas; subtle blur keeps the glass character. */
+
+  /* Soft Lavender theme glass - very bright, crisp white glass with soft, less saturated shadow */
   .glass {
-    background: rgb(255 255 255 / 0.72);
-    -webkit-backdrop-filter: blur(16px) saturate(1.3);
-    backdrop-filter: blur(16px) saturate(1.3);
-    border: 1px solid rgb(255 255 255 / 0.9);
+    background: rgb(255 255 255 / 0.85);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    backdrop-filter: blur(20px) saturate(1.1);
+    border: 1px solid rgb(255 255 255 / 1);
     box-shadow:
-      0 6px 22px rgb(20 40 30 / 0.07),
-      0 1px 2px rgb(20 40 30 / 0.04);
+      0 12px 32px rgb(40 30 60 / 0.05),
+      0 2px 4px rgb(40 30 60 / 0.02);
   }
+
   .glass-strong {
-    background: rgb(255 255 255 / 0.86);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    backdrop-filter: blur(14px) saturate(1.2);
-    border: 1px solid rgb(255 255 255 / 0.95);
-    box-shadow: 0 8px 26px rgb(20 40 30 / 0.10);
+    background: rgb(255 255 255 / 0.95);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    backdrop-filter: blur(20px) saturate(1.1);
+    border: 1px solid rgb(255 255 255 / 1);
+    box-shadow: 0 16px 40px rgb(40 30 60 / 0.08);
   }
+
   .glass-lite {
     background: rgb(255 255 255 / 0.66);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    border: 1px solid rgb(27 28 28 / 0.06);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgb(255 255 255 / 0.8);
   }
 }
 
@@ -124,6 +125,7 @@
   .pulse-dot {
     animation: ecostay-blink 2.2s ease-in-out infinite;
   }
+
   @keyframes ecostay-blink {
     50% {
       opacity: 0.3;

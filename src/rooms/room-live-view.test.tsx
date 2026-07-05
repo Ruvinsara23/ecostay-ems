@@ -17,16 +17,16 @@ describe('RoomLiveView — states', () => {
   it('shows a loading state until the first report arrives', () => {
     const silentSource: RoomDataSource = {
       listAccessibleRooms: async () => [],
-      subscribeLatest: () => () => {},
-      subscribeServerTimeOffset: () => () => {},
-      subscribeDeviceCommands: () => () => {},
-      setDeviceCommand: async () => {},
-      subscribeAutomationEnabled: () => () => {},
-      setAutomationEnabled: async () => {},
-      subscribeEnergyHistory: () => () => {},
-      subscribeDailyAggregates: () => () => {},
-      subscribeAlerts: () => () => {},
-      acknowledgeAlert: async () => {},
+      subscribeLatest: () => () => { },
+      subscribeServerTimeOffset: () => () => { },
+      subscribeDeviceCommands: () => () => { },
+      setDeviceCommand: async () => { },
+      subscribeAutomationEnabled: () => () => { },
+      setAutomationEnabled: async () => { },
+      subscribeEnergyHistory: () => () => { },
+      subscribeDailyAggregates: () => () => { },
+      subscribeAlerts: () => () => { },
+      acknowledgeAlert: async () => { },
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();
@@ -44,12 +44,11 @@ describe('RoomLiveView — states', () => {
       occupancyState: 'OCCUPIED_ACTIVE',
       temperature: 27.5,
       humidity: 62,
-      updatedAt: 1_751_600_000_000,
+      updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
     renderView(source);
 
-    expect(screen.getByText('Occupied')).toBeInTheDocument();
-    expect(screen.getByText('OCCUPIED_ACTIVE')).toBeInTheDocument();
+    expect(screen.getByText(/Occupied/i)).toBeInTheDocument();
     expect(screen.getByText('27.5 °C')).toBeInTheDocument();
   });
 
@@ -57,10 +56,10 @@ describe('RoomLiveView — states', () => {
     const source = new FakeRoomDataSource();
     source.emitLatest('property_001', 'room_001', {
       occupancyState: 'VACANT_CONFIRMED',
-      updatedAt: 1_751_600_000_000,
+      updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
     renderView(source);
-    expect(screen.getByText('Vacant')).toBeInTheDocument();
+    expect(screen.getByText(/Status: Vacant/i)).toBeInTheDocument();
   });
 });
 
@@ -155,7 +154,6 @@ describe('RoomLiveView — updates & resilience', () => {
     );
 
     expect(screen.getByText('28.1 °C')).toBeInTheDocument();
-    expect(screen.getByText('OCCUPIED_IDLE')).toBeInTheDocument();
     expect(screen.queryByText('27.5 °C')).not.toBeInTheDocument();
   });
 
@@ -174,9 +172,10 @@ describe('RoomLiveView — updates & resilience', () => {
     source.emitLatest('property_001', 'room_001', {
       ...FULL_SNAPSHOT,
       occupancyState: 'GARBAGE_STATE' as never,
+      updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
     renderView(source);
-    expect(screen.getByText('—')).toBeInTheDocument(); // summary refuses to guess
+    expect(screen.getByText(/Status: —/i)).toBeInTheDocument(); // summary refuses to guess
     expect(screen.queryByText('Occupied')).not.toBeInTheDocument();
     expect(screen.queryByText('Vacant')).not.toBeInTheDocument();
     expect(screen.getByText('62 %')).toBeInTheDocument(); // rest of the view intact
@@ -209,7 +208,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
 
   it('shows Live while snapshots are fresh', () => {
     renderFreshness();
-    expect(screen.getByText(/live · /i)).toBeInTheDocument();
+    expect(screen.getByText(/Status:/i)).toBeInTheDocument();
     expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
     expect(document.querySelector('[data-stale="true"]')).toBeNull();
   });
@@ -255,7 +254,8 @@ describe('RoomLiveView — freshness & offline honesty', () => {
       });
     });
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Status:/i)).toBeInTheDocument();
     expect(document.querySelector('[data-stale="true"]')).toBeNull();
   });
 

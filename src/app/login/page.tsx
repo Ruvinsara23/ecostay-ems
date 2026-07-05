@@ -36,21 +36,21 @@ function AuthShowcase() {
       className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12"
       style={{
         background:
-          'linear-gradient(150deg, #12a15e 0%, #0e8a4f 52%, #0b6f40 100%)',
+          'linear-gradient(150deg, #a78bfa 0%, #8b5cf6 52%, #6d28d9 100%)',
       }}
     >
       {/* soft light bloom */}
       <div
         className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.28), transparent 65%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.4), transparent 65%)' }}
       />
       <div
         className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.18), transparent 65%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(0,0,0,0.15), transparent 65%)' }}
       />
 
       <div className="relative flex items-center gap-2 text-white">
-        <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/15 text-base font-extrabold backdrop-blur">
+        <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/20 text-base font-extrabold backdrop-blur">
           e·
         </span>
         <span className="text-sm font-semibold tracking-wide">EcoStay EMS</span>
@@ -58,49 +58,35 @@ function AuthShowcase() {
 
       {/* floating product mock */}
       <div className="relative my-8 grid place-items-center">
-        <div className="w-full max-w-sm rounded-2xl border border-white/40 bg-white/85 p-4 shadow-2xl backdrop-blur">
-          <div className="flex items-center justify-between">
+        <div className="w-full max-w-sm rounded-[1.25rem] border border-white/40 bg-white/10 p-5 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-[9px] font-semibold uppercase tracking-wider text-ink-3">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/70">
                 Live view
               </p>
-              <p className="text-sm font-bold text-ink">Room 1</p>
+              <p className="text-sm font-bold text-white">Room 1</p>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-deep">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-deep" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
               Live
             </span>
           </div>
-          <svg viewBox="0 0 300 90" className="mt-3 w-full" aria-hidden>
-            <defs>
-              <linearGradient id="loginArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#12a15e" stopOpacity="0.25" />
-                <stop offset="1" stopColor="#12a15e" stopOpacity="0.02" />
-              </linearGradient>
-            </defs>
-            <polygon
-              points="0,70 26,58 52,63 78,44 104,50 130,32 156,40 182,26 208,34 234,20 260,30 300,22 300,90 0,90"
-              fill="url(#loginArea)"
-            />
-            <polyline
-              points="0,70 26,58 52,63 78,44 104,50 130,32 156,40 182,26 208,34 234,20 260,30 300,22"
-              fill="none"
-              stroke="#12a15e"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-            <circle cx="300" cy="22" r="3.5" fill="#0e8a4f" />
-          </svg>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          
+          {/* Isometric preview */}
+          <div className="relative w-full aspect-square rounded-xl overflow-hidden shadow-inner bg-white/5 border border-white/20">
+            <img src="/3d-model.png" alt="3D Room Preview" className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-90" />
+            <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/80 via-transparent to-transparent opacity-60"></div>
+          </div>
+          
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             {[
               ['Occupancy', 'Occupied'],
-              ['Temp', '27.5 °C'],
+              ['Temp', '22.5 °C'],
               ['Power', '4.8 W'],
             ].map(([k, v]) => (
-              <div key={k} className="rounded-lg bg-ink/[0.04] py-1.5">
-                <p className="text-[9px] text-ink-3">{k}</p>
-                <p className="text-[11px] font-bold text-ink [font-variant-numeric:tabular-nums]">
+              <div key={k} className="rounded-lg bg-white/10 py-1.5 border border-white/10">
+                <p className="text-[9px] text-white/70 uppercase tracking-wider">{k}</p>
+                <p className="text-[11px] font-bold text-white [font-variant-numeric:tabular-nums]">
                   {v}
                 </p>
               </div>
@@ -109,10 +95,10 @@ function AuthShowcase() {
         </div>
 
         {/* floating sensor chips */}
-        <span className="absolute -left-2 top-2 rounded-full border border-white/40 bg-white/90 px-3 py-1 text-[11px] font-semibold text-ink shadow-lg backdrop-blur">
+        <span className="absolute -left-4 top-8 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-[11px] font-bold text-white shadow-xl backdrop-blur-md">
           Gas 150 ppm
         </span>
-        <span className="absolute -right-2 bottom-4 rounded-full border border-white/40 bg-white/90 px-3 py-1 text-[11px] font-semibold text-ink shadow-lg backdrop-blur">
+        <span className="absolute -right-4 bottom-12 rounded-full border border-white/30 bg-white/20 px-3 py-1.5 text-[11px] font-bold text-white shadow-xl backdrop-blur-md">
           Tank 76%
         </span>
       </div>

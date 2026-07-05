@@ -110,136 +110,80 @@ export function RoomScene({ latest, online }: { latest: RoomLatest; online: bool
           ).toFixed(2)}deg)`,
         }}
       >
-        <svg
-          viewBox="34 -10 574 400"
-          role="img"
-          aria-label="Isometric view of the room"
-          className="mx-auto block w-full max-w-[720px]"
+        <div 
+          className="relative w-full max-w-[900px] aspect-square mx-auto overflow-visible"
+          data-glow={present ? 'on' : 'off'}
+          data-door={doorOpen ? 'open' : 'closed'}
         >
-          <defs>
-            <radialGradient id="sceneGlow">
-              <stop offset="0" stopColor="#12a15e" stopOpacity={present ? 0.2 : 0} />
-              <stop offset="1" stopColor="#12a15e" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          {/* floor */}
-          <polygon
-            points="320,88 596,232 320,376 44,232"
-            fill="#fbfcfb"
-            stroke="rgba(27,28,28,0.10)"
-            strokeWidth="2"
+          {/* 3D background image */}
+          <img 
+            src="/3d-model.png" 
+            alt="3D Office Layout" 
+            className="absolute inset-0 w-full h-full object-cover rounded-[2rem] shadow-2xl mix-blend-multiply opacity-90"
           />
-          {/* occupancy glow — subtle */}
-          <ellipse
-            data-glow={present ? 'on' : 'off'}
-            cx="320"
-            cy="240"
-            rx="150"
-            ry="72"
-            fill="url(#sceneGlow)"
-          />
-          {/* glass walls — light neutral, faint edge */}
-          <polygon
-            points="44,232 320,88 320,20 44,164"
-            fill="#eef1ef"
-            stroke="rgba(27,28,28,0.12)"
-            strokeWidth="2"
-          />
-          <polygon
-            points="320,88 596,232 596,164 320,20"
-            fill="#e6eae8"
-            stroke="rgba(27,28,28,0.12)"
-            strokeWidth="2"
-          />
-          <line x1="412" y1="68" x2="412" y2="136" stroke="rgba(27,28,28,0.10)" strokeWidth="2" />
-          <line x1="504" y1="116" x2="504" y2="184" stroke="rgba(27,28,28,0.10)" strokeWidth="2" />
-
-          {/* bed */}
-          <g>
-            <polygon points="152,238 264,180 336,216 224,274" fill="#d7d9d6" />
-            <polygon points="152,238 224,274 224,296 152,260" fill="#bcbfbc" />
-            <polygon points="224,274 336,216 336,238 224,296" fill="#cacdc9" />
-            <polygon
-              points="170,232 234,199 276,220 212,253"
-              fill="#ffffff"
-              stroke="rgba(27,28,28,0.10)"
-            />
-          </g>
-          {/* side table */}
-          <g>
-            <polygon points="356,262 392,244 416,256 380,274" fill="#d7d9d6" />
-            <polygon points="356,262 380,274 380,290 356,278" fill="#bcbfbc" />
-            <polygon points="380,274 416,256 416,272 380,290" fill="#cacdc9" />
-          </g>
-
-          {/* door — swings on doorOpen */}
-          <g
-            data-door={doorOpen ? 'open' : 'closed'}
-            style={{
-              transformOrigin: '150px 236px',
-              transformBox: 'view-box',
-              transform: `rotate(${doorOpen ? -38 : 0}deg)`,
-              transition: reducedMotion ? undefined : 'transform 0.35s',
-            }}
+          {/* Overlay for sensor markers */}
+          <svg
+            viewBox="34 -10 574 400"
+            role="img"
+            aria-label="Interactive sensor overlay"
+            className="absolute inset-0 w-full h-full z-10 drop-shadow-xl"
           >
-            <polygon points="150,168 150,236 196,260 196,192" fill="#7d817e" opacity="0.85" />
-          </g>
-
-          {/* sensor markers: letter chips, tap for readings */}
-          <g fontFamily="inherit" fontWeight="700" fontSize="11">
-            {MARKERS.map((marker) => {
-              const active =
-                (marker.key === 'pir' && latest.motionDetected === true) ||
-                (marker.key === 'door' && doorOpen);
-              const alarm = marker.key === 'gas' && gasAlarm;
-              return (
-                <g
-                  key={marker.key}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={marker.label}
-                  data-sensor={marker.key}
-                  {...(alarm ? { 'data-gas-alarm': 'true' } : {})}
-                  transform={`translate(${marker.x},${marker.y})`}
-                  className="cursor-pointer outline-none"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setOpenSensor(openSensor === marker.key ? null : marker.key);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
+            {/* sensor markers: letter chips, tap for readings */}
+            <g fontFamily="inherit" fontWeight="700" fontSize="11">
+              {MARKERS.map((marker) => {
+                const active =
+                  (marker.key === 'pir' && latest.motionDetected === true) ||
+                  (marker.key === 'door' && doorOpen);
+                const alarm = marker.key === 'gas' && gasAlarm;
+                return (
+                  <g
+                    key={marker.key}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={marker.label}
+                    data-sensor={marker.key}
+                    {...(alarm ? { 'data-gas-alarm': 'true' } : {})}
+                    transform={`translate(${marker.x},${marker.y})`}
+                    className="cursor-pointer outline-none transition-transform hover:scale-110"
+                    onClick={(event) => {
+                      event.stopPropagation();
                       setOpenSensor(openSensor === marker.key ? null : marker.key);
-                    }
-                  }}
-                >
-                  <circle r="22" fill="transparent" />
-                  <circle
-                    r="14"
-                    fill="rgba(255,255,255,0.92)"
-                    stroke={alarm ? '#d6453d' : active ? '#12a15e' : 'rgba(27,28,28,0.12)'}
-                    strokeWidth={alarm || active ? 3 : 2}
-                  />
-                  <text x="0" y="4" textAnchor="middle" fill="#1b1c1c">
-                    {marker.letter}
-                  </text>
-                </g>
-              );
-            })}
-          </g>
-        </svg>
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setOpenSensor(openSensor === marker.key ? null : marker.key);
+                      }
+                    }}
+                  >
+                    <circle r="22" fill="transparent" />
+                    <circle
+                      r="16"
+                      fill="rgba(255,255,255,0.95)"
+                      stroke={alarm ? '#d6453d' : active ? '#7c3aed' : 'rgba(28,26,39,0.15)'}
+                      strokeWidth={alarm || active ? 4 : 2}
+                    />
+                    <text x="0" y="4" textAnchor="middle" fill="#1c1a27">
+                      {marker.letter}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+        </div>
       </div>
 
       {openSensor && (
         <div
           role="status"
-          className="glass-strong pointer-events-none absolute left-1/2 top-3 z-10 min-w-[160px] -translate-x-1/2 rounded-xl px-3.5 py-2.5 text-xs text-ink-2"
+          className="glass-strong pointer-events-none absolute left-1/2 top-[-40px] z-50 min-w-[180px] -translate-x-1/2 rounded-2xl px-4 py-3 text-xs text-ink-2 shadow-2xl"
         >
-          <b className="mb-1 block text-[12.5px] text-ink">{SENSOR_TITLES[openSensor]}</b>
+          <b className="mb-1.5 block text-[13px] font-bold text-ink">{SENSOR_TITLES[openSensor]}</b>
           {sensorRows(openSensor, latest).map(([label, value]) => (
-            <div key={label} className="mt-0.5 flex justify-between gap-4">
-              <span>{label}</span>
-              <b className="text-ink [font-variant-numeric:tabular-nums]">{value}</b>
+            <div key={label} className="mt-1 flex justify-between gap-5">
+              <span className="font-medium text-ink-3">{label}</span>
+              <b className="text-brand [font-variant-numeric:tabular-nums]">{value}</b>
             </div>
           ))}
         </div>

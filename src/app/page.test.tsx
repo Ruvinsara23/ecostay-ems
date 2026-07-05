@@ -42,7 +42,10 @@ describe('dashboard landing', () => {
         },
       }),
     );
-    expect(screen.getByText(/signed in as owner@ecostay\.test/i)).toBeInTheDocument();
+    // Identity now lives on the sign-out control's accessible title.
+    expect(screen.getByRole('button', { name: /sign out/i }).getAttribute('title')).toMatch(
+      /owner@ecostay\.test/,
+    );
   });
 
   it('signs out and lands back on login', async () => {
@@ -96,14 +99,14 @@ describe('dashboard tenancy', () => {
       occupancyState: 'OCCUPIED_ACTIVE',
       temperature: 27.5,
       humidity: 62,
-      updatedAt: 1_751_600_000_000,
+      updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
 
     expect(await screen.findByText('Room 1')).toBeInTheDocument();
     expect(screen.getByText('EcoStay Property')).toBeInTheDocument();
     expect(screen.getByText('27.5 °C')).toBeInTheDocument();
-    expect(screen.getByText('Occupied')).toBeInTheDocument();
+    expect(screen.getByText(/Status: Occupied/i)).toBeInTheDocument();
   });
 
   it('falls back to raw IDs when names are not set', async () => {
@@ -145,7 +148,7 @@ describe('dashboard tenancy', () => {
     source.emitLatest('property_002', 'room_001', {
       occupancyState: 'VACANT',
       temperature: 24.5,
-      updatedAt: 1_751_600_000_000,
+      updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
     renderPage(
       new FakeAuthGateway({
@@ -156,9 +159,9 @@ describe('dashboard tenancy', () => {
 
     await user.click(await screen.findByRole('button', { name: /garden room/i }));
     expect(screen.getByText('24.5 °C')).toBeInTheDocument();
-    expect(screen.getByText('Vacant')).toBeInTheDocument();
+    expect(screen.getByText(/Status: Vacant/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /all rooms/i }));
+    await user.click(screen.getByRole('button', { name: /switch room/i }));
     expect(await screen.findByRole('button', { name: /room 1/i })).toBeInTheDocument();
   });
 });
