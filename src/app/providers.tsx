@@ -55,6 +55,15 @@ const prerenderRoomDataSource: RoomDataSource = {
   subscribeTariffCategory() {
     return () => {};
   },
+  async setTariffCategory() {
+    throw new Error('not available during prerender');
+  },
+  subscribeCircuitWattages() {
+    return () => {};
+  },
+  async setCircuitWattages() {
+    throw new Error('not available during prerender');
+  },
   subscribeAlerts() {
     return () => {};
   },

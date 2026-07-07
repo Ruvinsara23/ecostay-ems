@@ -2,6 +2,7 @@ import type { Session } from '@/auth/auth-gateway';
 import type { DeviceCommandKey, DeviceCommands } from '@/telemetry/contract';
 import type {
   AlertView,
+  CircuitWattages,
   DailyAggregateView,
   EnergyHistorySample,
   RoomDataSource,
@@ -182,7 +183,7 @@ export class FakeRoomDataSource implements RoomDataSource {
   private tariffCategory = new Map<string, string | null>();
   private tariffListeners = new Map<string, Set<(category: string | null) => void>>();
 
-  setTariffCategory(propertyId: string, category: string | null): void {
+  async setTariffCategory(propertyId: string, category: string | null): Promise<void> {
     this.tariffCategory.set(propertyId, category);
     this.tariffListeners.get(propertyId)?.forEach((listener) => listener(category));
   }
@@ -195,6 +196,27 @@ export class FakeRoomDataSource implements RoomDataSource {
     forKey.add(callback);
     this.tariffListeners.set(propertyId, forKey);
     callback(this.tariffCategory.get(propertyId) ?? null);
+    return () => {
+      forKey.delete(callback);
+    };
+  }
+
+  private wattages = new Map<string, CircuitWattages | null>();
+  private wattageListeners = new Map<string, Set<(w: CircuitWattages | null) => void>>();
+
+  async setCircuitWattages(propertyId: string, w: CircuitWattages): Promise<void> {
+    this.wattages.set(propertyId, w);
+    this.wattageListeners.get(propertyId)?.forEach((listener) => listener(w));
+  }
+
+  subscribeCircuitWattages(
+    propertyId: string,
+    callback: (w: CircuitWattages | null) => void,
+  ): () => void {
+    const forKey = this.wattageListeners.get(propertyId) ?? new Set<typeof callback>();
+    forKey.add(callback);
+    this.wattageListeners.set(propertyId, forKey);
+    callback(this.wattages.get(propertyId) ?? null);
     return () => {
       forKey.delete(callback);
     };

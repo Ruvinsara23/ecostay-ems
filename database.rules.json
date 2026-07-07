@@ -42,6 +42,19 @@
               ".validate": "newData.isNumber()"
             }
           }
+        },
+        "settings": {
+          "tariffCategory": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
+            ".validate": "newData.isString() && (newData.val() === 'D-1' || newData.val() === 'GP-1' || newData.val() === 'H-1')"
+          },
+          "circuitWattages": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
+            ".validate": "newData.hasChildren(['lights', 'exhaustFan'])",
+            "lights": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "exhaustFan": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "$other": { ".validate": false }
+          }
         }
       },
       "$propertyId": {
@@ -74,6 +87,19 @@
               ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
               ".validate": "newData.isNumber()"
             }
+          }
+        },
+        "settings": {
+          "tariffCategory": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
+            ".validate": "newData.isString() && (newData.val() === 'D-1' || newData.val() === 'GP-1' || newData.val() === 'H-1')"
+          },
+          "circuitWattages": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
+            ".validate": "newData.hasChildren(['lights', 'exhaustFan'])",
+            "lights": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "exhaustFan": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "$other": { ".validate": false }
           }
         }
       }

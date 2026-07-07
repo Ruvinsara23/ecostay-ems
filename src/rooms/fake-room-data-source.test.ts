@@ -144,6 +144,14 @@ describe('FakeRoomDataSource', () => {
     expect(emissions).toEqual([null, 'H-1']);
   });
 
+  it('serves circuit wattages (null until set) and echoes writes', async () => {
+    const source = new FakeRoomDataSource();
+    const emissions: Array<{ lights: number; exhaustFan: number } | null> = [];
+    source.subscribeCircuitWattages('property_001', (w) => emissions.push(w));
+    await source.setCircuitWattages('property_001', { lights: 80, exhaustFan: 30 });
+    expect(emissions).toEqual([null, { lights: 80, exhaustFan: 30 }]);
+  });
+
   it('serves daily aggregates keyed by date, live', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {

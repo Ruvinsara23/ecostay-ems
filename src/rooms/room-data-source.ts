@@ -103,6 +103,18 @@ export interface RoomDataSource {
     callback: (category: string | null) => void,
   ): () => void;
 
+  /** Set the property's CEB tariff category (admin only; rules enforce). */
+  setTariffCategory(propertyId: string, category: string): Promise<void>;
+
+  /** The property's controlled-circuit rated wattages, null until set; live. */
+  subscribeCircuitWattages(
+    propertyId: string,
+    callback: (wattages: CircuitWattages | null) => void,
+  ): () => void;
+
+  /** Set the property's circuit wattages (admin only; rules enforce). */
+  setCircuitWattages(propertyId: string, wattages: CircuitWattages): Promise<void>;
+
   /** The property's alert records (open and resolved), live. */
   subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void;
 
@@ -128,6 +140,8 @@ export type DailyAggregateView = {
 };
 
 /** A lifecycle alert record as the tick writes it (src/server/alerts.ts), plus its id. */
+export type CircuitWattages = { lights: number; exhaustFan: number };
+
 export type AlertView = {
   id: string;
   roomId: string;

@@ -363,6 +363,35 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     unsubAggregates();
   });
 
+  it('admin writes tariff + wattages; owner denied; invalid values rejected (rules)', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const admin = await signedInDb('admin');
+    const adminSrc = createFirebaseRoomDataSource(admin.db);
+
+    await adminSrc.setTariffCategory('property_001', 'GP-1');
+    await adminSrc.setCircuitWattages('property_001', { lights: 80, exhaustFan: 30 });
+    expect((await adminDb.ref('properties/property_001/settings/tariffCategory').get()).val()).toBe('GP-1');
+    expect(
+      (await adminDb.ref('properties/property_001/settings/circuitWattages').get()).val(),
+    ).toEqual({ lights: 80, exhaustFan: 30 });
+
+    // an owner (member, not admin) cannot change settings
+    const owner = await signedInDb('owner');
+    const ownerSrc = createFirebaseRoomDataSource(owner.db);
+    await expect(ownerSrc.setTariffCategory('property_001', 'H-1')).rejects.toThrow(/permission/i);
+
+    // .validate rejects a bad category and a non-numeric wattage
+    await expect(adminSrc.setTariffCategory('property_001', 'X-9')).rejects.toThrow(/permission/i);
+    const { ref: clientRef, set: clientSet } = await import('firebase/database');
+    await expect(
+      clientSet(
+        clientRef(admin.db, 'properties/property_001/settings/circuitWattages/lights'),
+        'sixty' as unknown as number,
+      ),
+    ).rejects.toThrow(/permission/i);
+  });
+
   it('owner reads the property tariff category through the rules', async () => {
     await wipe();
     await seedTwoProperties();

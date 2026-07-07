@@ -142,6 +142,25 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       );
     },
 
+    async setTariffCategory(propertyId, category) {
+      await set(ref(db, `properties/${propertyId}/settings/tariffCategory`), category);
+    },
+
+    subscribeCircuitWattages(propertyId, callback) {
+      return onValue(ref(db, `properties/${propertyId}/settings/circuitWattages`), (snapshot) => {
+        const raw = snapshot.val() as { lights?: number; exhaustFan?: number } | null;
+        callback(
+          raw && typeof raw.lights === 'number' && typeof raw.exhaustFan === 'number'
+            ? { lights: raw.lights, exhaustFan: raw.exhaustFan }
+            : null,
+        );
+      });
+    },
+
+    async setCircuitWattages(propertyId, wattages) {
+      await set(ref(db, `properties/${propertyId}/settings/circuitWattages`), wattages);
+    },
+
     subscribeAlerts(propertyId, callback) {
       return onValue(ref(db, `properties/${propertyId}/alerts`), (snapshot) => {
         const raw = (snapshot.val() ?? {}) as Record<string, Omit<AlertView, 'id'>>;
