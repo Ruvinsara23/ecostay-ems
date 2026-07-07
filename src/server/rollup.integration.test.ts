@@ -28,6 +28,7 @@ describe('rollup against the RTDB emulator', () => {
   it('aggregates only the in-window samples and prunes only when confirmed', async () => {
     await db.ref().set(null);
     await db.ref('ops/roomIndex/property_001/room_001').set(true);
+    await db.ref('properties/property_001/settings/circuitWattages').set({ lights: 60, exhaustFan: 45 });
     await db.ref(HISTORY).push({ energy: 0.5, power: 4, sampledAt: startMs - 40 * 86_400_000 }); // ancient
     await db.ref(HISTORY).push({ energy: 0.9, power: 4, sampledAt: startMs - 60_000 }); // day before
     await db
@@ -35,7 +36,7 @@ describe('rollup against the RTDB emulator', () => {
       .push({ energy: 1.0, power: 4, sampledAt: startMs, occupancyState: 'OCCUPIED_ACTIVE' });
     await db
       .ref(HISTORY)
-      .push({ energy: 1.006, power: 4, sampledAt: startMs + 300_000, occupancyState: 'VACANT' });
+      .push({ energy: 1.006, power: 4, sampledAt: startMs + 300_000, occupancyState: 'VACANT_CONFIRMED' });
     await db.ref(HISTORY).push({ energy: 2.0, power: 4, sampledAt: endMs }); // next day
 
     const deps = createRollupDeps(db);
@@ -49,6 +50,8 @@ describe('rollup against the RTDB emulator', () => {
     expect(aggregate.occupiedMinutes).toBe(5);
     // RTDB stores null as absence — costLKR is simply missing until the tariff phase.
     expect(aggregate.costLKR).toBeUndefined();
+    // 1 VACANT_CONFIRMED sample × 5 min × 105 W = 0.00875 kWh avoided
+    expect(aggregate.avoidedKWh).toBeCloseTo(0.00875, 8);
 
     // prune: cutoff 30 days before the window — only the ancient sample qualifies
     const cutoff = startMs - 30 * 86_400_000;

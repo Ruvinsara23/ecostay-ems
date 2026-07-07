@@ -33,6 +33,19 @@ describe('EnergyHistorySection', () => {
     expect(screen.getByText(/2,615\.38/)).toBeInTheDocument();
   });
 
+  it('shows OBJ-07 savings when the rollup recorded avoided energy', () => {
+    const source = new FakeRoomDataSource();
+    source.emitDailyAggregates('property_001', 'room_001', {
+      [colomboDateKey(Date.now())]: { kWhUsed: 100, occupiedMinutes: 200, avoidedKWh: 12 },
+    });
+    source.setTariffCategory('property_001', 'H-1');
+    renderSection(source);
+    // 12 kWh avoided → H-1 marginal 9 LKR/kWh (+SSCL) ≈ LKR 110.77
+    expect(screen.getByText(/saved this month/i)).toBeInTheDocument();
+    expect(screen.getByText(/12(\.0+)? kWh/)).toBeInTheDocument();
+    expect(screen.getByText(/110\.77/)).toBeInTheDocument();
+  });
+
   it('prompts to set a tariff when none is configured', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {

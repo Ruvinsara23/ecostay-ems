@@ -116,6 +116,12 @@ async function main() {
   // bill; H-1 = SLTDA-approved hotel. Set only when absent so an Admin edit isn't clobbered.
   const tariffRef = db.ref(`properties/${PROPERTY_ID}/settings/tariffCategory`);
   if ((await tariffRef.get()).val() === null) await tariffRef.set('H-1');
+  // Rated wattage of the vacancy-cutoff circuits (OBJ-07 savings, ADR-0008). Defaults;
+  // Admin edits per real fittings. Set only when absent.
+  const wattRef = db.ref(`properties/${PROPERTY_ID}/settings/circuitWattages`);
+  if ((await wattRef.get()).val() === null) {
+    await wattRef.set({ lights: 60, exhaustFan: 45 });
+  }
   // Names are set only when absent so a later Admin-UI rename is never clobbered.
   const propertyNameRef = db.ref(`properties/${PROPERTY_ID}/name`);
   if ((await propertyNameRef.get()).val() === null) {

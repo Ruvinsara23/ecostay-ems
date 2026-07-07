@@ -123,7 +123,8 @@ export type EnergyHistorySample = {
 export type DailyAggregateView = {
   kWhUsed: number;
   occupiedMinutes: number;
-  costLKR?: number; // absent until the tariff engine phase
+  costLKR?: number; // absent — cost is priced on the client via the tariff engine
+  avoidedKWh?: number; // OBJ-07 counterfactual, written by the nightly rollup
 };
 
 /** A lifecycle alert record as the tick writes it (src/server/alerts.ts), plus its id. */

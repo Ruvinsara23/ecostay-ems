@@ -16,3 +16,16 @@ export function monthToDateKWh(
   }
   return Number(total.toFixed(6));
 }
+
+/** OBJ-07: the current Colombo month's avoided energy (counterfactual, from the rollup). */
+export function monthToDateAvoidedKWh(
+  byDate: Record<string, { avoidedKWh?: number }>,
+  nowMs: number,
+): number {
+  const monthPrefix = colomboDateKey(nowMs).slice(0, 7);
+  let total = 0;
+  for (const [dateKey, aggregate] of Object.entries(byDate)) {
+    if (dateKey.startsWith(monthPrefix)) total += aggregate.avoidedKWh ?? 0;
+  }
+  return Number(total.toFixed(6));
+}

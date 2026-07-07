@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { colomboDateKey } from '@/server/colombo-time';
 import { CEB_TARIFFS } from '@/tariff/ceb-tariffs';
 import { computeBill } from '@/tariff/compute-bill';
-import { monthToDateKWh } from '@/tariff/month-to-date';
+import { monthToDateAvoidedKWh, monthToDateKWh } from '@/tariff/month-to-date';
+import { savedLKR } from '@/tariff/savings';
 import type { DailyAggregateView, EnergyHistorySample } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 
@@ -213,8 +214,10 @@ export function EnergyHistorySection({
 
   // Monthly bill — CEB tariffs are monthly, so run month-to-date kWh through the tariff.
   const mtdKWh = monthToDateKWh(byDate, nowMs);
+  const mtdAvoided = monthToDateAvoidedKWh(byDate, nowMs);
   const tariff = tariffCategory ? CEB_TARIFFS[tariffCategory] : undefined;
   const bill = tariff ? computeBill(tariff, mtdKWh) : null;
+  const saved = tariff && mtdAvoided > 0 ? savedLKR(tariff, mtdKWh, mtdAvoided) : 0;
 
   return (
     <section aria-label="Energy history" className="glass rounded-2xl p-4">
@@ -247,6 +250,21 @@ export function EnergyHistorySection({
           </p>
         )}
       </div>
+      {saved > 0 && (
+        <div className="mt-2 flex items-baseline justify-between rounded-xl bg-brand-soft px-3 py-2.5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-deep">
+              Saved this month
+            </p>
+            <p className="text-[11px] text-brand-deep/80">
+              {mtdAvoided.toFixed(1)} kWh avoided by vacancy cut-off (estimated)
+            </p>
+          </div>
+          <p className="text-lg font-bold text-brand-deep [font-variant-numeric:tabular-nums]">
+            LKR {LKR.format(saved)}
+          </p>
+        </div>
+      )}
     </section>
   );
 }

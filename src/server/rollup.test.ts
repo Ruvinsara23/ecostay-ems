@@ -32,7 +32,10 @@ function sample(sampledAt: number, energy: number, occupancyState?: string): Ene
   };
 }
 
-function makeDeps(samplesByRoom: Record<string, EnergySample[]>) {
+function makeDeps(
+  samplesByRoom: Record<string, EnergySample[]>,
+  wattages: { lights: number; exhaustFan: number } | null = { lights: 60, exhaustFan: 45 },
+) {
   const written: Array<{ key: string; dateKey: string; aggregate: DailyAggregate }> = [];
   const deleted: Array<{ key: string; sampleKeys: string[] }> = [];
   const deps: RollupDeps = {
@@ -58,6 +61,9 @@ function makeDeps(samplesByRoom: Record<string, EnergySample[]>) {
     async deleteSamples(propertyId, roomId, sampleKeys) {
       deleted.push({ key: `${propertyId}/${roomId}`, sampleKeys });
     },
+    async readCircuitWattages() {
+      return wattages;
+    },
   };
   return { deps, written, deleted };
 }
@@ -82,9 +88,38 @@ describe('rollupDaily', () => {
       {
         key: 'property_001/room_001',
         dateKey: '2026-07-04',
-        aggregate: { kWhUsed: 0.012, costLKR: null, occupiedMinutes: 10 },
+        // 1 VACANT_CONFIRMED sample × 5 min × (60+45)W = 105W·(5/60)h/1000 = 0.00875 kWh avoided
+        aggregate: { kWhUsed: 0.012, costLKR: null, occupiedMinutes: 10, avoidedKWh: 0.00875 },
       },
     ]);
+  });
+
+  it('avoided energy = controlled wattage × confirmed-vacant time', async () => {
+    const { deps, written } = makeDeps(
+      {
+        'property_001/room_001': [
+          sample(T(0), 1.0, 'VACANT_CONFIRMED'),
+          sample(T(5), 1.0, 'VACANT_CONFIRMED'),
+          sample(T(10), 1.0, 'VACANT_CONFIRMED'), // 3 samples = 15 confirmed-vacant minutes
+          sample(T(15), 1.0, 'OCCUPIED_ACTIVE'),
+        ],
+      },
+      { lights: 100, exhaustFan: 20 }, // 120 W controlled
+    );
+
+    await rollupDaily(deps, '2026-07-04');
+
+    // 120 W × (15/60) h = 30 Wh = 0.03 kWh
+    expect(written[0].aggregate.avoidedKWh).toBeCloseTo(0.03, 10);
+  });
+
+  it('avoided energy is 0 when no wattages are configured', async () => {
+    const { deps, written } = makeDeps(
+      { 'property_001/room_001': [sample(T(0), 1, 'VACANT_CONFIRMED'), sample(T(5), 1, 'VACANT_CONFIRMED')] },
+      null,
+    );
+    await rollupDaily(deps, '2026-07-04');
+    expect(written[0].aggregate.avoidedKWh).toBe(0);
   });
 
   it('treats a reboot (negative delta) as consumption restarting from zero', async () => {

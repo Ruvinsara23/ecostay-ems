@@ -5,10 +5,15 @@ import type { EnergySample } from './sample-energy';
 
 export const SAMPLE_INTERVAL_MINUTES = 5;
 
+/** Circuits the vacancy-cutoff automation controls; their rated wattage prices the savings. */
+export type CircuitWattages = { lights: number; exhaustFan: number };
+
 export type DailyAggregate = {
   kWhUsed: number;
-  costLKR: number | null; // null until the tariff engine phase (ADR-0008)
+  costLKR: number | null; // null: cost is priced on the client via the tariff engine (ADR-0008)
   occupiedMinutes: number;
+  /** Counterfactual energy the controlled circuits would have drawn while confirmed-vacant. */
+  avoidedKWh: number;
 };
 
 export type RollupDeps = {
@@ -19,6 +24,8 @@ export type RollupDeps = {
     startMs: number,
     endMs: number,
   ): Promise<EnergySample[]>;
+  /** Rated wattage of the controlled circuits (null = not configured → no savings claimed). */
+  readCircuitWattages(propertyId: string): Promise<CircuitWattages | null>;
   writeDailyAggregate(
     propertyId: string,
     roomId: string,
@@ -63,10 +70,20 @@ export async function rollupDaily(deps: RollupDeps, dateKey: string): Promise<Ro
           isOccupied(s.occupancyState as OccupancyState),
       ).length * SAMPLE_INTERVAL_MINUTES;
 
+    // OBJ-07 savings: while confirmed-vacant, the vacancy cut-off holds the controlled
+    // circuits off, so their rated wattage × that time is the counterfactual avoided energy.
+    const confirmedVacantMinutes =
+      samples.filter((s) => s.occupancyState === 'VACANT_CONFIRMED').length *
+      SAMPLE_INTERVAL_MINUTES;
+    const wattages = await deps.readCircuitWattages(propertyId);
+    const controlledW = wattages ? wattages.lights + wattages.exhaustFan : 0;
+    const avoidedKWh = (controlledW * (confirmedVacantMinutes / 60)) / 1000;
+
     await deps.writeDailyAggregate(propertyId, roomId, dateKey, {
       kWhUsed: Number(kWhUsed.toFixed(6)),
       costLKR: null,
       occupiedMinutes,
+      avoidedKWh: Number(avoidedKWh.toFixed(6)),
     });
     report.aggregatesWritten += 1;
   }

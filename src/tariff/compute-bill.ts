@@ -47,3 +47,13 @@ export function computeBill(tariff: Tariff, monthlyKWh: number): Bill {
     totalLKR: round2(beforeSsclLKR * (1 + tariff.sscl)),
   };
 }
+
+/**
+ * The per-kWh rate that applies to the next unit at a given consumption — the
+ * rate of the block the total currently lands in. Used to price marginal energy
+ * (e.g. savings) WITHOUT the band-jump artifact a full bill-difference would add.
+ */
+export function marginalRatePerKWh(tariff: Tariff, monthlyKWh: number): number {
+  const regime = selectRegime(tariff.regimes, Math.max(0, monthlyKWh));
+  return landingBlock(regime.blocks, Math.max(0, monthlyKWh)).ratePerKWh;
+}

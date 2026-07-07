@@ -111,6 +111,16 @@ export function createRollupDeps(db: Database): RollupDeps {
   return {
     listRooms: () => listIndexedRooms(db),
 
+    async readCircuitWattages(propertyId) {
+      const raw = (
+        await db.ref(`properties/${propertyId}/settings/circuitWattages`).get()
+      ).val() as { lights?: number; exhaustFan?: number } | null;
+      if (!raw || typeof raw.lights !== 'number' || typeof raw.exhaustFan !== 'number') {
+        return null;
+      }
+      return { lights: raw.lights, exhaustFan: raw.exhaustFan };
+    },
+
     async readSamplesInWindow(propertyId, roomId, startMs, endMs) {
       const snapshot = await historyRef(propertyId, roomId)
         .orderByChild('sampledAt')
