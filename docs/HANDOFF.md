@@ -1,0 +1,90 @@
+# HANDOFF — EcoStay EMS (state & where to continue)
+
+_Last updated 2026-07-07. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
+
+EcoStay EMS is a smart-IoT energy management system for Sri Lankan tourist accommodations:
+an ESP32 per room writes telemetry to Firebase RTDB; a Next.js dashboard (Firebase Auth + RTDB)
+gives owners live monitoring, control, cost, and savings. **The firmware is an immutable contract
+(`docs/firmware-contract.md`); the dashboard adapts to it, never the reverse.**
+
+## Status: v1 is feature-complete and deployed
+
+Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`). All work is committed and
+pushed. **167 unit tests + 32 emulator-integration tests green**; `typecheck`, `lint`, `build` clean.
+
+## What's built (all committed)
+
+| Area | What | Key files |
+|---|---|---|
+| **Auth & tenancy** | Email/password login, role from custom claims (owner/admin/device), route guard, per-property membership; owners see assigned rooms, admins see all | `src/auth/*`, `src/rooms/room-data-source.ts` (`listAccessibleRooms`) |
+| **Live telemetry** | Firmware-contract TS types, live `latest` view, occupancy/climate/power(simulated)/gas/water/activity/relays, offline honesty (15 s UI mark, server-corrected clock) | `src/telemetry/*`, `src/rooms/room-live-view.tsx`, `room-scene.tsx` |
+| **Device control** | Owner toggles `devices/*` relays (lights/exhaustFan/waterPump/motionDetection); `mainRelay` excluded at type level; disabled offline; gas-alarm note | `src/rooms/room-live-view.tsx` (DeviceControls) |
+| **Server workloads** (free runtime, ADR-0010) | 5-min energy **sampler**, 1-min **tick** (offline+gas/temp/water **alerts** lifecycle + **vacancy-cutoff automation**), nightly **rollup** (+ dry-run-gated prune) | `src/server/*`, `src/app/api/cron/{sample,tick,rollup}/route.ts` |
+| **Charts & alerts UI** | 24 h power line + 7-day kWh bars; alert center with acknowledge | `src/rooms/energy-charts.tsx`, `alert-center.tsx` |
+| **Cost (tariff)** (ADR-0008) | Regime/band CEB bill engine; "Estimated bill this month" from month-to-date kWh × tariff (property = **H-1**) | `src/tariff/*`, shown in `energy-charts.tsx` |
+| **Savings (OBJ-07)** | Nightly `avoidedKWh` = controlled-circuit wattage × confirmed-vacant time; "Saved this month" priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/rollup.ts`, `src/tariff/savings.ts` |
+| **UI** | Owner's redesign: purple/lavender glass, Inter font, 3D-room image (`public/3d-model.png`) with clickable sensor letters, icon rail | `src/app/{page,layout,login}.tsx`, `src/app/globals.css`, `room-scene.tsx` |
+
+**The one seam:** UI depends only on two ports — `AuthGateway` and `RoomDataSource` — never on the
+Firebase SDK. Each has an in-memory **fake** (fast unit tests) and a real Firebase **adapter**
+(emulator integration tests). Server workloads are pure `(deps, now) → effect` handlers with an
+Admin-SDK adapter. Preserve this — it's why everything is testable.
+
+## Architecture decisions (don't relitigate — see `docs/adr/`)
+
+0001 rebuild-from-scratch · 0002 Next/TS · 0003 RTDB + immutable firmware contract · 0004 npm/vitest/
+tailwind/shadcn · 0005 auth+tenancy via custom claims · 0006 server workloads · 0007 firmware
+workstream · 0008 tariff engine (regime/band) · 0009 migrate to `ecostay-ems` Firebase project ·
+0010 free runtime (Vercel + cron-job.org instead of Blaze Cloud Functions).
+
+## Commands (gates — green before every commit)
+
+```
+npm test            # unit (fake-backed, fast)
+npm run typecheck
+npm run lint
+npm run build
+npm run test:integration   # emulator (needs Java 21 on PATH — see AGENTS.md env notes)
+npm run seed        # bootstrap accounts + property/room/settings (Admin SDK, human-run)
+node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no ESP32 needed)
+```
+
+## Pending — human / ops (not code)
+
+- **Live data won't populate history/cost/savings until a device is writing** `latest` (real ESP32 on
+  the `ESP32`/`12345678` hotspot, or `scripts/simulate-device.ts`). Cron jobs already run; the sampler
+  correctly skips stale data. First `rollup` run (00:05 Colombo or manual) fills cost/savings.
+- **Rotate the Firebase service-account key** — it appeared in a chat transcript on 2026-07-07.
+- **Risk gate #8**: verify SSCL (2.5%) and any VAT on a **real EDL/CEB bill** before trusting cost totals;
+  re-check CEB rates at the Q4 2026 PUCSL revision (the H-1/GP-1/D-1≤180 freeze rides on a subsidy
+  ending Sep 2026).
+- **RTDB rules**: `database.rules.json` is the canonical copy — republish in the Firebase console after
+  any change (last changes: automation toggle, `.indexOn: sampledAt`, alert-ack).
+
+## What to build next (candidate phases)
+
+1. **Admin UI** (biggest unlock) — admin-only screens to edit what's currently seeded: create/disable
+   owner accounts (Admin SDK API routes — **risk gate #1**), register properties/rooms/devices, set
+   tariff category, alert thresholds, and circuit wattages. Needs a PRD + risk-gate approval for account
+   creation. Guard so owners can't reach it (extend `RequireSession` with a role check).
+2. **Firmware workstream** (ADR-0007, hardware) — per-device credentials replacing anonymous auth,
+   real PZEM-004T reads replacing the simulated energy, configurable property/room IDs. Coordinates
+   with the PCB. Touching firmware is **risk gate #7**.
+3. **v1.1 queue** — FCM web push, TOU tariffs, multi-room switcher polish, savings/threshold refinements.
+
+## How to continue (the framework)
+
+This project runs on **vertical slices, test-first, with risk gates** (see AGENTS.md). For a new
+feature: write/append a PRD under `.scratch/<feature>/PRD.md`, break it into `issues/NN-*.md`
+(each a tracer bullet through all layers), then TDD one at a time. **Stop and get human approval at
+risk gates** (auth, RTDB rules, device commands, data deletion, secrets, deploys, firmware,
+money-facing math). The issue tracker is local markdown under `.scratch/`.
+
+## Non-obvious gotchas
+
+- **Money math must be eyeballed** — a savings pricing bug (LKR 3,415 vs 126) only showed on render.
+- **Occupancy is on-device** — the dashboard displays `occupancyState`, never re-derives it.
+- **Energy is simulated** by the firmware until real PZEM reads (ADR-0007) — always labelled "Simulated".
+- **Cost/savings are monthly** — CEB regime is chosen by the whole month's kWh; never fake per-day rupees.
+- **`ops/**`** is Admin-SDK-only internal state (room index, last-seen, open-alert index); no client rules.
+- Deleting a temporary `src/app/preview` page needs a rebuild (stale Next route type otherwise).

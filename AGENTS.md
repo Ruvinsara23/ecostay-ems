@@ -1,7 +1,15 @@
 # AGENTS.md — EcoStay EMS
 
 Operating manual for any agent (or human) working in this repo.
-Read `CONTEXT.md` (vocabulary + decisions) and `docs/adr/` before changing anything.
+
+## Start here (new agent / session)
+
+1. **`docs/HANDOFF.md`** — current state, what's built, what's pending, and what to do next. Read first.
+2. **`CONTEXT.md`** — ubiquitous language + every decision (existing/derived/accepted/rejected). Code may only use existing/derived/accepted terms.
+3. **`docs/adr/0001`…`0010`** — hard-to-reverse decisions already made. Don't relitigate silently.
+4. **`docs/firmware-contract.md`** — the immutable ESP32↔Firebase contract; the dashboard adapts to it, never the reverse.
+
+The rest of this file is the operating manual (stack, commands, risk gates, boundaries, environment).
 
 ## Stack (decided from requirements — see ADR-0002/0003/0004/0005/0006)
 
@@ -68,6 +76,8 @@ npx shadcn@latest add <component>   # vendor a ui component into src/components/
 - TDD: red → green → refactor. `npm test` AND `npm run typecheck` green before **every** commit.
 - Max 3 attempts on a failing step, then stop and report honestly.
 - Commit messages: outcome, key decisions, files changed, verification, blockers.
+- **No AI-attribution trailers** in commits (owner preference — `Co-Authored-By: <AI>` / "Generated with" are omitted; the author is the owner). History was rewritten once to strip them.
+- **Verify UI on screen before claiming it works** — this repo ships real UI; unit tests don't render pixels. See the headless-screenshot workflow in the environment notes. Money-facing UI (cost/savings) MUST be eyeballed (a real pricing bug was caught this way).
 
 ## Environment notes (this machine)
 
@@ -78,3 +88,16 @@ npx shadcn@latest add <component>   # vendor a ui component into src/components/
 - `npm run test:integration` (Firebase emulators) needs **Java 21+**. System Java is 17; a portable
   Temurin 21 JRE lives at `C:\Users\pansi\.jdks\jdk-21.0.11+10-jre` — prefix its `bin` onto PATH
   for the run: `$env:PATH = "C:\Users\pansi\.jdks\jdk-21.0.11+10-jre\bin;$env:PATH"`.
+- **Secrets** live outside the repo in `C:\Users\pansi\.secrets\` (Firebase service-account JSON:
+  `ecostay-ems-firebase-adminsdk-*.json`). Never read their contents into a transcript, never commit them.
+  The seeder + server workloads use them via `GOOGLE_APPLICATION_CREDENTIALS`.
+- **Verify UI on screen (headless Chrome).** Chrome + Edge are installed. To see a logged-in view,
+  add a throwaway `src/app/preview/page.tsx` that wraps the real page in `AuthProvider`(fake owner
+  session) + `RoomDataSourceProvider`(seeded `FakeRoomDataSource`), screenshot it, then delete it
+  (rebuild after deleting — Next leaves a stale route type otherwise). Window-size in headless is
+  mis-scaled on this display; for accurate mobile use CDP `Emulation.setDeviceMetricsOverride`
+  (`ws` is available in node_modules). Example scripts were used under the session scratchpad.
+- **Live deployment**: Vercel `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`).
+  Cron endpoints `/api/cron/{sample,tick,rollup}` are driven by cron-job.org with
+  `Authorization: Bearer $CRON_SECRET`; secrets set in Vercel env. Prod `ops/roomIndex` +
+  `properties/property_001/settings` (tariff H-1, wattages) are seeded. See `docs/runbook-free-runtime.md`.

@@ -19,31 +19,15 @@ An ESP32 node (firmware/complete.ino) is the data source and command target.
 - The firmware contract is immutable (ADR-0003). The dashboard adapts to it, never the reverse.
 - Human owns the merge. Passing tests never substitute for human review.
 
-## Current phase
-Phase 0 (bootstrap, commands verified), Phase 1 (grilling → CONTEXT.md decision log,
-ADR-0001…0007, AGENTS.md), and Phase 2 (CEB tariff research → ADR-0008 regime/band engine)
-are complete as of 2026-07-04.
-Phase 3 in progress: PRD `.scratch/owner-live-room-view/PRD.md` (owner login + live room view,
-walking skeleton) is broken into 4 ready-for-agent vertical slices under
-`.scratch/owner-live-room-view/issues/` (01 auth+bootstrap → 02 live telemetry → {03 tenancy,
-04 offline}). Slices 01+02+03 implemented (TDD, all gates green) — committed locally, human
-review owns the merge. ADR-0009 migration **hardware-verified** (Stage A smoke test 2026-07-04:
-reflashed ESP32 → anonymous auth → rules → live dashboard). Device simulator
-(scripts/simulate-device.ts) covers dev work; sensor bring-up waits for the PCB.
-Slice 04 (offline honesty) implemented 2026-07-04 — **the walking skeleton (01–04) is complete**:
-78 unit + 17 emulator-integration tests, all gates green, committed locally.
-Issue 05 (UI design pass): direction approved-in-principle (RentAI branding + glass + interactive
-room, spec + mockup in the issue) — ON HOLD by user decision; resume after device control.
-PRD 2 (device control) implemented 2026-07-04 — risk gate #3 approved; 87 unit + 20
-emulator-integration tests green; live relay click-test pending next bench session.
-Phase 5 (free server runtime, ADR-0010) agent-side COMPLETE 2026-07-04: sampler, tick
-(alerts + vacancy-cutoff automation + owner toggle), rollup + dry-run-gated prune, energy
-charts, alert center, deployment runbook (docs/runbook-free-runtime.md). 137 unit + 31
-emulator-integration tests green.
-**Pending human steps**: publish database.rules.json (toggle + .indexOn + alert-ack), then
-run the runbook (Vercel + cron-job.org) for live verification.
-Issue 05 (UI pass) IMPLEMENTED 2026-07-04: RentAI branding, gradient glass, interactive
-isometric RoomScene, light-only — 143 unit tests green, strings/semantics unchanged.
-Next: tariff engine (ADR-0008) wiring costLKR → savings (OBJ-07).
-Issue tracker = local markdown under `.scratch/`.
-Remaining open items (incl. verifying SSCL/VAT on a real bill) live at the bottom of CONTEXT.md.
+## Current state → see `docs/HANDOFF.md`
+
+**v1 is feature-complete and deployed** (`https://ecostay-ems.vercel.app`, as of 2026-07-07):
+auth+tenancy, live telemetry, device control, server workloads (sampler/alerts/automation/rollup),
+charts+alert-center, tariff cost (H-1), and OBJ-07 savings. 167 unit + 32 emulator tests green;
+all committed & pushed. Phases 0–5 + tariff + savings done.
+
+`docs/HANDOFF.md` is the single source of "what's built / what's pending / what's next" — read it
+first. Pending items are human/ops (live device for data, rotate the service-account key, verify
+SSCL on a real bill). Next candidate phases: **Admin UI** (risk gate #1), the **firmware workstream**
+(ADR-0007), v1.1. Issue tracker = local markdown under `.scratch/`; remaining open items also at the
+bottom of CONTEXT.md.
