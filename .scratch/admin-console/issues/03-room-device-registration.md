@@ -1,6 +1,6 @@
 # 03 - Admin console: room/device registration
 
-Status: pending-risk-gate-approval
+Status: DONE (approved risk gate #1/#2; shipped in 511026d)
 Slice: 3 of 4 · Parent: `.scratch/admin-console/PRD.md`
 
 > Goal: let an Admin register a room from the product instead of running the
@@ -79,17 +79,17 @@ Validation:
 
 ## Acceptance criteria
 
-- [ ] Admin can register a room from `/admin`; owner/non-admin requests are denied.
-- [ ] API validates malformed ids/names and returns clear 400/403 failures.
-- [ ] Server writes `ops/roomIndex` and room metadata atomically.
-- [ ] UI remains visually consistent with the Owner/Admin glass design.
-- [ ] New registered room appears in `listAccessibleRooms` for admins.
-- [ ] No client RTDB rules are opened for `ops/**`.
-- [ ] Unit tests cover validation + server writes.
-- [ ] Emulator/integration tests cover admin allowed and owner denied.
-- [ ] `npm test`, `npm run test:integration`, `npm run typecheck`,
+- [x] Admin can register a room from `/admin`; owner/non-admin requests are denied.
+- [x] API validates malformed ids/names and returns clear 400/403 failures.
+- [x] Server writes `ops/roomIndex` and room metadata atomically (single multi-path update).
+- [x] UI remains visually consistent with the Owner/Admin glass design (screenshot-verified).
+- [x] New registered room appears in `listAccessibleRooms` for admins (writes `properties/{pid}/rooms/{rid}`).
+- [x] No client RTDB rules are opened for `ops/**` (writes go through the Admin SDK route).
+- [x] Unit tests cover validation + server writes.
+- [x] Emulator/integration tests cover admin allowed (200) and owner denied (403), no-token 401, bad-id 400.
+- [x] `npm test` (197), `npm run test:integration` (38), `npm run typecheck`,
       `npm run lint`, and `npm run build` are green.
-- [ ] Rendered `/admin` is screenshot-checked after adding the registration form.
+- [x] Rendered `/admin` Rooms view is screenshot-checked.
 
 ## Blocked by
 

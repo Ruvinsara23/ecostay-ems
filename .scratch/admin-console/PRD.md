@@ -1,6 +1,6 @@
 # PRD: Admin Console
 
-Status: ready-for-agent (slices 01-02 implemented)
+Status: ready-for-agent (slices 01-03 implemented; slice 04 pending risk-gate #1 approval)
 Feature slug: admin-console
 Created: 2026-07-07
 Phase: 6
@@ -28,7 +28,8 @@ becomes functional for admins). Owners hitting an admin route are redirected.
    (D-1/GP-1/H-1) and `settings/circuitWattages` {lights, exhaustFan}. Rules: admin-write these
    fields (risk gate #2). No Admin SDK.
 2. **Alert thresholds** (DONE) — edit temperature/water-level thresholds; tick reads them instead of constants.
-3. Room/device registration — create rooms, register a device (writes `ops/roomIndex` + metadata).
+3. Room/device registration (DONE) — Admin-SDK route `POST /api/admin/rooms/register` writes
+   `ops/roomIndex` + property/room names; Rooms view in the rail. No firmware, no device creds.
 4. **Owner accounts** — create/disable/reset via Admin SDK behind a Next API route (**risk gate #1**;
    needs the service account in the deployment; separate approval).
 
