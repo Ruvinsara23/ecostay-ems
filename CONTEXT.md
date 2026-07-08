@@ -42,6 +42,14 @@ fakes firmware writes exists for development and rehearsal only — it is a dev 
   sign-in is **disabled project-wide once provisioned firmware ships**; until then a transitional
   ruleset tolerates anonymous writes to `property_001/room_001` only, and is deleted at cutover.
 
+### Firmware workstream vocabulary (accepted)
+
+| Term | Status | Meaning |
+|---|---|---|
+| Device account | accepted | Firebase Auth email/password account for exactly one Device/Node, created by an Admin SDK route, carrying `role=device` plus `propertyId` and `roomId` custom claims. |
+| Device credential | accepted | The email/password pair loaded onto one physical Device/Node so it can sign in as its Device account. Credentials are handed to the human/operator for provisioning and are never stored in RTDB or committed. |
+| Provisioning | accepted | The setup step that gives a physical Device/Node its `propertyId`, `roomId`, and Device credential before firmware cutover. Provisioning changes identity only; RTDB path layout, telemetry field names, field types, and cadence stay unchanged. |
+
 ## Core entities & identity
 
 | Term | Status | Meaning |
