@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
-import { AuthGatewayError } from '@/auth/auth-gateway';
+import { AuthGatewayError, type Session } from '@/auth/auth-gateway';
 
 /** Only ever redirect within the app — a `next` like `https://evil.example` or `//host` is discarded. */
 function safeNextPath(raw: string | null): string {
@@ -19,6 +19,11 @@ function errorMessage(error: unknown): string {
     }
   }
   return 'Sign-in is currently unavailable. Please try again.';
+}
+
+function destinationForSession(session: Session, nextPath: string): string {
+  if (nextPath !== '/') return nextPath;
+  return session.role === 'admin' ? '/admin' : '/';
 }
 
 function BrandMark() {
@@ -129,9 +134,9 @@ function LoginPageInner() {
 
   useEffect(() => {
     if (sessionState.status === 'signed-in') {
-      router.replace(nextPath);
+      router.replace(destinationForSession(sessionState.session, nextPath));
     }
-  }, [sessionState.status, nextPath, router]);
+  }, [sessionState, nextPath, router]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
