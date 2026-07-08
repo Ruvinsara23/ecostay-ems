@@ -69,4 +69,34 @@ describe('AdminRooms', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('roomId must be a slug');
     expect(screen.getByLabelText(/room id/i)).toHaveValue('BAD ID');
   });
+
+  it('creates a device account and shows the returned credential once', async () => {
+    const ops = new FakeAdminOperations();
+    renderForm(ops);
+
+    fill(/device property/i, 'property_002');
+    fill(/device room/i, 'room_009');
+    fireEvent.click(screen.getByRole('button', { name: /create device account/i }));
+
+    await waitFor(() =>
+      expect(ops.deviceCreates).toEqual([{ propertyId: 'property_002', roomId: 'room_009' }]),
+    );
+    expect(await screen.findByText('device+property_002+room_009@devices.ecostay.local')).toBeInTheDocument();
+    expect(screen.getByText('fake-device-password')).toBeInTheDocument();
+  });
+
+  it('resets a device password through the operations port', async () => {
+    const ops = new FakeAdminOperations();
+    ops.nextDevicePassword = 'reset-device-password';
+    renderForm(ops);
+
+    fill(/device property/i, 'property_002');
+    fill(/device room/i, 'room_009');
+    fireEvent.click(screen.getByRole('button', { name: /reset device password/i }));
+
+    await waitFor(() =>
+      expect(ops.deviceResets).toEqual([{ propertyId: 'property_002', roomId: 'room_009' }]),
+    );
+    expect(await screen.findByText('reset-device-password')).toBeInTheDocument();
+  });
 });

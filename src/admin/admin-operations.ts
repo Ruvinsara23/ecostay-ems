@@ -1,4 +1,5 @@
 import type { OwnerSummary } from '@/server/admin-owners';
+import type { DeviceAccountInput, DeviceCredential } from '@/server/manage-device';
 import type { CreateOwnerInput } from '@/server/manage-owner';
 import type { RegisterRoomInput } from '@/server/register-room';
 
@@ -13,6 +14,8 @@ export interface AdminOperations {
   createOwner(input: CreateOwnerInput): Promise<{ uid: string }>;
   setOwnerDisabled(uid: string, disabled: boolean): Promise<void>;
   resetOwnerPassword(email: string): Promise<{ resetLink: string }>;
+  createDeviceAccount(input: DeviceAccountInput): Promise<DeviceCredential>;
+  resetDeviceCredential(input: DeviceAccountInput): Promise<DeviceCredential>;
 }
 
 /** Real adapter: calls the admin API routes with the caller's ID token. */
@@ -59,6 +62,16 @@ export function createHttpAdminOperations(
         resetLink: string;
       };
     },
+    async createDeviceAccount(input) {
+      return (await (
+        await send('/api/admin/devices', 'POST', { action: 'create', ...input })
+      ).json()) as DeviceCredential;
+    },
+    async resetDeviceCredential(input) {
+      return (await (
+        await send('/api/admin/devices', 'POST', { action: 'resetPassword', ...input })
+      ).json()) as DeviceCredential;
+    },
   };
 }
 
@@ -66,9 +79,13 @@ export function createHttpAdminOperations(
 export class FakeAdminOperations implements AdminOperations {
   registrations: RegisterRoomInput[] = [];
   owners: OwnerSummary[] = [];
+  deviceCreates: DeviceAccountInput[] = [];
+  deviceResets: DeviceAccountInput[] = [];
   failWith: string | null = null;
   resetLink = 'https://example.test/reset?oobCode=fake';
+  nextDevicePassword = 'fake-device-password';
   private nextUid = 1;
+  private nextDeviceUid = 1;
 
   private guard() {
     if (this.failWith) throw new Error(this.failWith);
@@ -100,5 +117,25 @@ export class FakeAdminOperations implements AdminOperations {
   async resetOwnerPassword(_email: string): Promise<{ resetLink: string }> {
     this.guard();
     return { resetLink: this.resetLink };
+  }
+
+  async createDeviceAccount(input: DeviceAccountInput): Promise<DeviceCredential> {
+    this.guard();
+    this.deviceCreates.push(input);
+    return this.deviceCredential(input);
+  }
+
+  async resetDeviceCredential(input: DeviceAccountInput): Promise<DeviceCredential> {
+    this.guard();
+    this.deviceResets.push(input);
+    return this.deviceCredential(input);
+  }
+
+  private deviceCredential(input: DeviceAccountInput): DeviceCredential {
+    return {
+      uid: `device_uid_${this.nextDeviceUid++}`,
+      email: `device+${input.propertyId}+${input.roomId}@devices.ecostay.local`,
+      password: this.nextDevicePassword,
+    };
   }
 }

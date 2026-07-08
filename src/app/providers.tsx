@@ -97,6 +97,12 @@ const prerenderAdminOperations: AdminOperations = {
   async resetOwnerPassword() {
     throw new Error('not available during prerender');
   },
+  async createDeviceAccount() {
+    throw new Error('not available during prerender');
+  },
+  async resetDeviceCredential() {
+    throw new Error('not available during prerender');
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {
