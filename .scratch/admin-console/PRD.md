@@ -1,6 +1,6 @@
 # PRD: Admin Console
 
-Status: ready-for-agent (slices 01-03 implemented; slice 04 pending risk-gate #1 approval)
+Status: COMPLETE — all four slices (01-04) implemented and shipped
 Feature slug: admin-console
 Created: 2026-07-07
 Phase: 6
@@ -30,8 +30,10 @@ becomes functional for admins). Owners hitting an admin route are redirected.
 2. **Alert thresholds** (DONE) — edit temperature/water-level thresholds; tick reads them instead of constants.
 3. Room/device registration (DONE) — Admin-SDK route `POST /api/admin/rooms/register` writes
    `ops/roomIndex` + property/room names; Rooms view in the rail. No firmware, no device creds.
-4. **Owner accounts** — create/disable/reset via Admin SDK behind a Next API route (**risk gate #1**;
-   needs the service account in the deployment; separate approval).
+4. **Owner accounts** (DONE) — create/disable/reset + assign-to-property via Admin SDK behind
+   `GET/POST /api/admin/owners` (**risk gate #1**, approved). Owners rail view. Role hardcoded
+   `owner` (no privilege escalation); non-owner targets refused. Needs the service account in the
+   deployment (already present — rotate the leaked key).
 
 ## Implementation Decisions
 

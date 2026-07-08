@@ -85,6 +85,18 @@ const prerenderAdminOperations: AdminOperations = {
   async registerRoom() {
     throw new Error('not available during prerender');
   },
+  async listOwners() {
+    return [];
+  },
+  async createOwner() {
+    throw new Error('not available during prerender');
+  },
+  async setOwnerDisabled() {
+    throw new Error('not available during prerender');
+  },
+  async resetOwnerPassword() {
+    throw new Error('not available during prerender');
+  },
 };
 
 export function AppProviders({ children }: { children: ReactNode }) {

@@ -1,3 +1,5 @@
+import type { OwnerSummary } from '@/server/admin-owners';
+import type { CreateOwnerInput } from '@/server/manage-owner';
 import type { RegisterRoomInput } from '@/server/register-room';
 
 /**
@@ -7,27 +9,55 @@ import type { RegisterRoomInput } from '@/server/register-room';
  */
 export interface AdminOperations {
   registerRoom(input: RegisterRoomInput): Promise<void>;
+  listOwners(): Promise<OwnerSummary[]>;
+  createOwner(input: CreateOwnerInput): Promise<{ uid: string }>;
+  setOwnerDisabled(uid: string, disabled: boolean): Promise<void>;
+  resetOwnerPassword(email: string): Promise<{ resetLink: string }>;
 }
 
-/** Real adapter: POSTs to /api/admin/rooms/register with the caller's ID token. */
+/** Real adapter: calls the admin API routes with the caller's ID token. */
 export function createHttpAdminOperations(
   getIdToken: () => Promise<string | null>,
 ): AdminOperations {
+  async function send(path: string, method: 'GET' | 'POST', body?: unknown): Promise<Response> {
+    const token = await getIdToken();
+    const res = await fetch(path, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(detail.error ?? `Request failed (${res.status})`);
+    }
+    return res;
+  }
+
   return {
     async registerRoom(input) {
-      const token = await getIdToken();
-      const res = await fetch('/api/admin/rooms/register', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...(token ? { authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) {
-        const detail = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(detail.error ?? `Registration failed (${res.status})`);
-      }
+      await send('/api/admin/rooms/register', 'POST', input);
+    },
+    async listOwners() {
+      const { owners } = (await (await send('/api/admin/owners', 'GET')).json()) as {
+        owners: OwnerSummary[];
+      };
+      return owners;
+    },
+    async createOwner(input) {
+      return (await (await send('/api/admin/owners', 'POST', { action: 'create', ...input })).json()) as {
+        uid: string;
+      };
+    },
+    async setOwnerDisabled(uid, disabled) {
+      await send('/api/admin/owners', 'POST', { action: 'setDisabled', uid, disabled });
+    },
+    async resetOwnerPassword(email) {
+      return (await (await send('/api/admin/owners', 'POST', { action: 'resetPassword', email })).json()) as {
+        resetLink: string;
+      };
     },
   };
 }
@@ -35,10 +65,40 @@ export function createHttpAdminOperations(
 /** In-memory fake for tests. */
 export class FakeAdminOperations implements AdminOperations {
   registrations: RegisterRoomInput[] = [];
+  owners: OwnerSummary[] = [];
   failWith: string | null = null;
+  resetLink = 'https://example.test/reset?oobCode=fake';
+  private nextUid = 1;
+
+  private guard() {
+    if (this.failWith) throw new Error(this.failWith);
+  }
 
   async registerRoom(input: RegisterRoomInput): Promise<void> {
-    if (this.failWith) throw new Error(this.failWith);
+    this.guard();
     this.registrations.push(input);
+  }
+
+  async listOwners(): Promise<OwnerSummary[]> {
+    this.guard();
+    return this.owners;
+  }
+
+  async createOwner(input: CreateOwnerInput): Promise<{ uid: string }> {
+    this.guard();
+    const uid = `uid_${this.nextUid++}`;
+    this.owners.push({ uid, email: input.email, disabled: false, propertyIds: [input.propertyId] });
+    return { uid };
+  }
+
+  async setOwnerDisabled(uid: string, disabled: boolean): Promise<void> {
+    this.guard();
+    const owner = this.owners.find((o) => o.uid === uid);
+    if (owner) owner.disabled = disabled;
+  }
+
+  async resetOwnerPassword(_email: string): Promise<{ resetLink: string }> {
+    this.guard();
+    return { resetLink: this.resetLink };
   }
 }

@@ -1,13 +1,14 @@
 'use client';
 
-import { ArrowLeft, DoorOpen, Settings } from 'lucide-react';
+import { ArrowLeft, DoorOpen, Settings, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { AdminOwners } from '@/admin/admin-owners';
 import { AdminRooms } from '@/admin/admin-rooms';
 import { AdminSettings } from '@/admin/admin-settings';
 import { RequireAdmin } from '@/auth/require-admin';
 
-type AdminView = 'settings' | 'rooms';
+type AdminView = 'settings' | 'rooms' | 'owners';
 
 function RailButton({
   label,
@@ -66,11 +67,10 @@ export default function AdminPage() {
             <span className="text-[11px] font-medium max-sm:hidden">Dashboard</span>
           </Link>
           <div className="mt-auto flex w-full flex-col gap-4">
-            <RailButton
-              label="Rooms"
-              active={view === 'rooms'}
-              onClick={() => setView('rooms')}
-            >
+            <RailButton label="Owners" active={view === 'owners'} onClick={() => setView('owners')}>
+              <Users size={22} strokeWidth={2.2} aria-hidden />
+            </RailButton>
+            <RailButton label="Rooms" active={view === 'rooms'} onClick={() => setView('rooms')}>
               <DoorOpen size={22} strokeWidth={2.2} aria-hidden />
             </RailButton>
             <RailButton
@@ -82,7 +82,13 @@ export default function AdminPage() {
             </RailButton>
           </div>
         </nav>
-        {view === 'settings' ? <AdminSettings /> : <AdminRooms />}
+        {view === 'settings' ? (
+          <AdminSettings />
+        ) : view === 'rooms' ? (
+          <AdminRooms />
+        ) : (
+          <AdminOwners />
+        )}
       </div>
     </RequireAdmin>
   );

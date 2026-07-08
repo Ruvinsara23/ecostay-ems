@@ -63,16 +63,19 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
 
 ## What to build next (candidate phases)
 
-1. **Admin Console** (`.scratch/admin-console/`) — IN PROGRESS. Slices 01-03 DONE: admin-only
-   `/admin` route (`RequireAdmin` guard), settings form to edit tariff category + circuit wattages
-   + alert thresholds (`src/admin/admin-settings.tsx`), port writes, tick reads per-property
-   thresholds, admin-only rules; **room registration** — Admin-SDK route
-   `POST /api/admin/rooms/register` (admin-claim verified) writes `ops/roomIndex` + property/room
-   names, Rooms view in the rail (`src/admin/admin-rooms.tsx`, `AdminOperations` port). No firmware,
-   no device creds, no client rule changes for slice 03. **Human: re-publish `database.rules.json`
-   after slice 02** (the `alertThresholds` rules). **Remaining slice**: 04 **owner-account
-   management** via Admin SDK behind a Next API route (**risk gate #1** — needs approval + the
-   service account in the deployment). Rail Settings icon opens /admin for admins.
+1. **Admin Console** (`.scratch/admin-console/`) — COMPLETE (all four slices). Admin-only `/admin`
+   route (`RequireAdmin` guard) with a three-view rail: **Settings** (tariff category + circuit
+   wattages + alert thresholds — `src/admin/admin-settings.tsx`, port writes, tick reads
+   per-property thresholds, admin-only rules); **Rooms** (`POST /api/admin/rooms/register` writes
+   `ops/roomIndex` + property/room names — `src/admin/admin-rooms.tsx`); **Owners**
+   (`GET/POST /api/admin/owners` create/disable/reset + assign-to-property via Admin SDK —
+   `src/admin/admin-owners.tsx`, `src/server/admin-owners.ts`). All admin API routes verify the
+   caller's `role:'admin'` claim (`src/server/admin-token.ts`); the `AdminOperations` port
+   (`src/admin/admin-operations.ts`) keeps UI off `fetch`/Admin SDK. Owner role is hardcoded on
+   create (no privilege escalation); non-owner targets are refused disable/reset. `ops/**`,
+   `users/**`, `members` writes go through the Admin SDK — **no client rule changes for slices
+   03-04**. **Human: re-publish `database.rules.json` after slice 02** (the `alertThresholds`
+   rules) and **rotate the leaked service-account key** (the Owners route uses it in prod).
 2. **Firmware workstream** (ADR-0007, hardware) — per-device credentials replacing anonymous auth,
    real PZEM-004T reads replacing the simulated energy, configurable property/room IDs. Coordinates
    with the PCB. Touching firmware is **risk gate #7**.
