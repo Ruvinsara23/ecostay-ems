@@ -29,6 +29,8 @@ describe('RoomLiveView — states', () => {
       setTariffCategory: async () => { },
       subscribeCircuitWattages: () => () => { },
       setCircuitWattages: async () => { },
+      subscribeAlertThresholds: () => () => { },
+      setAlertThresholds: async () => { },
       subscribeAlerts: () => () => { },
       acknowledgeAlert: async () => { },
     };

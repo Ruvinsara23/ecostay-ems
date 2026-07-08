@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceCommands } from '@/telemetry/contract';
-import type { RoomLatest } from './room-data-source';
+import type { AlertThresholds, RoomLatest } from './room-data-source';
 import { FakeRoomDataSource } from './fake-room-data-source';
 
 const SNAPSHOT: RoomLatest = {
@@ -150,6 +150,19 @@ describe('FakeRoomDataSource', () => {
     source.subscribeCircuitWattages('property_001', (w) => emissions.push(w));
     await source.setCircuitWattages('property_001', { lights: 80, exhaustFan: 30 });
     expect(emissions).toEqual([null, { lights: 80, exhaustFan: 30 }]);
+  });
+
+  it('serves alert thresholds (null until set) and echoes writes', async () => {
+    const source = new FakeRoomDataSource();
+    const emissions: Array<AlertThresholds | null> = [];
+    source.subscribeAlertThresholds('property_001', (thresholds) =>
+      emissions.push(thresholds),
+    );
+    await source.setAlertThresholds('property_001', {
+      temperatureC: 32,
+      waterLevelPct: 25,
+    });
+    expect(emissions).toEqual([null, { temperatureC: 32, waterLevelPct: 25 }]);
   });
 
   it('serves daily aggregates keyed by date, live', () => {

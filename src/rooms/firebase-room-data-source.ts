@@ -10,6 +10,7 @@ import {
   startAt,
   update,
 } from 'firebase/database';
+import { parseAlertThresholds } from '@/alerts/thresholds';
 import { DEVICE_COMMAND_KEYS, DeviceCommands } from '@/telemetry/contract';
 import type {
   AlertView,
@@ -159,6 +160,16 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
 
     async setCircuitWattages(propertyId, wattages) {
       await set(ref(db, `properties/${propertyId}/settings/circuitWattages`), wattages);
+    },
+
+    subscribeAlertThresholds(propertyId, callback) {
+      return onValue(ref(db, `properties/${propertyId}/settings/alertThresholds`), (snapshot) => {
+        callback(snapshot.exists() ? parseAlertThresholds(snapshot.val()) : null);
+      });
+    },
+
+    async setAlertThresholds(propertyId, thresholds) {
+      await set(ref(db, `properties/${propertyId}/settings/alertThresholds`), thresholds);
     },
 
     subscribeAlerts(propertyId, callback) {

@@ -1,13 +1,17 @@
+import {
+  DEFAULT_ALERT_THRESHOLDS,
+  normalizeAlertThresholds,
+  type AlertThresholds,
+} from '@/alerts/thresholds';
 import type { RoomLatest } from '@/rooms/room-data-source';
 import { GAS_ALARM_THRESHOLD } from '@/telemetry/contract';
 
 export const ALERT_TYPES = ['device-offline', 'gas', 'temperature', 'water-level'] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 
-/** Defaults become Admin-editable settings in the Admin UI phase (CONTEXT.md). */
 export const OFFLINE_ALERT_MS = 90_000;
-export const TEMPERATURE_ALERT_THRESHOLD_C = 33;
-export const WATER_LEVEL_ALERT_THRESHOLD_PCT = 20;
+export const TEMPERATURE_ALERT_THRESHOLD_C = DEFAULT_ALERT_THRESHOLDS.temperatureC;
+export const WATER_LEVEL_ALERT_THRESHOLD_PCT = DEFAULT_ALERT_THRESHOLDS.waterLevelPct;
 
 export type AlertSeverity = 'critical' | 'warning';
 
@@ -25,6 +29,7 @@ export type AlertRecord = {
 export type AlertsDeps = {
   listRooms(): Promise<Array<{ propertyId: string; roomId: string }>>;
   readLatest(propertyId: string, roomId: string): Promise<RoomLatest | null>;
+  readAlertThresholds(propertyId: string): Promise<unknown>;
   /** Open-alert index for the room: type → alertId (ops/openAlerts). */
   getOpenAlerts(
     propertyId: string,
@@ -58,10 +63,20 @@ const SEVERITY: Record<AlertType, AlertSeverity> = {
  */
 export async function evaluateAlerts(deps: AlertsDeps, nowMs: number): Promise<AlertsReport> {
   const report: AlertsReport = { opened: 0, resolved: 0, open: 0 };
+  const thresholdCache = new Map<string, AlertThresholds>();
+
+  async function thresholdsFor(propertyId: string): Promise<AlertThresholds> {
+    const cached = thresholdCache.get(propertyId);
+    if (cached) return cached;
+    const thresholds = normalizeAlertThresholds(await deps.readAlertThresholds(propertyId));
+    thresholdCache.set(propertyId, thresholds);
+    return thresholds;
+  }
 
   for (const { propertyId, roomId } of await deps.listRooms()) {
     const latest = await deps.readLatest(propertyId, roomId);
     if (latest === null) continue;
+    const thresholds = await thresholdsFor(propertyId);
 
     const silentMs =
       latest.updatedAt === undefined ? Number.POSITIVE_INFINITY : nowMs - latest.updatedAt;
@@ -80,14 +95,14 @@ export async function evaluateAlerts(deps: AlertsDeps, nowMs: number): Promise<A
         active:
           isFresh &&
           latest.temperature !== undefined &&
-          latest.temperature > TEMPERATURE_ALERT_THRESHOLD_C,
+          latest.temperature > thresholds.temperatureC,
         value: latest.temperature ?? 0,
       },
       'water-level': {
         active:
           isFresh &&
           latest.waterLevel !== undefined &&
-          latest.waterLevel < WATER_LEVEL_ALERT_THRESHOLD_PCT,
+          latest.waterLevel < thresholds.waterLevelPct,
         value: latest.waterLevel ?? 0,
       },
     };

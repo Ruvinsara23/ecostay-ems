@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { AlertThresholds } from '@/alerts/thresholds';
 import type { RoomLatest } from '@/rooms/room-data-source';
 import { AlertRecord, AlertsDeps, AlertType, evaluateAlerts } from './alerts';
 
@@ -7,12 +8,17 @@ const NOW = 2_000_000_000_000;
 type World = {
   rooms: Record<string, RoomLatest | null>;
   open: Record<string, Partial<Record<AlertType, string>>>; // pid/rid → type → id
+  thresholds: Record<string, Partial<AlertThresholds> | null>; // pid → settings
   opened: AlertRecord[];
   resolved: Array<{ type: AlertType; alertId: string; resolvedAt: number }>;
 };
 
-function makeDeps(rooms: World['rooms'], openIndex: World['open'] = {}) {
-  const world: World = { rooms, open: openIndex, opened: [], resolved: [] };
+function makeDeps(
+  rooms: World['rooms'],
+  openIndex: World['open'] = {},
+  thresholds: World['thresholds'] = {},
+) {
+  const world: World = { rooms, open: openIndex, thresholds, opened: [], resolved: [] };
   let nextId = 1;
   const deps: AlertsDeps = {
     async listRooms() {
@@ -23,6 +29,9 @@ function makeDeps(rooms: World['rooms'], openIndex: World['open'] = {}) {
     },
     async readLatest(propertyId, roomId) {
       return rooms[`${propertyId}/${roomId}`] ?? null;
+    },
+    async readAlertThresholds(propertyId) {
+      return world.thresholds[propertyId] ?? null;
     },
     async getOpenAlerts(propertyId, roomId) {
       return world.open[`${propertyId}/${roomId}`] ?? {};
@@ -127,6 +136,44 @@ describe('evaluateAlerts', () => {
       ['temperature', 'warning', 33.5],
       ['water-level', 'warning', 15],
     ]);
+  });
+
+  it('uses configured temperature and water-level thresholds per property', async () => {
+    const { deps, world } = makeDeps(
+      {
+        'property_001/room_001': fresh({ temperature: 33.5, waterLevel: 15 }),
+        'property_002/room_002': fresh({ temperature: 35.5, waterLevel: 15 }),
+      },
+      {},
+      {
+        property_001: { temperatureC: 34, waterLevelPct: 10 },
+        property_002: { temperatureC: 35, waterLevelPct: 20 },
+      },
+    );
+
+    await evaluateAlerts(deps, NOW);
+
+    expect(world.opened.map((alert) => [alert.roomId, alert.type, alert.value])).toEqual([
+      ['room_002', 'temperature', 35.5],
+      ['room_002', 'water-level', 15],
+    ]);
+  });
+
+  it('falls back to default thresholds when stored settings are malformed', async () => {
+    const { deps, world } = makeDeps(
+      { 'property_001/room_001': fresh({ temperature: 33.5, waterLevel: 15 }) },
+      {},
+      {
+        property_001: {
+          temperatureC: 'hot' as unknown as number,
+          waterLevelPct: -4,
+        },
+      },
+    );
+
+    await evaluateAlerts(deps, NOW);
+
+    expect(world.opened.map((alert) => alert.type)).toEqual(['temperature', 'water-level']);
   });
 
   it('resolves the offline alert when the device comes back', async () => {

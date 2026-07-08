@@ -1,5 +1,8 @@
+import type { AlertThresholds } from '@/alerts/thresholds';
 import type { Session } from '@/auth/auth-gateway';
 import type { DeviceCommandKey, DeviceCommands, RoomTelemetry } from '@/telemetry/contract';
+
+export type { AlertThresholds } from '@/alerts/thresholds';
 
 /** One room an authenticated user may see, with display names when set (Admin metadata). */
 export type RoomRef = {
@@ -114,6 +117,15 @@ export interface RoomDataSource {
 
   /** Set the property's circuit wattages (admin only; rules enforce). */
   setCircuitWattages(propertyId: string, wattages: CircuitWattages): Promise<void>;
+
+  /** The property's alert thresholds, null until set; live. */
+  subscribeAlertThresholds(
+    propertyId: string,
+    callback: (thresholds: AlertThresholds | null) => void,
+  ): () => void;
+
+  /** Set the property's alert thresholds (admin only; rules enforce). */
+  setAlertThresholds(propertyId: string, thresholds: AlertThresholds): Promise<void>;
 
   /** The property's alert records (open and resolved), live. */
   subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void;

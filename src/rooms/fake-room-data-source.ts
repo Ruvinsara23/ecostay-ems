@@ -1,6 +1,7 @@
 import type { Session } from '@/auth/auth-gateway';
 import type { DeviceCommandKey, DeviceCommands } from '@/telemetry/contract';
 import type {
+  AlertThresholds,
   AlertView,
   CircuitWattages,
   DailyAggregateView,
@@ -217,6 +218,32 @@ export class FakeRoomDataSource implements RoomDataSource {
     forKey.add(callback);
     this.wattageListeners.set(propertyId, forKey);
     callback(this.wattages.get(propertyId) ?? null);
+    return () => {
+      forKey.delete(callback);
+    };
+  }
+
+  private alertThresholds = new Map<string, AlertThresholds | null>();
+  private alertThresholdListeners = new Map<
+    string,
+    Set<(thresholds: AlertThresholds | null) => void>
+  >();
+
+  async setAlertThresholds(propertyId: string, thresholds: AlertThresholds): Promise<void> {
+    this.alertThresholds.set(propertyId, thresholds);
+    this.alertThresholdListeners
+      .get(propertyId)
+      ?.forEach((listener) => listener(thresholds));
+  }
+
+  subscribeAlertThresholds(
+    propertyId: string,
+    callback: (thresholds: AlertThresholds | null) => void,
+  ): () => void {
+    const forKey = this.alertThresholdListeners.get(propertyId) ?? new Set<typeof callback>();
+    forKey.add(callback);
+    this.alertThresholdListeners.set(propertyId, forKey);
+    callback(this.alertThresholds.get(propertyId) ?? null);
     return () => {
       forKey.delete(callback);
     };

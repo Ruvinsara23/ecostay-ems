@@ -47,6 +47,10 @@ export function createAlertsDeps(db: Database): AlertsDeps {
     listRooms: () => listIndexedRooms(db),
     readLatest: (propertyId, roomId) => readLatest(db, propertyId, roomId),
 
+    async readAlertThresholds(propertyId) {
+      return (await db.ref(`properties/${propertyId}/settings/alertThresholds`).get()).val();
+    },
+
     async getOpenAlerts(propertyId, roomId) {
       const snapshot = await db.ref(`ops/openAlerts/${propertyId}/${roomId}`).get();
       return (snapshot.val() as Partial<Record<AlertType, string>> | null) ?? {};

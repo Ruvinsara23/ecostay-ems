@@ -54,6 +54,13 @@
             "lights": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "exhaustFan": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "$other": { ".validate": false }
+          },
+          "alertThresholds": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
+            ".validate": "newData.hasChildren(['temperatureC', 'waterLevelPct'])",
+            "temperatureC": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50" },
+            "waterLevelPct": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "$other": { ".validate": false }
           }
         }
       },
@@ -99,6 +106,13 @@
             ".validate": "newData.hasChildren(['lights', 'exhaustFan'])",
             "lights": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "exhaustFan": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "$other": { ".validate": false }
+          },
+          "alertThresholds": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
+            ".validate": "newData.hasChildren(['temperatureC', 'waterLevelPct'])",
+            "temperatureC": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50" },
+            "waterLevelPct": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
             "$other": { ".validate": false }
           }
         }

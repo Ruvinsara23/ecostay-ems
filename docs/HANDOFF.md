@@ -63,12 +63,13 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
 
 ## What to build next (candidate phases)
 
-1. **Admin Console** (`.scratch/admin-console/`) — IN PROGRESS. Slice 01 DONE: admin-only `/admin`
-   route (`RequireAdmin` guard), settings form to edit tariff category + circuit wattages
-   (`src/admin/admin-settings.tsx`), port writes, admin-only rules. **Remaining slices**: 02 alert
-   thresholds (tick reads them instead of constants), 03 room/device registration, 04 **owner-account
-   management** via Admin SDK behind a Next API route (**risk gate #1** — needs approval + the service
-   account in the deployment). Rail Settings icon opens /admin for admins.
+1. **Admin Console** (`.scratch/admin-console/`) — IN PROGRESS. Slices 01-02 DONE: admin-only
+   `/admin` route (`RequireAdmin` guard), settings form to edit tariff category + circuit wattages
+   + alert thresholds (`src/admin/admin-settings.tsx`), port writes, tick reads per-property
+   thresholds, admin-only rules. **Human: re-publish `database.rules.json` after slice 02.**
+   **Remaining slices**: 03 room/device registration, 04 **owner-account management** via Admin SDK
+   behind a Next API route (**risk gate #1** — needs approval + the service account in the deployment).
+   Rail Settings icon opens /admin for admins.
 2. **Firmware workstream** (ADR-0007, hardware) — per-device credentials replacing anonymous auth,
    real PZEM-004T reads replacing the simulated energy, configurable property/room IDs. Coordinates
    with the PCB. Touching firmware is **risk gate #7**.

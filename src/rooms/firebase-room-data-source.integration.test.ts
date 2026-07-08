@@ -392,6 +392,66 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     ).rejects.toThrow(/permission/i);
   });
 
+  it('admin writes alert thresholds; owner denied; invalid values rejected (rules)', async () => {
+    await wipe();
+    await seedTwoProperties();
+    const admin = await signedInDb('admin');
+    const adminSrc = createFirebaseRoomDataSource(admin.db);
+
+    await adminSrc.setAlertThresholds('property_001', {
+      temperatureC: 32,
+      waterLevelPct: 18,
+    });
+    expect(
+      (await adminDb.ref('properties/property_001/settings/alertThresholds').get()).val(),
+    ).toEqual({ temperatureC: 32, waterLevelPct: 18 });
+
+    const owner = await signedInDb('owner');
+    const ownerSrc = createFirebaseRoomDataSource(owner.db);
+    await expect(
+      ownerSrc.setAlertThresholds('property_001', { temperatureC: 31, waterLevelPct: 25 }),
+    ).rejects.toThrow(/permission/i);
+
+    const { ref: clientRef, set: clientSet } = await import('firebase/database');
+    await expect(
+      clientSet(
+        clientRef(admin.db, 'properties/property_001/settings/alertThresholds/temperatureC'),
+        'hot' as unknown as number,
+      ),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      clientSet(
+        clientRef(admin.db, 'properties/property_001/settings/alertThresholds/waterLevelPct'),
+        101,
+      ),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      clientSet(
+        clientRef(admin.db, 'properties/property_001/settings/alertThresholds/extra'),
+        1,
+      ),
+    ).rejects.toThrow(/permission/i);
+  });
+
+  it('owner reads the property alert thresholds through the rules', async () => {
+    await wipe();
+    await seedTwoProperties();
+    await adminDb
+      .ref('properties/property_001/settings/alertThresholds')
+      .set({ temperatureC: 32, waterLevelPct: 18 });
+    const owner = await signedInDb('owner');
+    const source = createFirebaseRoomDataSource(owner.db);
+
+    const emissions: Array<{ temperatureC: number; waterLevelPct: number } | null> = [];
+    const unsubscribe = source.subscribeAlertThresholds('property_001', (thresholds) =>
+      emissions.push(thresholds),
+    );
+    await waitUntil(() => emissions.length >= 1);
+
+    expect(emissions[0]).toEqual({ temperatureC: 32, waterLevelPct: 18 });
+    unsubscribe();
+  });
+
   it('owner reads the property tariff category through the rules', async () => {
     await wipe();
     await seedTwoProperties();

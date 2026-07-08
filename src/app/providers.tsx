@@ -64,6 +64,12 @@ const prerenderRoomDataSource: RoomDataSource = {
   async setCircuitWattages() {
     throw new Error('not available during prerender');
   },
+  subscribeAlertThresholds() {
+    return () => {};
+  },
+  async setAlertThresholds() {
+    throw new Error('not available during prerender');
+  },
   subscribeAlerts() {
     return () => {};
   },
