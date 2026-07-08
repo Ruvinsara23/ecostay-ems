@@ -3,6 +3,9 @@
 import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import { ReactNode, useState } from 'react';
+import type { AdminOperations } from '@/admin/admin-operations';
+import { createHttpAdminOperations } from '@/admin/admin-operations';
+import { AdminOperationsProvider } from '@/admin/admin-operations-context';
 import { AuthProvider } from '@/auth/auth-context';
 import type { AuthGateway } from '@/auth/auth-gateway';
 import { AuthGatewayError } from '@/auth/auth-gateway';
@@ -78,21 +81,41 @@ const prerenderRoomDataSource: RoomDataSource = {
   },
 };
 
+const prerenderAdminOperations: AdminOperations = {
+  async registerRoom() {
+    throw new Error('not available during prerender');
+  },
+};
+
 export function AppProviders({ children }: { children: ReactNode }) {
-  const [adapters] = useState<{ gateway: AuthGateway; roomDataSource: RoomDataSource }>(() => {
+  const [adapters] = useState<{
+    gateway: AuthGateway;
+    roomDataSource: RoomDataSource;
+    adminOperations: AdminOperations;
+  }>(() => {
     if (typeof window === 'undefined') {
-      return { gateway: prerenderGateway, roomDataSource: prerenderRoomDataSource };
+      return {
+        gateway: prerenderGateway,
+        roomDataSource: prerenderRoomDataSource,
+        adminOperations: prerenderAdminOperations,
+      };
     }
     const app = getFirebaseApp();
+    const auth = getAuth(app);
     return {
-      gateway: createFirebaseAuthGateway(getAuth(app)),
+      gateway: createFirebaseAuthGateway(auth),
       roomDataSource: createFirebaseRoomDataSource(getDatabase(app)),
+      adminOperations: createHttpAdminOperations(() =>
+        auth.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null),
+      ),
     };
   });
   return (
     <AuthProvider gateway={adapters.gateway}>
       <RoomDataSourceProvider source={adapters.roomDataSource}>
-        {children}
+        <AdminOperationsProvider operations={adapters.adminOperations}>
+          {children}
+        </AdminOperationsProvider>
       </RoomDataSourceProvider>
     </AuthProvider>
   );

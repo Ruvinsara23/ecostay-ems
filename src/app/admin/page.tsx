@@ -1,11 +1,49 @@
 'use client';
 
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, DoorOpen, Settings } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+import { AdminRooms } from '@/admin/admin-rooms';
 import { AdminSettings } from '@/admin/admin-settings';
 import { RequireAdmin } from '@/auth/require-admin';
 
+type AdminView = 'settings' | 'rooms';
+
+function RailButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={`flex w-full flex-col items-center gap-1.5 py-2 transition-colors ${
+        active ? 'text-brand' : 'text-ink-3 hover:text-ink'
+      }`}
+    >
+      <span
+        className={`grid h-10 w-10 place-items-center rounded-2xl transition-colors ${
+          active ? 'bg-brand text-white shadow-md' : 'bg-transparent text-current hover:bg-brand/10'
+        }`}
+      >
+        {children}
+      </span>
+      <span className="text-[11px] font-medium max-sm:hidden">{label}</span>
+    </button>
+  );
+}
+
 export default function AdminPage() {
+  const [view, setView] = useState<AdminView>('settings');
+
   return (
     <RequireAdmin>
       <div className="mx-auto flex min-h-screen w-full bg-transparent max-sm:flex-col">
@@ -27,19 +65,24 @@ export default function AdminPage() {
             </span>
             <span className="text-[11px] font-medium max-sm:hidden">Dashboard</span>
           </Link>
-          <div className="mt-auto w-full">
-            <div
-              aria-current="page"
-              className="flex w-full flex-col items-center gap-1.5 py-2 text-brand"
+          <div className="mt-auto flex w-full flex-col gap-4">
+            <RailButton
+              label="Rooms"
+              active={view === 'rooms'}
+              onClick={() => setView('rooms')}
             >
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand text-white shadow-md">
-                <Settings size={22} strokeWidth={2.2} aria-hidden />
-              </span>
-              <span className="text-[11px] font-medium max-sm:hidden">Settings</span>
-            </div>
+              <DoorOpen size={22} strokeWidth={2.2} aria-hidden />
+            </RailButton>
+            <RailButton
+              label="Settings"
+              active={view === 'settings'}
+              onClick={() => setView('settings')}
+            >
+              <Settings size={22} strokeWidth={2.2} aria-hidden />
+            </RailButton>
           </div>
         </nav>
-        <AdminSettings />
+        {view === 'settings' ? <AdminSettings /> : <AdminRooms />}
       </div>
     </RequireAdmin>
   );

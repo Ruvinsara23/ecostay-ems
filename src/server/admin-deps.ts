@@ -1,5 +1,6 @@
 import type { Database } from 'firebase-admin/database';
 import type { RoomLatest } from '@/rooms/room-data-source';
+import type { RegisterRoomInput } from './register-room';
 import type { AlertsDeps, AlertType } from './alerts';
 import type { AutomationDeps } from './automation';
 import type { RollupDeps } from './rollup';
@@ -154,4 +155,23 @@ export function createRollupDeps(db: Database): RollupDeps {
       await historyRef(propertyId, roomId).update(updates);
     },
   };
+}
+
+/**
+ * Register a room: atomic multi-path update writing the ops room index (Admin-SDK
+ * only — never client-writable) and the property/room display names. Idempotent —
+ * re-registering the same room just refreshes the names.
+ */
+export async function applyRoomRegistration(
+  db: Database,
+  input: RegisterRoomInput,
+): Promise<void> {
+  const updates: Record<string, unknown> = {
+    [`ops/roomIndex/${input.propertyId}/${input.roomId}`]: true,
+    [`properties/${input.propertyId}/rooms/${input.roomId}/name`]: input.roomName,
+  };
+  if (input.propertyName) {
+    updates[`properties/${input.propertyId}/name`] = input.propertyName;
+  }
+  await db.ref().update(updates);
 }
