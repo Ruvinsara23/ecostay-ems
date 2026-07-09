@@ -57,9 +57,25 @@ Fixed the Admin Settings form path that was collapsing Firebase write failures i
 
 Remaining paths in this issue:
 
-- room registration;
-- owner create/disable/reset;
-- device account create/reset;
+- local/dev Firebase environment mismatch checks.
+
+### 2026-07-09 - Admin SDK operation error surfaces
+
+Closed the fake-backed UI coverage for Admin SDK save/action failures.
+
+- Scope changed: `src/admin/admin-owners.tsx`, `src/admin/admin-owners.test.tsx`,
+  `src/admin/admin-rooms.test.tsx`
+- Risk gates tripped: none. This only changes UI error display around the existing
+  `AdminOperations` port; no API route, auth claim, rules, secret, or deploy changed.
+- Behavior: owner disable/reset failures now render an alert instead of escaping as unhandled
+  rejections; reset failures clear any stale reset link for that owner.
+- Coverage: room registration error was already covered; added device-account error coverage and
+  owner disable/reset error coverage.
+- Verification: `npm.cmd test -- src/admin/admin-rooms.test.tsx src/admin/admin-owners.test.tsx`,
+  `npm.cmd test`, and `npm.cmd run typecheck` passed.
+
+Remaining path in this issue:
+
 - local/dev Firebase environment mismatch checks.
 
 ## Stop Point

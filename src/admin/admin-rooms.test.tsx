@@ -99,4 +99,17 @@ describe('AdminRooms', () => {
     );
     expect(await screen.findByText('reset-device-password')).toBeInTheDocument();
   });
+
+  it('surfaces a device account error without showing a credential', async () => {
+    const ops = new FakeAdminOperations();
+    ops.failWith = 'room must be registered before creating a device account';
+    renderForm(ops);
+
+    fill(/device property/i, 'property_002');
+    fill(/device room/i, 'room_009');
+    fireEvent.click(screen.getByRole('button', { name: /create device account/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/room must be registered/i);
+    expect(screen.queryByText(/fake-device-password/i)).not.toBeInTheDocument();
+  });
 });

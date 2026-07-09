@@ -44,6 +44,7 @@ export function AdminOwners() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [resetLinks, setResetLinks] = useState<Record<string, string>>({});
 
   const refresh = useCallback(async () => {
@@ -70,6 +71,7 @@ export function AdminOwners() {
       setter(value);
       setStatus('idle');
       setError(null);
+      setActionError(null);
     };
   }
 
@@ -77,6 +79,7 @@ export function AdminOwners() {
     event.preventDefault();
     setStatus('saving');
     setError(null);
+    setActionError(null);
     try {
       await operations.createOwner({ email, password, propertyId });
       setStatus('saved');
@@ -92,9 +95,12 @@ export function AdminOwners() {
 
   async function toggleDisabled(owner: OwnerSummary) {
     setBusyUid(owner.uid);
+    setActionError(null);
     try {
       await operations.setOwnerDisabled(owner.uid, !owner.disabled);
       await refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not update owner - try again.');
     } finally {
       setBusyUid(null);
     }
@@ -102,9 +108,19 @@ export function AdminOwners() {
 
   async function requestReset(owner: OwnerSummary) {
     setBusyUid(owner.uid);
+    setActionError(null);
+    setResetLinks((current) => {
+      const next = { ...current };
+      delete next[owner.uid];
+      return next;
+    });
     try {
       const { resetLink } = await operations.resetOwnerPassword(owner.email);
       setResetLinks((current) => ({ ...current, [owner.uid]: resetLink }));
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : 'Could not reset owner password - try again.',
+      );
     } finally {
       setBusyUid(null);
     }
@@ -179,6 +195,11 @@ export function AdminOwners() {
 
         <section className="glass mt-6 rounded-2xl p-5 sm:p-6">
           <h2 className="mb-4 text-sm font-bold text-ink">Existing owners</h2>
+          {actionError && (
+            <p role="alert" className="mb-4 text-sm font-semibold text-alarm">
+              {actionError}
+            </p>
+          )}
           {owners === null ? (
             <p className="text-sm text-ink-2">Loading...</p>
           ) : owners.length === 0 ? (

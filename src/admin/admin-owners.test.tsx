@@ -86,4 +86,38 @@ describe('AdminOwners', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/already exists/i);
     expect(screen.getByLabelText(/email/i)).toHaveValue('dup@villa.lk');
   });
+
+  it('surfaces a disable error and keeps the current owner state', async () => {
+    const ops = new FakeAdminOperations();
+    ops.owners = [
+      { uid: 'uid_1', email: 'aya@villa.lk', disabled: false, propertyIds: ['property_002'] },
+    ];
+    renderView(ops);
+
+    const row = (await screen.findByText('aya@villa.lk')).closest('li')!;
+    ops.failWith = 'only owner accounts can be disabled';
+    fireEvent.click(within(row).getByRole('button', { name: /disable/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /only owner accounts can be disabled/i,
+    );
+    expect(ops.owners[0].disabled).toBe(false);
+  });
+
+  it('surfaces a reset error without showing a reset link', async () => {
+    const ops = new FakeAdminOperations();
+    ops.owners = [
+      { uid: 'uid_1', email: 'aya@villa.lk', disabled: false, propertyIds: ['property_002'] },
+    ];
+    renderView(ops);
+
+    const row = (await screen.findByText('aya@villa.lk')).closest('li')!;
+    ops.failWith = 'reset link could not be generated';
+    fireEvent.click(within(row).getByRole('button', { name: /reset password/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /reset link could not be generated/i,
+    );
+    expect(screen.queryByRole('link', { name: /reset link/i })).not.toBeInTheDocument();
+  });
 });
