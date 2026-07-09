@@ -3,6 +3,9 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 #include <DHT.h>
+#include <Preferences.h>
+
+Preferences preferences;
 
 // ======================
 // WiFi Credentials
@@ -67,20 +70,11 @@ const int BUZZER_PIN = 25;
 // ======================
 // Firebase paths
 // ======================
-#define PROPERTY_ID "property_001"
-#define ROOM_ID "room_001"
-#define ROOM_PATH "properties/" PROPERTY_ID "/rooms/" ROOM_ID
-
-#define PATH_EXHAUST ROOM_PATH "/devices/exhaustFan"
-#define PATH_MOTION ROOM_PATH "/devices/motionDetection"
-#define PATH_LIGHTS ROOM_PATH "/devices/lights"
-#define PATH_PUMP ROOM_PATH "/devices/waterPump"
-#define PATH_MAIN_RELAY ROOM_PATH "/devices/mainRelay"
-
-#define PATH_GAS ROOM_PATH "/latest/gas"
-#define PATH_HUMAN ROOM_PATH "/latest/humanPresent"
-#define PATH_MOTION_LATEST ROOM_PATH "/latest/motionDetected"
-#define PATH_PIR ROOM_PATH "/latest/pir"
+String pathExhaust;
+String pathMotion;
+String pathLights;
+String pathPump;
+String pathMainRelay;
 
 const float GAS_DETECTED_THRESHOLD = 500.0;
 
@@ -548,11 +542,11 @@ void readDeviceCommands() {
     return;
   }
 
-  cmdExhaust = fbReadBool(PATH_EXHAUST, cmdExhaust);
-  cmdMotionEnable = fbReadBool(PATH_MOTION, cmdMotionEnable);
-  cmdLights = fbReadBool(PATH_LIGHTS, cmdLights);
-  cmdPump = fbReadBool(PATH_PUMP, cmdPump);
-  cmdMainRelay = fbReadBool(PATH_MAIN_RELAY, true);
+  cmdExhaust = fbReadBool(pathExhaust.c_str(), cmdExhaust);
+  cmdMotionEnable = fbReadBool(pathMotion.c_str(), cmdMotionEnable);
+  cmdLights = fbReadBool(pathLights.c_str(), cmdLights);
+  cmdPump = fbReadBool(pathPump.c_str(), cmdPump);
+  cmdMainRelay = fbReadBool(pathMainRelay.c_str(), true);
 }
 
 // ======================
@@ -675,7 +669,17 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  preferences.begin("ecostay", false);
+  propertyId = preferences.getString("propertyId", "property_001");
+  roomId = preferences.getString("roomId", "room_001");
+
   basePath = "properties/" + propertyId + "/rooms/" + roomId;
+
+  pathExhaust = basePath + "/devices/exhaustFan";
+  pathMotion = basePath + "/devices/motionDetection";
+  pathLights = basePath + "/devices/lights";
+  pathPump = basePath + "/devices/waterPump";
+  pathMainRelay = basePath + "/devices/mainRelay";
 
   pinMode(ledPin, OUTPUT);
   pinMode(extLedPin, OUTPUT);
@@ -746,6 +750,24 @@ void setup() {
 // LOOP
 // ======================
 void loop() {
+  if (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.startsWith("SET_CONFIG ")) {
+      int firstSpace = cmd.indexOf(' ');
+      int secondSpace = cmd.indexOf(' ', firstSpace + 1);
+      if (firstSpace > 0 && secondSpace > 0) {
+        String pId = cmd.substring(firstSpace + 1, secondSpace);
+        String rId = cmd.substring(secondSpace + 1);
+        preferences.putString("propertyId", pId);
+        preferences.putString("roomId", rId);
+        Serial.println("Config saved. Rebooting...");
+        delay(1000);
+        ESP.restart();
+      }
+    }
+  }
+
   updateFlowReading();
   updateWaterReading();
   updateGasReading();
