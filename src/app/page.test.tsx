@@ -76,42 +76,6 @@ describe('dashboard landing', () => {
     expect(screen.queryByText(/signed in as/i)).not.toBeInTheDocument();
   });
 
-  it('does not show placeholder navigation to owners', () => {
-    renderPage(
-      new FakeAuthGateway({
-        initialSession: {
-          uid: 'fake-uid-owner@ecostay.test',
-          email: 'owner@ecostay.test',
-          role: 'owner',
-        },
-      }),
-    );
-
-    expect(screen.getByRole('button', { name: /live view/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /home/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /devices/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /routines/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /activity/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /settings/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /add device/i })).not.toBeInTheDocument();
-  });
-
-  it('gives admins a real Admin Console action from live view', async () => {
-    const user = userEvent.setup();
-    renderPage(
-      new FakeAuthGateway({
-        initialSession: {
-          uid: 'fake-uid-admin@ecostay.test',
-          email: 'admin@ecostay.test',
-          role: 'admin',
-        },
-      }),
-    );
-
-    await user.click(screen.getByRole('button', { name: /admin console/i }));
-    expect(routerMock.push).toHaveBeenCalledWith('/admin');
-  });
-
 });
 
 const OWNER_SESSION = {

@@ -269,7 +269,7 @@ export function RoomLiveView({
       </div>
 
       {/* Floating Status Header (Overrides page.tsx title somewhat, but nice for status) */}
-      <div className="absolute left-1/2 top-24 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1 sm:top-4">
+      <div className="absolute left-1/2 top-4 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
         <span className="text-sm font-bold tracking-tight text-ink">{roomName ?? roomId}</span>
         <span className="text-[11px] font-medium text-ink-3">{propertyName ?? propertyId}</span>
         <div className="mt-0.5">
@@ -296,7 +296,7 @@ export function RoomLiveView({
       >
 
         {/* Top layer widgets */}
-        <div className="flex justify-between items-start pt-36 sm:pt-16">
+        <div className="flex justify-between items-start pt-16">
           {/* Left Widgets */}
           <div className="flex flex-col gap-5 w-72 pointer-events-auto">
             <Group title="Activity">

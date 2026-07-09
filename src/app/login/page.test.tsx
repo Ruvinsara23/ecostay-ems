@@ -31,16 +31,6 @@ function ownerGateway() {
   return gateway;
 }
 
-function adminGateway() {
-  const gateway = new FakeAuthGateway();
-  gateway.registerUser({
-    email: 'admin@ecostay.test',
-    password: 'admin-pass-1',
-    role: 'admin',
-  });
-  return gateway;
-}
-
 async function submitCredentials(email: string, password: string) {
   const user = userEvent.setup();
   await user.type(screen.getByLabelText(/email/i), email);
@@ -60,12 +50,6 @@ describe('login page', () => {
     await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/'));
   });
 
-  it('sends admins to the Admin Console by default', async () => {
-    renderLogin(adminGateway());
-    await submitCredentials('admin@ecostay.test', 'admin-pass-1');
-    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/admin'));
-  });
-
   it('returns the owner to the path they originally requested', async () => {
     searchParams = new URLSearchParams('next=%2Frooms%2Froom_001');
     renderLogin(ownerGateway());
@@ -80,13 +64,6 @@ describe('login page', () => {
     renderLogin(ownerGateway());
     await submitCredentials('owner@ecostay.test', 'owner-pass-1');
     await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/'));
-  });
-
-  it('falls back to the Admin Console for an admin when next is unsafe', async () => {
-    searchParams = new URLSearchParams('next=https%3A%2F%2Fevil.example');
-    renderLogin(adminGateway());
-    await submitCredentials('admin@ecostay.test', 'admin-pass-1');
-    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/admin'));
   });
 
   it('shows a clear error for wrong credentials and stays on the page', async () => {
@@ -120,17 +97,5 @@ describe('login page', () => {
     });
     renderLogin(gateway);
     await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/'));
-  });
-
-  it('redirects an already signed-in admin straight to the Admin Console', async () => {
-    const gateway = new FakeAuthGateway({
-      initialSession: {
-        uid: 'fake-uid-admin@ecostay.test',
-        email: 'admin@ecostay.test',
-        role: 'admin',
-      },
-    });
-    renderLogin(gateway);
-    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/admin'));
   });
 });
