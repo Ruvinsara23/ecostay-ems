@@ -1,6 +1,6 @@
 # 02 - Admin Save Failure Triage
 
-Status: pending
+Status: in-progress
 Parent: `.scratch/admin-console-stabilization/PRD.md`
 
 ## Bug Class
@@ -37,6 +37,30 @@ Make every Admin Console save failure actionable and verify the successful save 
 - Emulator tests for route/rules behavior where applicable.
 - `npm test`
 - `npm run typecheck`
+
+## Progress
+
+### 2026-07-09 - Settings save error classification
+
+Fixed the Admin Settings form path that was collapsing Firebase write failures into the generic
+"Could not save - try again." message.
+
+- Scope changed: `src/admin/admin-settings.tsx`, `src/admin/admin-settings.test.tsx`
+- Risk gates tripped: none. This is UI error handling through the existing `RoomDataSource` port;
+  no auth flow, rules file, secrets, or deploy changed.
+- Behavior: Firebase rules denial now shows an actionable message naming the rules boundary and
+  `database.rules.json` publish check.
+- Red/green: added a failing fake-backed unit test for RTDB rules denial, then implemented the
+  mapper and stale-error clearing.
+- Verification: `npm.cmd test -- src/admin/admin-settings.test.tsx`, `npm.cmd test`, and
+  `npm.cmd run typecheck` passed.
+
+Remaining paths in this issue:
+
+- room registration;
+- owner create/disable/reset;
+- device account create/reset;
+- local/dev Firebase environment mismatch checks.
 
 ## Stop Point
 

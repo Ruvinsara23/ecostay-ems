@@ -13,6 +13,19 @@ type PropertyRef = { propertyId: string; propertyName?: string };
 const fieldClass =
   'box-border w-full min-w-0 rounded-xl border border-hairline bg-white/70 px-3.5 py-2.5 font-normal text-ink outline-none transition focus:ring-2 focus:ring-brand';
 
+const genericSaveError = 'Could not save - try again.';
+
+function settingsSaveErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  if (/permission|denied/i.test(message)) {
+    return 'Save denied by Firebase rules. Check that you are signed in as admin and republish database.rules.json if rules changed.';
+  }
+  if (/network|offline|unavailable|timeout|failed to fetch/i.test(message)) {
+    return 'Could not reach Firebase. Check the network and try again.';
+  }
+  return genericSaveError;
+}
+
 function SettingsSection({
   icon,
   title,
@@ -76,6 +89,7 @@ export function AdminSettings() {
   const [temperatureC, setTemperatureC] = useState(DEFAULT_ALERT_THRESHOLDS.temperatureC);
   const [waterLevelPct, setWaterLevelPct] = useState(DEFAULT_ALERT_THRESHOLDS.waterLevelPct);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -131,6 +145,7 @@ export function AdminSettings() {
     event.preventDefault();
     if (!propertyId) return;
     setStatus('saving');
+    setError(null);
     try {
       const wattages: CircuitWattages = { lights, exhaustFan };
       const thresholds: AlertThresholds = { temperatureC, waterLevelPct };
@@ -140,8 +155,9 @@ export function AdminSettings() {
         source.setAlertThresholds(propertyId, thresholds),
       ]);
       setStatus('saved');
-    } catch {
+    } catch (err) {
       setStatus('error');
+      setError(settingsSaveErrorMessage(err));
     }
   }
 
@@ -174,6 +190,7 @@ export function AdminSettings() {
                 onChange={(e) => {
                   setPropertyId(e.target.value);
                   setStatus('idle');
+                  setError(null);
                 }}
                 className={fieldClass}
               >
@@ -199,6 +216,7 @@ export function AdminSettings() {
                 onChange={(e) => {
                   setCategory(e.target.value);
                   setStatus('idle');
+                  setError(null);
                 }}
                 className={fieldClass}
               >
@@ -220,6 +238,7 @@ export function AdminSettings() {
                 onChange={(value) => {
                   setLights(value);
                   setStatus('idle');
+                  setError(null);
                 }}
               />
               <NumberField
@@ -229,6 +248,7 @@ export function AdminSettings() {
                 onChange={(value) => {
                   setExhaustFan(value);
                   setStatus('idle');
+                  setError(null);
                 }}
               />
             </div>
@@ -244,6 +264,7 @@ export function AdminSettings() {
                 onChange={(value) => {
                   setTemperatureC(value);
                   setStatus('idle');
+                  setError(null);
                 }}
               />
               <NumberField
@@ -254,6 +275,7 @@ export function AdminSettings() {
                 onChange={(value) => {
                   setWaterLevelPct(value);
                   setStatus('idle');
+                  setError(null);
                 }}
               />
             </div>
@@ -273,7 +295,7 @@ export function AdminSettings() {
             )}
             {status === 'error' && (
               <span role="alert" className="text-sm font-semibold text-alarm">
-                Could not save - try again.
+                {error ?? genericSaveError}
               </span>
             )}
           </div>

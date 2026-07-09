@@ -7,8 +7,7 @@ import { FakeRoomDataSource } from '@/rooms/fake-room-data-source';
 import { RoomDataSourceProvider } from '@/rooms/room-data-source-context';
 import { AdminSettings } from './admin-settings';
 
-function setup() {
-  const source = new FakeRoomDataSource();
+function setup(source = new FakeRoomDataSource()) {
   source.setAccessibleRooms([
     { propertyId: 'property_001', roomId: 'room_001', propertyName: 'EcoStay Property', roomName: 'Room 1' },
   ]);
@@ -103,5 +102,31 @@ describe('AdminSettings', () => {
       </AuthProvider>,
     );
     expect(await screen.findByText(/no properties/i)).toBeInTheDocument();
+  });
+
+  it('turns Firebase rules denial into an actionable save error', async () => {
+    class DeniedSettingsSource extends FakeRoomDataSource {
+      denyWrites = false;
+
+      override async setTariffCategory(): Promise<void> {
+        if (!this.denyWrites) return;
+        throw new Error(
+          'PERMISSION_DENIED: Permission denied at /properties/property_001/settings/tariffCategory',
+        );
+      }
+    }
+
+    const source = new DeniedSettingsSource();
+    setup(source);
+    source.denyWrites = true;
+    const user = userEvent.setup();
+    await screen.findByLabelText(/tariff category/i);
+
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Save denied by Firebase rules/i,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(/database\.rules\.json/i);
   });
 });
