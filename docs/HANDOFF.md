@@ -1,6 +1,6 @@
 # HANDOFF — EcoStay EMS (state & where to continue)
 
-_Last updated 2026-07-07. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
+_Last updated 2026-07-09. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
 
 EcoStay EMS is a smart-IoT energy management system for Sri Lankan tourist accommodations:
 an ESP32 per room writes telemetry to Firebase RTDB; a Next.js dashboard (Firebase Auth + RTDB)
@@ -9,10 +9,17 @@ gives owners live monitoring, control, cost, and savings. **The firmware is an i
 
 ## Status: v1 is feature-complete and deployed
 
-Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`). All work is committed and
-pushed. **167 unit tests + 32 emulator-integration tests green**; `typecheck`, `lint`, `build` clean.
+Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`). Local `main` is ahead of
+`origin/main` by three commits and has not been pushed:
 
-## What's built (all committed)
+- `6297d58` firmware workstream PRD + sliced plan + CONTEXT vocabulary
+- `cdbaa19` firmware workstream slice 01: device credential provisioning
+- `eff39f1` UI cleanup: admin nav, post-login admin redirect, responsive room header
+
+Latest local verification before those commits: **235 unit tests + 43 emulator-integration tests
+green**; `typecheck`, `lint`, and `build` clean.
+
+## What's built
 
 | Area | What | Key files |
 |---|---|---|
@@ -24,6 +31,7 @@ pushed. **167 unit tests + 32 emulator-integration tests green**; `typecheck`, `
 | **Cost (tariff)** (ADR-0008) | Regime/band CEB bill engine; "Estimated bill this month" from month-to-date kWh × tariff (property = **H-1**) | `src/tariff/*`, shown in `energy-charts.tsx` |
 | **Savings (OBJ-07)** | Nightly `avoidedKWh` = controlled-circuit wattage × confirmed-vacant time; "Saved this month" priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/rollup.ts`, `src/tariff/savings.ts` |
 | **UI** | Owner's redesign: purple/lavender glass, Inter font, 3D-room image (`public/3d-model.png`) with clickable sensor letters, icon rail | `src/app/{page,layout,login}.tsx`, `src/app/globals.css`, `room-scene.tsx` |
+| **Admin Console** | Admin-only `/admin` with Settings, Rooms, Owners, and local slice-01 device credential create/reset. Admin API routes verify `role:'admin'`; UI stays behind `AdminOperations`. Device passwords are returned once and not written to RTDB. | `src/admin/*`, `src/app/api/admin/{owners,rooms,devices}/route.ts`, `src/server/admin-*`, `src/server/manage-*` |
 
 **The one seam:** UI depends only on two ports — `AuthGateway` and `RoomDataSource` — never on the
 Firebase SDK. Each has an in-memory **fake** (fast unit tests) and a real Firebase **adapter**
@@ -55,6 +63,7 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
   the `ESP32`/`12345678` hotspot, or `scripts/simulate-device.ts`). Cron jobs already run; the sampler
   correctly skips stale data. First `rollup` run (00:05 Colombo or manual) fills cost/savings.
 - **Rotate the Firebase service-account key** — it appeared in a chat transcript on 2026-07-07.
+  Do not use the new device-account provisioning route against production until this is done.
 - **Risk gate #8**: verify SSCL (2.5%) and any VAT on a **real EDL/CEB bill** before trusting cost totals;
   re-check CEB rates at the Q4 2026 PUCSL revision (the H-1/GP-1/D-1≤180 freeze rides on a subsidy
   ending Sep 2026).
@@ -76,9 +85,13 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
    `users/**`, `members` writes go through the Admin SDK — **no client rule changes for slices
    03-04**. **Human: re-publish `database.rules.json` after slice 02** (the `alertThresholds`
    rules) and **rotate the leaked service-account key** (the Owners route uses it in prod).
-2. **Firmware workstream** (ADR-0007, hardware) — per-device credentials replacing anonymous auth,
-   real PZEM-004T reads replacing the simulated energy, configurable property/room IDs. Coordinates
-   with the PCB. Touching firmware is **risk gate #7**.
+2. **Firmware workstream** (ADR-0007) — slice 00 (vocabulary) and slice 01 (Admin SDK device
+   credential provisioning) are implemented locally. Slice 01 adds admin-only create/reset for
+   Firebase Auth users with `role:'device'`, `propertyId`, and `roomId` claims; passwords are
+   generated server-side, returned once, and never written to RTDB. Production use is blocked until
+   the Firebase service-account key is rotated. Next slice: **02 device-scoped RTDB rules draft**
+   (risk gate #2, human approval before applying). Later slices require firmware/hardware approval:
+   configurable property/room IDs, device email/password auth, and real PZEM-004T reads.
 3. **v1.1 queue** — FCM web push, TOU tariffs, multi-room switcher polish, savings/threshold refinements.
 
 ## How to continue (the framework)
