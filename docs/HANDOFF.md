@@ -15,10 +15,11 @@ been pushed. Recent local-only work includes:
 - firmware workstream slice 00: PRD + sliced plan + CONTEXT vocabulary
 - firmware workstream slice 01: device credential provisioning
 - firmware workstream slice 02: device-scoped RTDB rules draft
-- UI cleanup: admin nav, post-login admin redirect, responsive room header
+- reverted UI cleanup commit `eff39f1` via `60c832b`; live-view routing/rail behavior is back to
+  the pre-cleanup state
 
-Latest local verification for slice 02: **235 unit tests + 51 emulator-integration tests green**;
-`typecheck` clean.
+Latest post-revert verification: **230 unit tests green** and `typecheck` clean. Latest slice 02
+rules verification: **51 emulator-integration tests green**.
 
 ## What's built
 
