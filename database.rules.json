@@ -9,10 +9,10 @@
         "rooms": {
           "room_001": {
             "latest": {
-              ".write": "auth != null && auth.provider === 'anonymous'"
+              ".write": "auth != null && (auth.provider === 'anonymous' || (auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === 'room_001'))"
             },
             "devices": {
-              ".read": "auth != null && auth.provider === 'anonymous'",
+              ".read": "auth != null && (auth.provider === 'anonymous' || (auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === 'room_001'))",
               ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())"
             },
             "settings": {
@@ -21,10 +21,21 @@
                 ".validate": "newData.isBoolean()"
               }
             }
+          },
+          "$roomId": {
+            "latest": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId"
+            },
+            "devices": {
+              ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId"
+            }
           }
         },
         "history": {
-          ".write": "auth != null && auth.provider === 'anonymous'"
+          ".write": "auth != null && auth.provider === 'anonymous'",
+          "$historyId": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === newData.child('roomId').val() && !data.exists() && newData.exists()"
+          }
         },
         "energyHistory": {
           "$roomId": {
@@ -68,7 +79,11 @@
         ".read": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
         "rooms": {
           "$roomId": {
+            "latest": {
+              ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === $roomId"
+            },
             "devices": {
+              ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === $roomId",
               ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())"
             },
             "settings": {
@@ -77,6 +92,11 @@
                 ".validate": "newData.isBoolean()"
               }
             }
+          }
+        },
+        "history": {
+          "$historyId": {
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === newData.child('roomId').val() && !data.exists() && newData.exists()"
           }
         },
         "energyHistory": {

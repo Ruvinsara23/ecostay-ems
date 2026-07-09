@@ -9,15 +9,16 @@ gives owners live monitoring, control, cost, and savings. **The firmware is an i
 
 ## Status: v1 is feature-complete and deployed
 
-Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`). Local `main` is ahead of
-`origin/main` by three commits and has not been pushed:
+Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`). Local `main` has not
+been pushed. Recent local-only work includes:
 
-- `6297d58` firmware workstream PRD + sliced plan + CONTEXT vocabulary
-- `cdbaa19` firmware workstream slice 01: device credential provisioning
-- `eff39f1` UI cleanup: admin nav, post-login admin redirect, responsive room header
+- firmware workstream slice 00: PRD + sliced plan + CONTEXT vocabulary
+- firmware workstream slice 01: device credential provisioning
+- firmware workstream slice 02: device-scoped RTDB rules draft
+- UI cleanup: admin nav, post-login admin redirect, responsive room header
 
-Latest local verification before those commits: **235 unit tests + 43 emulator-integration tests
-green**; `typecheck`, `lint`, and `build` clean.
+Latest local verification for slice 02: **235 unit tests + 51 emulator-integration tests green**;
+`typecheck` clean.
 
 ## What's built
 
@@ -32,6 +33,7 @@ green**; `typecheck`, `lint`, and `build` clean.
 | **Savings (OBJ-07)** | Nightly `avoidedKWh` = controlled-circuit wattage × confirmed-vacant time; "Saved this month" priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/rollup.ts`, `src/tariff/savings.ts` |
 | **UI** | Owner's redesign: purple/lavender glass, Inter font, 3D-room image (`public/3d-model.png`) with clickable sensor letters, icon rail | `src/app/{page,layout,login}.tsx`, `src/app/globals.css`, `room-scene.tsx` |
 | **Admin Console** | Admin-only `/admin` with Settings, Rooms, Owners, and local slice-01 device credential create/reset. Admin API routes verify `role:'admin'`; UI stays behind `AdminOperations`. Device passwords are returned once and not written to RTDB. | `src/admin/*`, `src/app/api/admin/{owners,rooms,devices}/route.ts`, `src/server/admin-*`, `src/server/manage-*` |
+| **Firmware rules draft** | Local ADR-0007 slice 02 rules allow `role:'device'` accounts with matching `propertyId`/`roomId` claims to write scoped `latest`, append own-room property-level `history`, and read scoped `devices` commands. Device command writes remain denied. Anonymous bench-room bridge is still present until cutover. | `database.rules.json`, `src/server/device-rules.integration.test.ts` |
 
 **The one seam:** UI depends only on two ports — `AuthGateway` and `RoomDataSource` — never on the
 Firebase SDK. Each has an in-memory **fake** (fast unit tests) and a real Firebase **adapter**
@@ -68,7 +70,7 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
   re-check CEB rates at the Q4 2026 PUCSL revision (the H-1/GP-1/D-1≤180 freeze rides on a subsidy
   ending Sep 2026).
 - **RTDB rules**: `database.rules.json` is the canonical copy — republish in the Firebase console after
-  any change (last changes: automation toggle, `.indexOn: sampledAt`, alert-ack).
+  any change. Latest local change is ADR-0007 slice 02 device-scoped rules; Codex did not publish it.
 
 ## What to build next (candidate phases)
 
@@ -85,13 +87,13 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
    `users/**`, `members` writes go through the Admin SDK — **no client rule changes for slices
    03-04**. **Human: re-publish `database.rules.json` after slice 02** (the `alertThresholds`
    rules) and **rotate the leaked service-account key** (the Owners route uses it in prod).
-2. **Firmware workstream** (ADR-0007) — slice 00 (vocabulary) and slice 01 (Admin SDK device
-   credential provisioning) are implemented locally. Slice 01 adds admin-only create/reset for
-   Firebase Auth users with `role:'device'`, `propertyId`, and `roomId` claims; passwords are
-   generated server-side, returned once, and never written to RTDB. Production use is blocked until
-   the Firebase service-account key is rotated. Next slice: **02 device-scoped RTDB rules draft**
-   (risk gate #2, human approval before applying). Later slices require firmware/hardware approval:
-   configurable property/room IDs, device email/password auth, and real PZEM-004T reads.
+2. **Firmware workstream** (ADR-0007) — slices 00-02 are implemented locally. Slice 01 adds
+   admin-only create/reset for Firebase Auth users with `role:'device'`, `propertyId`, and `roomId`
+   claims; passwords are generated server-side, returned once, and never written to RTDB. Slice 02
+   adds the matching local RTDB rules draft and emulator tests, but those rules are **not published**.
+   Production use is blocked until the Firebase service-account key is rotated and a human republishes
+   `database.rules.json`. Next slice: **03 firmware provisioning config draft** (risk gate #7,
+   firmware/hardware approval before editing `firmware/complete.ino`).
 3. **v1.1 queue** — FCM web push, TOU tariffs, multi-room switcher polish, savings/threshold refinements.
 
 ## How to continue (the framework)

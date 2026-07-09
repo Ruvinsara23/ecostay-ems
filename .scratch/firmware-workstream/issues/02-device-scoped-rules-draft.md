@@ -1,6 +1,6 @@
 # 02 - Device-scoped RTDB rules draft
 
-Status: pending-human-approval
+Status: implemented-local
 Parent: `.scratch/firmware-workstream/PRD.md`
 
 ## Goal
@@ -66,3 +66,29 @@ is not deleted in this slice.
 ## Stop Before
 
 Do not edit `database.rules.json` until human approves risk gate #2 for this slice.
+
+## Implementation Result
+
+- Human approved slice 02 after slice 01 was committed locally.
+- Updated `database.rules.json` to allow `role: "device"` accounts with matching
+  `propertyId` and `roomId` claims to:
+  - write only their scoped `properties/{propertyId}/rooms/{roomId}/latest`;
+  - create, but not overwrite/delete, `properties/{propertyId}/history/{pushId}` entries
+    whose `roomId` matches the claim;
+  - read only their scoped `devices` command booleans.
+- Preserved the transitional anonymous bench-room bridge for `property_001/room_001`.
+- Preserved existing `energyHistory/$roomId/.indexOn: "sampledAt"` declarations.
+- Added emulator coverage in `src/server/device-rules.integration.test.ts`, including the
+  `property_001` non-bench-room case so literal rules do not shadow configurable-room support.
+
+Verification:
+
+- Red run: new device rules tests failed against the previous rules.
+- `npm run test:integration` -> 9 files / 51 tests passed.
+- `npm test` -> 31 files / 235 tests passed.
+- `npm run typecheck`
+
+Publishing:
+
+- Not published. `database.rules.json` remains the canonical local rules copy; a human must
+  republish it in the Firebase console after review.
