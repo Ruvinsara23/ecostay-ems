@@ -401,15 +401,16 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     await adminSrc.setAlertThresholds('property_001', {
       temperatureC: 32,
       waterLevelPct: 18,
+      acPowerThresholdW: 500,
     });
     expect(
       (await adminDb.ref('properties/property_001/settings/alertThresholds').get()).val(),
-    ).toEqual({ temperatureC: 32, waterLevelPct: 18 });
+    ).toEqual({ temperatureC: 32, waterLevelPct: 18, acPowerThresholdW: 500 });
 
     const owner = await signedInDb('owner');
     const ownerSrc = createFirebaseRoomDataSource(owner.db);
     await expect(
-      ownerSrc.setAlertThresholds('property_001', { temperatureC: 31, waterLevelPct: 25 }),
+      ownerSrc.setAlertThresholds('property_001', { temperatureC: 31, waterLevelPct: 25, acPowerThresholdW: 500 }),
     ).rejects.toThrow(/permission/i);
 
     const { ref: clientRef, set: clientSet } = await import('firebase/database');
@@ -438,17 +439,17 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     await seedTwoProperties();
     await adminDb
       .ref('properties/property_001/settings/alertThresholds')
-      .set({ temperatureC: 32, waterLevelPct: 18 });
+      .set({ temperatureC: 32, waterLevelPct: 18, acPowerThresholdW: 500 });
     const owner = await signedInDb('owner');
     const source = createFirebaseRoomDataSource(owner.db);
 
-    const emissions: Array<{ temperatureC: number; waterLevelPct: number } | null> = [];
+    const emissions: Array<{ temperatureC: number; waterLevelPct: number; acPowerThresholdW: number } | null> = [];
     const unsubscribe = source.subscribeAlertThresholds('property_001', (thresholds) =>
       emissions.push(thresholds),
     );
     await waitUntil(() => emissions.length >= 1);
 
-    expect(emissions[0]).toEqual({ temperatureC: 32, waterLevelPct: 18 });
+    expect(emissions[0]).toEqual({ temperatureC: 32, waterLevelPct: 18, acPowerThresholdW: 500 });
     unsubscribe();
   });
 

@@ -6,7 +6,7 @@ import {
 import type { RoomLatest } from '@/rooms/room-data-source';
 import { GAS_ALARM_THRESHOLD } from '@/telemetry/contract';
 
-export const ALERT_TYPES = ['device-offline', 'gas', 'temperature', 'water-level'] as const;
+export const ALERT_TYPES = ['device-offline', 'gas', 'temperature', 'water-level', 'ac-left-on'] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 
 export const OFFLINE_ALERT_MS = 90_000;
@@ -16,6 +16,7 @@ export const WATER_LEVEL_ALERT_THRESHOLD_PCT = DEFAULT_ALERT_THRESHOLDS.waterLev
 export type AlertSeverity = 'critical' | 'warning';
 
 export type AlertRecord = {
+  propertyId: string;
   roomId: string;
   type: AlertType;
   severity: AlertSeverity;
@@ -45,13 +46,14 @@ export type AlertsDeps = {
   ): Promise<void>;
 };
 
-export type AlertsReport = { opened: number; resolved: number; open: number };
+export type AlertsReport = { opened: number; resolved: number; open: number; newlyOpened: AlertRecord[] };
 
 const SEVERITY: Record<AlertType, AlertSeverity> = {
   'device-offline': 'warning',
   gas: 'critical',
   temperature: 'warning',
   'water-level': 'warning',
+  'ac-left-on': 'warning',
 };
 
 /**
@@ -62,7 +64,7 @@ const SEVERITY: Record<AlertType, AlertSeverity> = {
  * Never-reported rooms raise nothing.
  */
 export async function evaluateAlerts(deps: AlertsDeps, nowMs: number): Promise<AlertsReport> {
-  const report: AlertsReport = { opened: 0, resolved: 0, open: 0 };
+  const report: AlertsReport = { opened: 0, resolved: 0, open: 0, newlyOpened: [] };
   const thresholdCache = new Map<string, AlertThresholds>();
 
   async function thresholdsFor(propertyId: string): Promise<AlertThresholds> {
@@ -105,6 +107,14 @@ export async function evaluateAlerts(deps: AlertsDeps, nowMs: number): Promise<A
           latest.waterLevel < thresholds.waterLevelPct,
         value: latest.waterLevel ?? 0,
       },
+      'ac-left-on': {
+        active:
+          isFresh &&
+          latest.occupancyState === 'VACANT_CONFIRMED' &&
+          latest.power !== undefined &&
+          latest.power > thresholds.acPowerThresholdW,
+        value: latest.power ?? 0,
+      },
     };
 
     const openAlerts = await deps.getOpenAlerts(propertyId, roomId);
@@ -113,14 +123,17 @@ export async function evaluateAlerts(deps: AlertsDeps, nowMs: number): Promise<A
       const { active, value } = conditions[type];
       const openId = openAlerts[type];
       if (active && !openId) {
-        await deps.openAlert(propertyId, roomId, {
+        const record: AlertRecord = {
+          propertyId,
           roomId,
           type,
           severity: SEVERITY[type],
           value,
           startedAt: nowMs,
-        });
+        };
+        await deps.openAlert(propertyId, roomId, record);
         report.opened += 1;
+        report.newlyOpened.push(record);
       } else if (!active && openId) {
         await deps.resolveAlert(propertyId, roomId, type, openId, nowMs);
         report.resolved += 1;

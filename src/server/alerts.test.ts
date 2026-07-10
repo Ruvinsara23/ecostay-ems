@@ -67,6 +67,7 @@ describe('evaluateAlerts', () => {
 
     expect(world.opened).toEqual([
       {
+        propertyId: 'property_001',
         roomId: 'room_001',
         type: 'gas',
         severity: 'critical',
@@ -75,6 +76,7 @@ describe('evaluateAlerts', () => {
       },
     ]);
     expect(report.opened).toBe(1);
+    expect(report.newlyOpened.length).toBe(1);
   });
 
   it('never duplicates an alert that is already open', async () => {
@@ -124,7 +126,7 @@ describe('evaluateAlerts', () => {
     const { deps, world } = makeDeps({ 'property_001/room_001': null });
     const report = await evaluateAlerts(deps, NOW);
     expect(world.opened).toEqual([]);
-    expect(report).toEqual({ opened: 0, resolved: 0, open: 0 });
+    expect(report).toEqual({ opened: 0, resolved: 0, open: 0, newlyOpened: [] });
   });
 
   it('opens temperature and water-level warnings at their default thresholds', async () => {

@@ -146,9 +146,15 @@ export type EnergyHistorySample = {
 
 export type DailyAggregateView = {
   kWhUsed: number;
+  kWhUsedPeak?: number;
+  kWhUsedDay?: number;
+  kWhUsedOffPeak?: number;
+  costLKR: number | null;
   occupiedMinutes: number;
-  costLKR?: number; // absent — cost is priced on the client via the tariff engine
-  avoidedKWh?: number; // OBJ-07 counterfactual, written by the nightly rollup
+  avoidedKWh: number;
+  avoidedKWhPeak?: number;
+  avoidedKWhDay?: number;
+  avoidedKWhOffPeak?: number;
 };
 
 /** A lifecycle alert record as the tick writes it (src/server/alerts.ts), plus its id. */
@@ -157,7 +163,7 @@ export type CircuitWattages = { lights: number; exhaustFan: number };
 export type AlertView = {
   id: string;
   roomId: string;
-  type: 'device-offline' | 'gas' | 'temperature' | 'water-level';
+  type: 'device-offline' | 'gas' | 'temperature' | 'water-level' | 'ac-left-on';
   severity: 'critical' | 'warning';
   value: number;
   startedAt: number;

@@ -161,14 +161,15 @@ describe('FakeRoomDataSource', () => {
     await source.setAlertThresholds('property_001', {
       temperatureC: 32,
       waterLevelPct: 25,
+      acPowerThresholdW: 500,
     });
-    expect(emissions).toEqual([null, { temperatureC: 32, waterLevelPct: 25 }]);
+    expect(emissions).toEqual([null, { temperatureC: 32, waterLevelPct: 25, acPowerThresholdW: 500 }]);
   });
 
   it('serves daily aggregates keyed by date, live', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {
-      '2026-07-03': { kWhUsed: 0.4, occupiedMinutes: 300 },
+      '2026-07-03': { kWhUsed: 0.4, occupiedMinutes: 300, costLKR: null, avoidedKWh: 0 },
     });
     const emissions: string[][] = [];
     source.subscribeDailyAggregates('property_001', 'room_001', (byDate) =>

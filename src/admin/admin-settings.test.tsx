@@ -13,7 +13,7 @@ function setup(source = new FakeRoomDataSource()) {
   ]);
   source.setTariffCategory('property_001', 'H-1');
   source.setCircuitWattages('property_001', { lights: 60, exhaustFan: 45 });
-  source.setAlertThresholds('property_001', { temperatureC: 32, waterLevelPct: 25 });
+  source.setAlertThresholds('property_001', { temperatureC: 32, waterLevelPct: 25, acPowerThresholdW: 500 });
   render(
     <AuthProvider gateway={new FakeAuthGateway({ initialSession: { uid: 'uid-admin', email: 'admin@ecostay.test', role: 'admin' } })}>
       <RoomDataSourceProvider source={source}>
@@ -44,7 +44,7 @@ describe('AdminSettings', () => {
 
     const seenTariff: Array<string | null> = [];
     const seenWatts: Array<{ lights: number; exhaustFan: number } | null> = [];
-    const seenThresholds: Array<{ temperatureC: number; waterLevelPct: number } | null> = [];
+    const seenThresholds: Array<{ temperatureC: number; waterLevelPct: number; acPowerThresholdW: number } | null> = [];
     source.subscribeTariffCategory('property_001', (c) => seenTariff.push(c));
     source.subscribeCircuitWattages('property_001', (w) => seenWatts.push(w));
     source.subscribeAlertThresholds('property_001', (thresholds) =>
@@ -66,6 +66,7 @@ describe('AdminSettings', () => {
     expect(seenThresholds[seenThresholds.length - 1]).toEqual({
       temperatureC: 35,
       waterLevelPct: 18,
+      acPowerThresholdW: 500,
     });
   });
 

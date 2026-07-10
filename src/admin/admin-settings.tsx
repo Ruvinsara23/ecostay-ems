@@ -88,6 +88,7 @@ export function AdminSettings() {
   const [exhaustFan, setExhaustFan] = useState(0);
   const [temperatureC, setTemperatureC] = useState(DEFAULT_ALERT_THRESHOLDS.temperatureC);
   const [waterLevelPct, setWaterLevelPct] = useState(DEFAULT_ALERT_THRESHOLDS.waterLevelPct);
+  const [acPowerThresholdW, setAcPowerThresholdW] = useState(DEFAULT_ALERT_THRESHOLDS.acPowerThresholdW);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -133,6 +134,7 @@ export function AdminSettings() {
       const next = thresholds ?? DEFAULT_ALERT_THRESHOLDS;
       setTemperatureC(next.temperatureC);
       setWaterLevelPct(next.waterLevelPct);
+      setAcPowerThresholdW(next.acPowerThresholdW ?? DEFAULT_ALERT_THRESHOLDS.acPowerThresholdW);
     });
   }, [source, propertyId]);
 
@@ -148,7 +150,7 @@ export function AdminSettings() {
     setError(null);
     try {
       const wattages: CircuitWattages = { lights, exhaustFan };
-      const thresholds: AlertThresholds = { temperatureC, waterLevelPct };
+      const thresholds: AlertThresholds = { temperatureC, waterLevelPct, acPowerThresholdW };
       await Promise.all([
         source.setTariffCategory(propertyId, category),
         source.setCircuitWattages(propertyId, wattages),
@@ -274,6 +276,17 @@ export function AdminSettings() {
                 value={waterLevelPct}
                 onChange={(value) => {
                   setWaterLevelPct(value);
+                  setStatus('idle');
+                  setError(null);
+                }}
+              />
+              <NumberField
+                label="AC On Power threshold (W)"
+                min={0}
+                max={10000}
+                value={acPowerThresholdW}
+                onChange={(value) => {
+                  setAcPowerThresholdW(value);
                   setStatus('idle');
                   setError(null);
                 }}

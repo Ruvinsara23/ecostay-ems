@@ -68,9 +68,10 @@
           },
           "alertThresholds": {
             ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
-            ".validate": "newData.hasChildren(['temperatureC', 'waterLevelPct'])",
+            ".validate": "newData.hasChildren(['temperatureC', 'waterLevelPct', 'acPowerThresholdW'])",
             "temperatureC": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50" },
             "waterLevelPct": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "acPowerThresholdW": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
             "$other": { ".validate": false }
           }
         }
@@ -130,9 +131,10 @@
           },
           "alertThresholds": {
             ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'admin'",
-            ".validate": "newData.hasChildren(['temperatureC', 'waterLevelPct'])",
+            ".validate": "newData.hasChildren(['temperatureC', 'waterLevelPct', 'acPowerThresholdW'])",
             "temperatureC": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50" },
             "waterLevelPct": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "acPowerThresholdW": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000" },
             "$other": { ".validate": false }
           }
         }

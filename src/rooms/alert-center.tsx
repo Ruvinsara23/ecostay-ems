@@ -10,6 +10,7 @@ const TYPE_LABELS: Record<AlertView['type'], string> = {
   gas: 'Gas',
   temperature: 'Temperature',
   'water-level': 'Water level',
+  'ac-left-on': 'AC Left On',
 };
 
 function valueLabel(alert: AlertView): string {
@@ -20,6 +21,8 @@ function valueLabel(alert: AlertView): string {
       return `${alert.value} °C`;
     case 'water-level':
       return `${alert.value} %`;
+    case 'ac-left-on':
+      return `${alert.value} W`;
     case 'device-offline':
       return `silent ${alert.value} s`;
   }
