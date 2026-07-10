@@ -82,6 +82,12 @@ const prerenderRoomDataSource: RoomDataSource = {
 };
 
 const prerenderAdminOperations: AdminOperations = {
+  async listProperties() {
+    return [];
+  },
+  async listRooms() {
+    return [];
+  },
   async registerRoom() {
     throw new Error('not available during prerender');
   },

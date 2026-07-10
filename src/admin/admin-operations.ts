@@ -1,3 +1,4 @@
+import type { AdminPropertySummary, AdminRoomSummary } from '@/server/admin-directory';
 import type { OwnerSummary } from '@/server/admin-owners';
 import type { DeviceAccountInput, DeviceCredential } from '@/server/manage-device';
 import type { CreateOwnerInput } from '@/server/manage-owner';
@@ -9,6 +10,8 @@ import type { RegisterRoomInput } from '@/server/register-room';
  * as RoomDataSource: a real HTTP adapter + an in-memory fake for tests.
  */
 export interface AdminOperations {
+  listProperties(): Promise<AdminPropertySummary[]>;
+  listRooms(propertyId: string): Promise<AdminRoomSummary[]>;
   registerRoom(input: RegisterRoomInput): Promise<void>;
   listOwners(): Promise<OwnerSummary[]>;
   createOwner(input: CreateOwnerInput): Promise<{ uid: string }>;
@@ -40,6 +43,18 @@ export function createHttpAdminOperations(
   }
 
   return {
+    async listProperties() {
+      const { properties } = (await (await send('/api/admin/properties', 'GET')).json()) as {
+        properties: AdminPropertySummary[];
+      };
+      return properties;
+    },
+    async listRooms(propertyId) {
+      const { rooms } = (await (
+        await send(`/api/admin/rooms?propertyId=${encodeURIComponent(propertyId)}`, 'GET')
+      ).json()) as { rooms: AdminRoomSummary[] };
+      return rooms;
+    },
     async registerRoom(input) {
       await send('/api/admin/rooms/register', 'POST', input);
     },
@@ -77,6 +92,8 @@ export function createHttpAdminOperations(
 
 /** In-memory fake for tests. */
 export class FakeAdminOperations implements AdminOperations {
+  properties: AdminPropertySummary[] = [];
+  roomsByProperty: Record<string, AdminRoomSummary[]> = {};
   registrations: RegisterRoomInput[] = [];
   owners: OwnerSummary[] = [];
   deviceCreates: DeviceAccountInput[] = [];
@@ -89,6 +106,16 @@ export class FakeAdminOperations implements AdminOperations {
 
   private guard() {
     if (this.failWith) throw new Error(this.failWith);
+  }
+
+  async listProperties(): Promise<AdminPropertySummary[]> {
+    this.guard();
+    return this.properties;
+  }
+
+  async listRooms(propertyId: string): Promise<AdminRoomSummary[]> {
+    this.guard();
+    return this.roomsByProperty[propertyId] ?? [];
   }
 
   async registerRoom(input: RegisterRoomInput): Promise<void> {

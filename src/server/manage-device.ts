@@ -18,6 +18,11 @@ type Validation<T> = { ok: true; value: T } | { ok: false; error: ManageDeviceEr
 const ID_RE = /^[a-z0-9_-]{1,64}$/;
 const DEVICE_EMAIL_DOMAIN = 'devices.ecostay.local';
 
+/** Shared id-slug check for property/room ids arriving from route params. */
+export function isRoomScopeId(value: string): boolean {
+  return ID_RE.test(value);
+}
+
 function err<T>(field: string, message: string): Validation<T> {
   return { ok: false, error: { field, message } };
 }
