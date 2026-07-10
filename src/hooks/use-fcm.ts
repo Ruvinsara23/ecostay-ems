@@ -20,6 +20,11 @@ function hasFcmConfig() {
   return Boolean(config.appId && config.messagingSenderId && config.vapidKey);
 }
 
+/** RTDB keys forbid . # $ / [ ] — sanitize the FCM token before using it as a key. */
+export function fcmTokenKey(token: string): string {
+  return token.replace(/[.#$\/\[\]]/g, '_');
+}
+
 export function useFcm() {
   const { sessionState } = useAuth();
   const uid = sessionState.status === 'signed-in' ? sessionState.session.uid : null;
@@ -52,8 +57,9 @@ export function useFcm() {
         if (currentToken) {
           setToken(currentToken);
           if (uid) {
+            // Key is the sanitized token; value is the RAW token the server sends to.
             const db = getDatabase(app);
-            await set(ref(db, `users/${uid}/fcmTokens/${currentToken}`), true);
+            await set(ref(db, `users/${uid}/fcmTokens/${fcmTokenKey(currentToken)}`), currentToken);
           }
         } else {
           setError('No registration token available. Request permission to generate one.');
