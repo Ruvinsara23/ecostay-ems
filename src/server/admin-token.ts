@@ -1,9 +1,24 @@
 export type AdminAuthResult =
   | { ok: true; uid: string }
-  | { ok: false; status: 401 | 403; message: string };
+  | { ok: false; status: 401 | 403 | 503; message: string };
 
 /** Minimal shape of a decoded Firebase ID token we rely on. */
 export type DecodedToken = { uid: string; role?: unknown };
+
+function firebaseErrorCode(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : null;
+}
+
+function isInvalidTokenErrorCode(code: string | null): boolean {
+  return (
+    code === 'auth/argument-error' ||
+    code === 'auth/invalid-id-token' ||
+    code === 'auth/id-token-expired' ||
+    code === 'auth/id-token-revoked'
+  );
+}
 
 /**
  * Authorize an admin request from its Authorization header. `verifyIdToken` is
@@ -23,8 +38,17 @@ export async function authorizeAdmin(
   let decoded: DecodedToken;
   try {
     decoded = await verifyIdToken(token);
-  } catch {
-    return { ok: false, status: 401, message: 'Invalid or expired token' };
+  } catch (error) {
+    const code = firebaseErrorCode(error);
+    if (isInvalidTokenErrorCode(code)) {
+      return { ok: false, status: 401, message: 'Invalid or expired token' };
+    }
+    console.error('Admin token verification unavailable');
+    return {
+      ok: false,
+      status: 503,
+      message: 'Admin service unavailable. Check the server credential configuration.',
+    };
   }
   if (decoded.role !== 'admin') {
     return { ok: false, status: 403, message: 'Admin role required' };
