@@ -16,6 +16,7 @@ import { EnergyHistorySection } from './energy-charts';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 import { RoomScene } from './room-scene';
+import { Toggle } from '@/ui/toggle';
 
 type ViewState = { status: 'loading' } | { status: 'ready'; latest: RoomLatest | null };
 
@@ -64,41 +65,11 @@ function Value({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Toggle({
-  checked,
-  disabled,
-  label,
-  onToggle,
-}: {
-  checked: boolean;
-  disabled: boolean;
-  label: string;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onToggle}
-      className={`relative h-6 w-11 flex-none rounded-full transition-colors disabled:opacity-40 ${checked ? 'bg-brand' : 'bg-ink-3/20'
-        }`}
-    >
-      <span
-        className={`absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-[22px]' : 'translate-x-[2px]'
-          }`}
-      />
-    </button>
-  );
-}
-
 /**
  * Risk gate #3 (approved 2026-07-04): switches show the COMMANDED state from
  * devices/* — no invented acks. Disabled offline (no queued commands, ever).
  */
-function DeviceControls({
+export function DeviceControls({
   propertyId,
   roomId,
   online,

@@ -4,26 +4,30 @@ import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 // into the client bundle. This config is public BY DESIGN — security lives in
 // the RTDB rules, never in hiding the config (ADR-0003, .env.example).
 function readConfig() {
+  const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+  const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
   return {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    ...(appId ? { appId } : {}),
+    ...(messagingSenderId ? { messagingSenderId } : {}),
   };
 }
 
-const ENV_NAMES: Record<keyof ReturnType<typeof readConfig>, string> = {
+const REQUIRED_ENV_NAMES = {
   apiKey: 'NEXT_PUBLIC_FIREBASE_API_KEY',
   authDomain: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
   databaseURL: 'NEXT_PUBLIC_FIREBASE_DATABASE_URL',
   projectId: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-};
+} as const;
 
 export function getFirebaseApp(): FirebaseApp {
   const config = readConfig();
-  const missing = (Object.keys(ENV_NAMES) as Array<keyof typeof ENV_NAMES>)
+  const missing = (Object.keys(REQUIRED_ENV_NAMES) as Array<keyof typeof REQUIRED_ENV_NAMES>)
     .filter((key) => !config[key])
-    .map((key) => ENV_NAMES[key]);
+    .map((key) => REQUIRED_ENV_NAMES[key]);
   if (missing.length > 0) {
     throw new Error(
       `Firebase config incomplete — missing env vars: ${missing.join(', ')}. ` +

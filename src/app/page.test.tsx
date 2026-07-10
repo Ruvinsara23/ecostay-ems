@@ -161,7 +161,106 @@ describe('dashboard tenancy', () => {
     expect(screen.getByText('24.5 °C')).toBeInTheDocument();
     expect(screen.getByText(/Status: Vacant/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /switch room/i }));
+    await user.click(screen.getByRole('button', { name: /home/i }));
     expect(await screen.findByRole('button', { name: /room 1/i })).toBeInTheDocument();
+  });
+
+  it('shows an error with a retry instead of an endless spinner when the room list fails', async () => {
+    const user = userEvent.setup();
+    const source = new FakeRoomDataSource();
+    const rooms = [
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+    ];
+    source.setAccessibleRooms(rooms);
+    source.emitLatest('property_001', 'room_001', { occupancyState: 'VACANT' });
+    let failFirstLoad = true;
+    const realList = source.listAccessibleRooms.bind(source);
+    source.listAccessibleRooms = async (session) => {
+      if (failFirstLoad) throw new Error('rules denied');
+      return realList(session);
+    };
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn.t load your rooms/i);
+
+    failFirstLoad = false;
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(await screen.findByText('Room 1')).toBeInTheDocument();
+  });
+
+  it('allows navigating to Devices, Routines, and Activity tabs via the side rail', async () => {
+    const user = userEvent.setup();
+    const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+    ]);
+    source.emitLatest('property_001', 'room_001', { occupancyState: 'VACANT' });
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
+
+    // Default view is Live View
+    expect(await screen.findByText(/Live 3D Room View/i)).toBeInTheDocument();
+
+    // Navigate to Devices
+    await user.click(screen.getByRole('button', { name: /Devices/i }));
+    expect(await screen.findByText(/Devices View/i)).toBeInTheDocument();
+
+    // Navigate to Routines
+    await user.click(screen.getByRole('button', { name: /Routines/i }));
+    expect(await screen.findByText(/Routines & Automations/i)).toBeInTheDocument();
+
+    // Navigate to Activity
+    await user.click(screen.getByRole('button', { name: /Activity/i }));
+    expect(await screen.findByText(/Activity & Telemetry/i)).toBeInTheDocument();
+  });
+});
+
+describe('dashboard shell cleanup (no dead controls)', () => {
+  function sourceWithOneRoom() {
+    const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Room 1',
+      },
+    ]);
+    source.emitLatest('property_001', 'room_001', { occupancyState: 'VACANT' });
+    return source;
+  }
+
+  it('has no dead "Add Device" button in the header', async () => {
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
+    await screen.findByText('Room 1');
+    expect(screen.queryByRole('button', { name: /add device/i })).not.toBeInTheDocument();
+  });
+
+  it('shows owners no Settings rail entry (nothing "coming soon")', async () => {
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
+    await screen.findByText('Room 1');
+    expect(screen.queryByRole('button', { name: /settings/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+  });
+
+  it('still gives admins a rail entry to the Admin Console', async () => {
+    const user = userEvent.setup();
+    renderPage(
+      new FakeAuthGateway({
+        initialSession: { uid: 'fake-uid-admin', email: 'admin@ecostay.test', role: 'admin' },
+      }),
+      sourceWithOneRoom(),
+    );
+    await user.click(await screen.findByRole('button', { name: /settings/i }));
+    expect(routerMock.push).toHaveBeenCalledWith('/admin');
   });
 });
