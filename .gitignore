@@ -46,3 +46,11 @@ next-env.d.ts
 # firebase emulator artifacts
 *-debug.log
 .firebase/
+debug.log
+
+# secrets guard: service-account keys must never enter the repo (risk gate #5)
+*service-account*.json
+*firebase-adminsdk*.json
+
+# stale local firmware copies (the tracked sketch lives in firmware/)
+/complete/

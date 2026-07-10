@@ -88,13 +88,14 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
    `users/**`, `members` writes go through the Admin SDK — **no client rule changes for slices
    03-04**. **Human: re-publish `database.rules.json` after slice 02** (the `alertThresholds`
    rules) and **rotate the leaked service-account key** (the Owners route uses it in prod).
-2. **Firmware workstream** (ADR-0007) — slices 00-02 are implemented locally. Slice 01 adds
+2. **Firmware workstream** (ADR-0007) — slices 00-03 are implemented locally. Slice 01 adds
    admin-only create/reset for Firebase Auth users with `role:'device'`, `propertyId`, and `roomId`
    claims; passwords are generated server-side, returned once, and never written to RTDB. Slice 02
    adds the matching local RTDB rules draft and emulator tests, but those rules are **not published**.
+   Slice 03 adds a Serial provisioning config block to the ESP32 to load `propertyId`, `roomId` and credentials dynamically from NVS instead of hardcoding.
+   Slice 04 replaces anonymous Firebase sign-up with strict email/password auth for provisioned devices.
    Production use is blocked until the Firebase service-account key is rotated and a human republishes
-   `database.rules.json`. Next slice: **03 firmware provisioning config draft** (risk gate #7,
-   firmware/hardware approval before editing `firmware/complete.ino`).
+   `database.rules.json`. Next slice: **05 firmware logic and hardware tuning**.
 3. **v1.1 queue** — FCM web push, TOU tariffs, multi-room switcher polish, savings/threshold refinements.
 
 ## How to continue (the framework)

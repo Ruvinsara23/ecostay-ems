@@ -1,6 +1,6 @@
 # 04 - Firmware device auth draft
 
-Status: pending-human-approval
+Status: implemented-local
 Parent: `.scratch/firmware-workstream/PRD.md`
 
 ## Goal
