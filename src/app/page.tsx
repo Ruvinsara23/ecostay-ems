@@ -238,22 +238,48 @@ function DashboardLanding() {
     return propertyId && roomId ? { propertyId, roomId } : null;
   });
 
+  // Admins' home is the CONSOLE (owner-reported). A signed-in admin landing on
+  // "/" bare is redirected; an EXPLICIT visit (?tab=/?pid= — e.g. the console's
+  // "Live rooms" link or a View-live deep link) renders normally. Decided once
+  // at mount so the URL-mirror below can never re-trigger it.
+  const [explicitVisit] = useState(
+    () => searchParams.has('tab') || searchParams.has('pid') || searchParams.has('rid'),
+  );
+  const isAdmin =
+    sessionState.status === 'signed-in' && sessionState.session.role === 'admin';
+  const bounceToConsole = isAdmin && pathname === '/' && !explicitVisit;
+
+  useEffect(() => {
+    if (bounceToConsole) router.replace('/admin');
+  }, [bounceToConsole, router]);
+
   const roomTab: RoomTabView = activeTab === 'Home' ? 'Live View' : activeTab;
   usePageTitle(roomTab);
 
   // Mirror tab + picked room into the URL so refresh and sharing keep the place.
   useEffect(() => {
+    if (bounceToConsole) return; // redirecting — don't fight it with a mirror write
     const params = new URLSearchParams();
     if (roomTab !== 'Live View') params.set('tab', TAB_SLUGS[roomTab]);
+    // Admins keep ?tab=live even on the default tab: a reload must still read
+    // as an explicit live-rooms visit, not bounce them back to the console.
+    if (isAdmin && roomTab === 'Live View') params.set('tab', TAB_SLUGS['Live View']);
     if (pick) {
       params.set('pid', pick.propertyId);
       params.set('rid', pick.roomId);
     }
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [roomTab, pick, router, pathname]);
+  }, [roomTab, pick, router, pathname, bounceToConsole, isAdmin]);
 
   if (sessionState.status !== 'signed-in') return null;
+  if (bounceToConsole) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-ink-2">Opening the admin console…</p>
+      </main>
+    );
+  }
   const { email, role } = sessionState.session;
   const goHome = () => {
     setHomeResetKey((key) => key + 1);

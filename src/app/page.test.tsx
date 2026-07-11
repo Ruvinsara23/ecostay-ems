@@ -8,7 +8,7 @@ import { RoomDataSourceProvider } from '@/rooms/room-data-source-context';
 import Page from '@/app/page';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
-const searchParamsMock = new URLSearchParams();
+let searchParamsMock = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
@@ -32,6 +32,7 @@ function renderPage(
 describe('dashboard landing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchParamsMock = new URLSearchParams();
   });
 
   it('shows who is signed in', () => {
@@ -152,12 +153,7 @@ describe('dashboard tenancy', () => {
       temperature: 24.5,
       updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
-    renderPage(
-      new FakeAuthGateway({
-        initialSession: { uid: 'fake-uid-admin', email: 'admin@ecostay.test', role: 'admin' },
-      }),
-      source,
-    );
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
 
     await user.click(await screen.findByRole('button', { name: /garden room/i }));
     expect(screen.getByText('24.5 °C')).toBeInTheDocument();
@@ -260,6 +256,30 @@ describe('dashboard shell cleanup (no dead controls)', () => {
     expect(screen.queryByText(/all quiet/i)).not.toBeInTheDocument();
   });
 
+  it('an already-signed-in ADMIN opening / bare is sent to the console (owner-reported)', async () => {
+    renderPage(
+      new FakeAuthGateway({
+        initialSession: { uid: 'fake-uid-admin', email: 'admin@ecostay.test', role: 'admin' },
+      }),
+      sourceWithOneRoom(),
+    );
+    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/admin'));
+    expect(screen.queryByRole('heading', { name: /live 3d room view/i })).not.toBeInTheDocument();
+  });
+
+  it('an admin arriving on an explicit live deep link is NOT bounced', async () => {
+    vi.clearAllMocks(); // this describe block has no beforeEach reset
+    searchParamsMock = new URLSearchParams('pid=property_001&rid=room_001');
+    renderPage(
+      new FakeAuthGateway({
+        initialSession: { uid: 'fake-uid-admin', email: 'admin@ecostay.test', role: 'admin' },
+      }),
+      sourceWithOneRoom(),
+    );
+    expect(await screen.findByText('Room 1')).toBeInTheDocument();
+    expect(routerMock.replace).not.toHaveBeenCalledWith('/admin');
+  });
+
   it('titles the header per tab instead of always saying Live 3D Room View (S2)', async () => {
     const user = userEvent.setup();
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
@@ -281,7 +301,8 @@ describe('dashboard shell cleanup (no dead controls)', () => {
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
   });
 
-  it('still gives admins a rail entry to the Admin Console', async () => {
+  it('still gives admins a rail entry to the Admin Console (on an explicit live visit)', async () => {
+    searchParamsMock = new URLSearchParams('tab=live');
     const user = userEvent.setup();
     renderPage(
       new FakeAuthGateway({

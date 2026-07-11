@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, LayoutDashboard, LogOut, Users } from 'lucide-react';
+import { Building2, LogOut, Users } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/auth/auth-context';
@@ -40,11 +40,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             label="Owners"
             active={pathname.startsWith('/admin/owners')}
             icon={<Users size={22} strokeWidth={2.2} aria-hidden />}
-          />
-          <RailLink
-            href="/"
-            label="Live rooms"
-            icon={<LayoutDashboard size={22} strokeWidth={2.2} aria-hidden />}
           />
           <div className="mt-auto flex w-full flex-col gap-4">
             <RailButton
