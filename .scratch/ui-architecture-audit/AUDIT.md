@@ -1,6 +1,8 @@
 # UI Architecture Audit — navigation, layout, and system cohesion
 
 Date: 2026-07-11. Trigger: owner-reported navigation confusion ("back from admin lands me on
+
+STATUS: S0-S6 ALL IMPLEMENTED 2026-07-11 (commits a800cfb..HEAD). Remaining polish, deliberately deferred: foreground-push toast, badge/button unification, focus trap in ConfirmDialog, admin alert surface, grouped room picker.
 Room 1", "Settings goes to the admin dashboard", "admin nav icons all at the bottom").
 Method: 3 adversarial reviews (navigation/IA, owner-dashboard UX, cross-surface consistency)
 + CDP screenshots of the real rendered surfaces (desktop 1440, mobile 390).
