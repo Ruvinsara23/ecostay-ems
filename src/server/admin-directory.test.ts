@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listProperties, listRooms } from './admin-directory';
+import { fleetStatus, listProperties, listRooms } from './admin-directory';
 
 function makeDb(data: Record<string, unknown>) {
   return {
@@ -70,5 +70,50 @@ describe('listRooms', () => {
     expect(await listRooms(makeAuth([]) as never, makeDb({}) as never, 'property_404')).toEqual(
       [],
     );
+  });
+});
+
+describe('fleetStatus', () => {
+  const NOW = 1_752_000_000_000;
+
+  it('counts reporting rooms per the 15 s freshness rule and flattens open alerts', async () => {
+    const db = makeDb({
+      'ops/roomIndex': {
+        property_001: { room_001: true, room_002: true },
+        property_002: { room_001: true },
+      },
+      'properties/property_001/name': 'EcoStay Villa',
+      // room_001 wrote 3 s ago (reporting); room_002 went silent 60 s ago (not).
+      'properties/property_001/rooms/room_001/latest/updatedAt': NOW - 3_000,
+      'properties/property_001/rooms/room_002/latest/updatedAt': NOW - 60_000,
+      'ops/openAlerts/property_001': {
+        room_002: { 'device-offline': 'alert_1', gas: 'alert_2' },
+      },
+      // property_002's room has never written latest → not reporting, no alerts.
+    });
+
+    expect(await fleetStatus(db as never, NOW)).toEqual([
+      {
+        propertyId: 'property_001',
+        name: 'EcoStay Villa',
+        roomCount: 2,
+        roomsReporting: 1,
+        openAlerts: [
+          { roomId: 'room_002', type: 'device-offline' },
+          { roomId: 'room_002', type: 'gas' },
+        ],
+      },
+      {
+        propertyId: 'property_002',
+        name: null,
+        roomCount: 1,
+        roomsReporting: 0,
+        openAlerts: [],
+      },
+    ]);
+  });
+
+  it('returns an empty list when nothing is registered', async () => {
+    expect(await fleetStatus(makeDb({}) as never, NOW)).toEqual([]);
   });
 });

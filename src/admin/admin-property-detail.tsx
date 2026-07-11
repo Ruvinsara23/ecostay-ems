@@ -177,7 +177,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
     <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-5 sm:p-8 lg:p-10">
       <div className="mx-auto w-full max-w-5xl">
         <Link
-          href="/admin"
+          href="/admin/properties"
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-3 transition-colors hover:text-ink"
         >
           <ArrowLeft size={16} strokeWidth={2.2} aria-hidden />

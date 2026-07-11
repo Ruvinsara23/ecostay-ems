@@ -1,4 +1,8 @@
-import type { AdminPropertySummary, AdminRoomSummary } from '@/server/admin-directory';
+import type {
+  AdminPropertyStatus,
+  AdminPropertySummary,
+  AdminRoomSummary,
+} from '@/server/admin-directory';
 import type { OwnerSummary } from '@/server/admin-owners';
 import type { DeviceAccountInput, DeviceCredential } from '@/server/manage-device';
 import type { CreateOwnerInput } from '@/server/manage-owner';
@@ -10,6 +14,7 @@ import type { RegisterRoomInput } from '@/server/register-room';
  * as RoomDataSource: a real HTTP adapter + an in-memory fake for tests.
  */
 export interface AdminOperations {
+  fleetStatus(): Promise<AdminPropertyStatus[]>;
   listProperties(): Promise<AdminPropertySummary[]>;
   listRooms(propertyId: string): Promise<AdminRoomSummary[]>;
   registerRoom(input: RegisterRoomInput): Promise<void>;
@@ -45,6 +50,12 @@ export function createHttpAdminOperations(
   }
 
   return {
+    async fleetStatus() {
+      const { properties } = (await (
+        await send('/api/admin/properties?view=status', 'GET')
+      ).json()) as { properties: AdminPropertyStatus[] };
+      return properties;
+    },
     async listProperties() {
       const { properties } = (await (await send('/api/admin/properties', 'GET')).json()) as {
         properties: AdminPropertySummary[];

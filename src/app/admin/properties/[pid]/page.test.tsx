@@ -77,7 +77,7 @@ describe('property detail page', () => {
   it('links back to the properties list', async () => {
     renderDetail(new FakeAdminOperations());
     const back = await screen.findByRole('link', { name: /back to properties/i });
-    expect(back).toHaveAttribute('href', '/admin');
+    expect(back).toHaveAttribute('href', '/admin/properties');
   });
 });
 

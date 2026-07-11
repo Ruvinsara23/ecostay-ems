@@ -31,7 +31,13 @@ owner-dashboard layout rebuilt (header overlap + hidden Alert Center fixed), sub
 error honesty, deep-linkable rooms/tabs, per-route titles, branded 404, one shared rail/badge
 system, alerts + acknowledge inside the admin property detail, foreground-push toast.
 
-Latest verification: **309 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
+Also: **fleet Overview** (v2 slice 09, `.scratch/admin-console-v2/issues/09-fleet-overview.md`):
+`/admin` now lands on fleet health — rooms reporting (shared 15 s freshness rule) + open alerts
+from `ops/openAlerts` — with the property registry moved to `/admin/properties`; rail is
+Overview · Properties · Owners, and the admin rail collapses to a horizontal bar on phones
+(same fix the owner rail got). Scope recorded as Admin use case 6 in `docs/use-cases.md`.
+
+Latest verification: **317 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
 desktop + true-390px mobile screenshot-verified (CDP).
 
 ## What's built
@@ -46,7 +52,7 @@ desktop + true-390px mobile screenshot-verified (CDP).
 | **Cost (tariff)** (ADR-0008) | Regime/band CEB bill engine; "Estimated bill this month" from month-to-date kWh × tariff (property = **H-1**) | `src/tariff/*`, shown in `energy-charts.tsx` |
 | **Savings (OBJ-07)** | Nightly `avoidedKWh` = controlled-circuit wattage × confirmed-vacant time; "Saved this month" priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/rollup.ts`, `src/tariff/savings.ts` |
 | **UI** | Owner's redesign: purple/lavender glass, Inter font, 3D-room image (`public/3d-model.png`) with clickable sensor letters, icon rail | `src/app/{page,layout,login}.tsx`, `src/app/globals.css`, `room-scene.tsx` |
-| **Admin Console** | Admin-only `/admin` with Settings, Rooms, Owners, and local slice-01 device credential create/reset. Admin API routes verify `role:'admin'`; UI stays behind `AdminOperations`. Device passwords are returned once and not written to RTDB. | `src/admin/*`, `src/app/api/admin/{owners,rooms,devices}/route.ts`, `src/server/admin-*`, `src/server/manage-*` |
+| **Admin Console** | Admin-only `/admin`: fleet **Overview** landing (rooms reporting + open alerts per property), **Properties** registry/detail (rooms, device credential create/reset, owners assign/remove, settings, alert center, per-room live links), **Owners**. Admin API routes verify `role:'admin'`; UI stays behind `AdminOperations`. Device passwords are returned once and not written to RTDB. | `src/admin/*`, `src/app/api/admin/{owners,rooms,devices,properties}/route.ts`, `src/server/admin-*`, `src/server/manage-*` |
 | **Firmware rules draft** | Local ADR-0007 slice 02 rules allow `role:'device'` accounts with matching `propertyId`/`roomId` claims to write scoped `latest`, append own-room property-level `history`, and read scoped `devices` commands. Device command writes remain denied. Anonymous bench-room bridge is still present until cutover. | `database.rules.json`, `src/server/device-rules.integration.test.ts` |
 
 **The one seam:** UI depends only on two ports — `AuthGateway` and `RoomDataSource` — never on the

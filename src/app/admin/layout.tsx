@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, LogOut, Users } from 'lucide-react';
+import { Building2, LayoutDashboard, LogOut, Users } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/auth/auth-context';
@@ -21,18 +21,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {/* min-w-0: body is a flex column — without it this item inflates to its
           content's min-width on narrow screens and the right edge gets clipped. */}
       <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-full bg-transparent max-sm:flex-col">
+        {/* Horizontal bar on phones — same fix as the owner rail (a vertical
+            icon stack eats the whole first viewport on 390px screens). */}
         <nav
           aria-label="Admin navigation"
-          className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 sm:w-[90px] sm:py-6"
+          className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 max-sm:flex-row max-sm:justify-around max-sm:gap-1 max-sm:border-b max-sm:border-r-0 sm:w-[90px] sm:py-6"
         >
-          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand">
+          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand max-sm:hidden">
             e<b className="text-brand-deep">·</b>
           </span>
           {/* Primary nav at the TOP (matches the owner rail's gravity); only Sign out sits at the bottom. */}
           <RailLink
             href="/admin"
+            label="Overview"
+            active={pathname === '/admin'}
+            icon={<LayoutDashboard size={22} strokeWidth={2.2} aria-hidden />}
+          />
+          <RailLink
+            href="/admin/properties"
             label="Properties"
-            active={pathname === '/admin' || pathname.startsWith('/admin/properties')}
+            active={pathname.startsWith('/admin/properties')}
             icon={<Building2 size={22} strokeWidth={2.2} aria-hidden />}
           />
           <RailLink
@@ -41,7 +49,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             active={pathname.startsWith('/admin/owners')}
             icon={<Users size={22} strokeWidth={2.2} aria-hidden />}
           />
-          <div className="mt-auto flex w-full flex-col gap-4">
+          <div className="mt-auto flex w-full flex-col gap-4 max-sm:mt-0 max-sm:w-auto">
             <RailButton
               label="Sign out"
               icon={<LogOut size={22} strokeWidth={2.2} aria-hidden />}

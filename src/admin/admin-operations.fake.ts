@@ -1,4 +1,8 @@
-import type { AdminPropertySummary, AdminRoomSummary } from '@/server/admin-directory';
+import type {
+  AdminPropertyStatus,
+  AdminPropertySummary,
+  AdminRoomSummary,
+} from '@/server/admin-directory';
 import type { OwnerSummary } from '@/server/admin-owners';
 import type { DeviceAccountInput, DeviceCredential } from '@/server/manage-device';
 import type { CreateOwnerInput } from '@/server/manage-owner';
@@ -7,6 +11,7 @@ import type { AdminOperations } from './admin-operations';
 
 /** In-memory fake for tests and previews — never imported by production code. */
 export class FakeAdminOperations implements AdminOperations {
+  statuses: AdminPropertyStatus[] = [];
   properties: AdminPropertySummary[] = [];
   roomsByProperty: Record<string, AdminRoomSummary[]> = {};
   registrations: RegisterRoomInput[] = [];
@@ -21,6 +26,11 @@ export class FakeAdminOperations implements AdminOperations {
 
   private guard() {
     if (this.failWith) throw new Error(this.failWith);
+  }
+
+  async fleetStatus(): Promise<AdminPropertyStatus[]> {
+    this.guard();
+    return this.statuses;
   }
 
   async listProperties(): Promise<AdminPropertySummary[]> {

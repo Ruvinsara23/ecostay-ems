@@ -12,6 +12,7 @@ This document outlines all the primary use cases in the EcoStay EMS platform, ca
 3. **Assign Tenancy**: Assign an Owner account to a specific Property ID (which automatically grants them secure access to all rooms under that property).
 4. **Configure Property Settings**: Set the CEB Tariff regime, define the rated wattages of controlled circuits (used for savings calculations), and set alert thresholds.
 5. **Provision Devices**: Generate or reset secure, device-scoped passwords for the ESP32 hardware to authenticate with Firebase.
+6. **Monitor Fleet Health**: See at a glance, across every property, which rooms' devices are reporting right now (last write within 15 s) and which safety alerts are currently open — then drill into the property detail to act. This is the operator half of the Admin role ("everything Owner can do, sees all properties" — CONTEXT.md); the per-property Alert Center and live room views are reached from the property detail.
 
 ---
 

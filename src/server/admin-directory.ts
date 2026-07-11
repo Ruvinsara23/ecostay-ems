@@ -1,5 +1,7 @@
 import type { Auth } from 'firebase-admin/auth';
 import type { Database } from 'firebase-admin/database';
+import { deviceFreshness } from '@/telemetry/device-freshness';
+import type { AlertType } from './alerts';
 import { deviceEmailForRoom } from './manage-device';
 
 export type AdminPropertySummary = {
@@ -7,6 +9,17 @@ export type AdminPropertySummary = {
   name: string | null;
   roomCount: number;
   ownerCount: number;
+};
+
+export type AdminOpenAlert = { roomId: string; type: AlertType };
+
+export type AdminPropertyStatus = {
+  propertyId: string;
+  name: string | null;
+  roomCount: number;
+  /** Rooms whose `latest/updatedAt` is within the 15 s freshness window right now. */
+  roomsReporting: number;
+  openAlerts: AdminOpenAlert[];
 };
 
 export type AdminRoomSummary = {
@@ -42,6 +55,43 @@ export async function listProperties(db: Database): Promise<AdminPropertySummary
     });
   }
   return properties;
+}
+
+/**
+ * Fleet health for the console Overview (v2 slice 09): which rooms are reporting
+ * right now — the SAME 15 s freshness rule the owner dashboard shows — and which
+ * alerts are open, read from the `ops/openAlerts` index the tick workload
+ * maintains (never a scan of the alerts log).
+ */
+export async function fleetStatus(db: Database, now: number): Promise<AdminPropertyStatus[]> {
+  const index = (await db.ref('ops/roomIndex').get()).val() as Record<
+    string,
+    Record<string, true>
+  > | null;
+  const statuses: AdminPropertyStatus[] = [];
+  for (const propertyId of Object.keys(index ?? {}).sort()) {
+    const name = (await db.ref(`properties/${propertyId}/name`).get()).val() as string | null;
+    const roomIds = Object.keys(index?.[propertyId] ?? {}).sort();
+    let roomsReporting = 0;
+    for (const roomId of roomIds) {
+      const updatedAt = (
+        await db.ref(`properties/${propertyId}/rooms/${roomId}/latest/updatedAt`).get()
+      ).val() as number | null;
+      if (deviceFreshness(updatedAt ?? undefined, now).online) roomsReporting += 1;
+    }
+    const open = (await db.ref(`ops/openAlerts/${propertyId}`).get()).val() as Record<
+      string,
+      Record<string, string>
+    > | null;
+    const openAlerts: AdminOpenAlert[] = [];
+    for (const roomId of Object.keys(open ?? {}).sort()) {
+      for (const type of Object.keys(open?.[roomId] ?? {}).sort()) {
+        openAlerts.push({ roomId, type: type as AlertType });
+      }
+    }
+    statuses.push({ propertyId, name, roomCount: roomIds.length, roomsReporting, openAlerts });
+  }
+  return statuses;
 }
 
 /**

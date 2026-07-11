@@ -82,6 +82,9 @@ const prerenderRoomDataSource: RoomDataSource = {
 };
 
 const prerenderAdminOperations: AdminOperations = {
+  async fleetStatus() {
+    return [];
+  },
   async listProperties() {
     return [];
   },
