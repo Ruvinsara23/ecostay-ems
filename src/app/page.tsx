@@ -140,7 +140,6 @@ function RoomArea({ activeTab }: { activeTab: RoomTabView }) {
           propertyId={active.propertyId}
           roomId={active.roomId}
           roomName={active.roomName}
-          propertyName={active.propertyName}
         />
       )}
       {activeTab === 'Routines' && (

@@ -5,5 +5,7 @@ import { AdminPropertyDetail } from '@/admin/admin-property-detail';
 
 export default function PropertyDetailPage() {
   const params = useParams<{ pid: string }>();
-  return <AdminPropertyDetail propertyId={params.pid} />;
+  // key: full remount per property — mutation state (shown-once credentials,
+  // form banners) must never survive a property switch (review finding).
+  return <AdminPropertyDetail key={params.pid} propertyId={params.pid} />;
 }

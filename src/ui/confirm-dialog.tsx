@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useId } from 'react';
+
 // Confirmation before destructive actions (AUDIT B). Controlled component:
 // the caller owns `open` and decides what confirm/cancel mean.
 
@@ -18,6 +20,18 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const titleId = useId();
+  const bodyId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onCancel]);
+
   if (!open) return null;
   return (
     <div
@@ -28,15 +42,21 @@ export function ConfirmDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
         className="glass w-full max-w-sm rounded-2xl bg-white/90 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-sm font-bold text-ink">{title}</h2>
-        <p className="mt-2 text-sm text-ink-2">{body}</p>
+        <h2 id={titleId} className="text-sm font-bold text-ink">
+          {title}
+        </h2>
+        <p id={bodyId} className="mt-2 text-sm text-ink-2">
+          {body}
+        </p>
         <div className="mt-5 flex justify-end gap-3">
           <button
             type="button"
+            autoFocus
             onClick={onCancel}
             className="rounded-full border border-hairline bg-white/70 px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-white"
           >

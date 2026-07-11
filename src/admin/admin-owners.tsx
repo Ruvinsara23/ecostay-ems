@@ -3,37 +3,9 @@
 import { KeyRound, Power, UserPlus } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import type { OwnerSummary } from '@/server/admin-owners';
+import { ConfirmDialog } from '@/ui/confirm-dialog';
+import { TextField } from '@/ui/field';
 import { useAdminOperations } from './admin-operations-context';
-
-const fieldClass =
-  'box-border w-full min-w-0 rounded-xl border border-hairline bg-white/70 px-3.5 py-2.5 font-normal text-ink outline-none transition focus:ring-2 focus:ring-brand';
-
-function TextField({
-  label,
-  type = 'text',
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  type?: string;
-  value: string;
-  placeholder?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1.5 text-sm font-semibold text-ink">
-      {label}
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className={fieldClass}
-      />
-    </label>
-  );
-}
 
 export function AdminOwners() {
   const operations = useAdminOperations();
@@ -46,6 +18,9 @@ export function AdminOwners() {
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [resetLinks, setResetLinks] = useState<Record<string, string>>({});
+  const [listError, setListError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [confirmDisable, setConfirmDisable] = useState<OwnerSummary | null>(null);
 
   const refresh = useCallback(async () => {
     setOwners(await operations.listOwners());
@@ -55,16 +30,20 @@ export function AdminOwners() {
     let cancelled = false;
     operations.listOwners().then(
       (list) => {
-        if (!cancelled) setOwners(list);
+        if (!cancelled) {
+          setListError(false);
+          setOwners(list);
+        }
       },
       () => {
-        if (!cancelled) setOwners([]);
+        // A failed fetch must never masquerade as "no owners" (frontend audit A).
+        if (!cancelled) setListError(true);
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [operations]);
+  }, [operations, attempt]);
 
   function changed<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -200,7 +179,22 @@ export function AdminOwners() {
               {actionError}
             </p>
           )}
-          {owners === null ? (
+          {listError ? (
+            <div className="text-sm text-ink-2">
+              <p role="alert">Couldn&apos;t load owners — check your connection and try again.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setListError(false);
+                  setOwners(null);
+                  setAttempt((n) => n + 1);
+                }}
+                className="mt-3 block rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-brand-deep"
+              >
+                Retry
+              </button>
+            </div>
+          ) : owners === null ? (
             <p className="text-sm text-ink-2">Loading...</p>
           ) : owners.length === 0 ? (
             <p className="text-sm text-ink-2">No owner accounts yet.</p>
@@ -249,7 +243,9 @@ export function AdminOwners() {
                     <button
                       type="button"
                       disabled={busyUid === owner.uid}
-                      onClick={() => toggleDisabled(owner)}
+                      onClick={() =>
+                        owner.disabled ? toggleDisabled(owner) : setConfirmDisable(owner)
+                      }
                       className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-white disabled:opacity-50"
                     >
                       <Power size={15} strokeWidth={2.2} aria-hidden />
@@ -270,6 +266,19 @@ export function AdminOwners() {
             </ul>
           )}
         </section>
+
+        <ConfirmDialog
+          open={confirmDisable !== null}
+          title="Disable this owner?"
+          body={`${confirmDisable?.email ?? ''} will be signed out and unable to log in until re-enabled.`}
+          confirmLabel="Disable owner"
+          onCancel={() => setConfirmDisable(null)}
+          onConfirm={() => {
+            const target = confirmDisable;
+            setConfirmDisable(null);
+            if (target) toggleDisabled(target);
+          }}
+        />
       </div>
     </main>
   );

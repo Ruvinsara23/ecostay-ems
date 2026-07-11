@@ -1,10 +1,11 @@
 'use client';
 
-import { Building2, ChevronRight, Plus } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import type { AdminPropertySummary } from '@/server/admin-directory';
 import { TextField } from '@/ui/field';
+import { ListRow } from '@/ui/list-row';
 import { useAdminOperations } from './admin-operations-context';
 
 type PropertiesState =
@@ -101,8 +102,8 @@ export function AdminProperties() {
           {state.status === 'loading' ? (
             <p className="text-sm text-ink-2">Loading…</p>
           ) : state.status === 'error' ? (
-            <div role="alert" className="text-sm text-ink-2">
-              Couldn&apos;t load properties — check your connection and try again.
+            <div className="text-sm text-ink-2">
+              <p role="alert">Couldn&apos;t load properties — check your connection and try again.</p>
               <button
                 type="button"
                 onClick={() => {
@@ -121,28 +122,17 @@ export function AdminProperties() {
           ) : (
             <ul className="flex flex-col divide-y divide-hairline">
               {state.properties.map((property) => (
-                <li key={property.propertyId}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/admin/properties/${property.propertyId}`)}
-                    className="flex w-full items-center justify-between gap-3 py-4 text-left transition-colors hover:text-brand-deep"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-ink">
-                        {property.name ?? property.propertyId}
-                      </span>
-                      {property.name && (
-                        <span className="block text-xs text-ink-3">{property.propertyId}</span>
-                      )}
+                <ListRow
+                  key={property.propertyId}
+                  title={property.name ?? property.propertyId}
+                  subtitle={property.name ? property.propertyId : undefined}
+                  right={
+                    <span className="text-xs font-medium text-ink-2">
+                      {count(property.roomCount, 'room')} · {count(property.ownerCount, 'owner')}
                     </span>
-                    <span className="flex flex-none items-center gap-3">
-                      <span className="text-xs font-medium text-ink-2">
-                        {count(property.roomCount, 'room')} · {count(property.ownerCount, 'owner')}
-                      </span>
-                      <ChevronRight size={16} strokeWidth={2.2} aria-hidden className="text-ink-3" />
-                    </span>
-                  </button>
-                </li>
+                  }
+                  onClick={() => router.push(`/admin/properties/${property.propertyId}`)}
+                />
               ))}
             </ul>
           )}

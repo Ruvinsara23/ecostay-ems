@@ -55,6 +55,10 @@ describe('AdminOwners', () => {
 
     const row = (await screen.findByText('aya@villa.lk')).closest('li')!;
     fireEvent.click(within(row).getByRole('button', { name: /disable/i }));
+    // Destructive: nothing happens until the dialog confirms.
+    expect(ops.owners[0].disabled).toBe(false);
+    const dialog = await screen.findByRole('dialog', { name: /disable this owner/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /disable owner/i }));
 
     await waitFor(() => expect(ops.owners[0].disabled).toBe(true));
     expect(within((await screen.findByText('aya@villa.lk')).closest('li')!).getByText(/disabled/i)).toBeInTheDocument();
@@ -74,9 +78,9 @@ describe('AdminOwners', () => {
 
   it('surfaces a create error and keeps the form', async () => {
     const ops = new FakeAdminOperations();
-    ops.failWith = 'an account with that email already exists';
     renderView(ops);
-    await screen.findByRole('button', { name: /create owner/i });
+    await screen.findByText(/no owner accounts yet/i);
+    ops.failWith = 'an account with that email already exists';
 
     fill(/email/i, 'dup@villa.lk');
     fill(/password/i, 'brand-new-pass');
@@ -97,6 +101,8 @@ describe('AdminOwners', () => {
     const row = (await screen.findByText('aya@villa.lk')).closest('li')!;
     ops.failWith = 'only owner accounts can be disabled';
     fireEvent.click(within(row).getByRole('button', { name: /disable/i }));
+    const dialog = await screen.findByRole('dialog', { name: /disable this owner/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /disable owner/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /only owner accounts can be disabled/i,

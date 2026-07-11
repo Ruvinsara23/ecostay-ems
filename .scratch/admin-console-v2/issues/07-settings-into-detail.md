@@ -1,6 +1,6 @@
 # 07 - Settings into property detail + nav consolidation
 
-Status: planned
+Status: done (2026-07-11) — settings embedded in detail (route-scoped, loading-gated); nav = Properties · Owners · Sign out; deviation: RoomDataSource write path kept (approved semantics), only discovery seam retired
 Parent: `.scratch/admin-console-v2/PRD.md`
 
 ## Goal

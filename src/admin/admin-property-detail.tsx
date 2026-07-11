@@ -24,11 +24,13 @@ type OwnersState =
 
 function DeviceStatus({ room }: { room: AdminRoomSummary }) {
   return (
-    <span className="flex min-w-0 flex-col items-end gap-1 text-right">
+    <span className="flex min-w-0 max-w-full flex-col items-start gap-1 text-left sm:items-end sm:text-right">
       {room.deviceAccountEmail ? (
-        <span className="flex items-center gap-1.5 text-xs font-medium text-brand-deep">
-          <Cpu size={13} strokeWidth={2.2} aria-hidden />
-          <span className="min-w-0 break-all font-mono">{room.deviceAccountEmail}</span>
+        <span className="flex min-w-0 max-w-full items-center gap-1.5 text-xs font-medium text-brand-deep">
+          <Cpu size={13} strokeWidth={2.2} aria-hidden className="shrink-0" />
+          <span className="min-w-0 font-mono [overflow-wrap:anywhere]">
+            {room.deviceAccountEmail}
+          </span>
         </span>
       ) : (
         <span className="text-xs font-medium text-ink-3">No device account</span>
@@ -55,6 +57,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
 
   const [roomId, setRoomId] = useState('');
   const [roomName, setRoomName] = useState('');
+  const [propertyName, setPropertyName] = useState('');
   const [formStatus, setFormStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -108,8 +111,16 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
     event.preventDefault();
     setFormStatus('saving');
     setFormError(null);
+    setCredential(null);
+    setDeviceError(null);
     try {
-      await operations.registerRoom({ propertyId, roomId, roomName });
+      const input: Parameters<typeof operations.registerRoom>[0] = {
+        propertyId,
+        roomId,
+        roomName,
+      };
+      if (propertyName.trim()) input.propertyName = propertyName;
+      await operations.registerRoom(input);
       setFormStatus('saved');
       setRoomId('');
       setRoomName('');
@@ -175,8 +186,8 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
           {state.status === 'loading' ? (
             <p className="text-sm text-ink-2">Loading…</p>
           ) : state.status === 'error' ? (
-            <div role="alert" className="text-sm text-ink-2">
-              Couldn&apos;t load rooms — check your connection and try again.
+            <div className="text-sm text-ink-2">
+              <p role="alert">Couldn&apos;t load rooms — check your connection and try again.</p>
               <button
                 type="button"
                 onClick={() => {
@@ -196,7 +207,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
             <ul className="flex flex-col divide-y divide-hairline">
               {state.rooms.map((room) => (
                 <li key={room.roomId} className="py-4 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="min-w-0">
                       <span className="block truncate font-semibold text-ink">
                         {room.roomName ?? room.roomId}
@@ -205,7 +216,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
                         <span className="block text-xs text-ink-3">{room.roomId}</span>
                       )}
                     </span>
-                    <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex min-w-0 flex-wrap items-center gap-3 sm:justify-end">
                       <DeviceStatus room={room} />
                       {room.deviceAccountEmail ? (
                         <button
@@ -284,6 +295,16 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
                   setFormError(null);
                 }}
               />
+              <TextField
+                label="Property name (optional — renames this property)"
+                value={propertyName}
+                placeholder="Lagoon Villa"
+                onChange={(value) => {
+                  setPropertyName(value);
+                  setFormStatus('idle');
+                  setFormError(null);
+                }}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -325,8 +346,8 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
           {ownersState.status === 'loading' ? (
             <p className="text-sm text-ink-2">Loading…</p>
           ) : ownersState.status === 'error' ? (
-            <div role="alert" className="text-sm text-ink-2">
-              Couldn&apos;t load owners — check your connection and try again.
+            <div className="text-sm text-ink-2">
+              <p role="alert">Couldn&apos;t load owners — check your connection and try again.</p>
               <button
                 type="button"
                 onClick={() => {

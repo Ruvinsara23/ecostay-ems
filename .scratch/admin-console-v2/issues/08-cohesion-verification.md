@@ -1,6 +1,6 @@
 # 08 - UI cohesion + on-screen verification
 
-Status: planned
+Status: done (2026-07-11) — 2-reviewer adversarial pass (2 blockers fixed: owners silent-empty, credential bleed), desktop+mobile screenshots verified (mobile via CDP emulation)
 Parent: `.scratch/admin-console-v2/PRD.md`
 
 ## Goal

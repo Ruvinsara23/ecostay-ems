@@ -14,12 +14,10 @@ export function RoomDevicesView({
   propertyId,
   roomId,
   roomName,
-  propertyName,
 }: {
   propertyId: string;
   roomId: string;
   roomName?: string;
-  propertyName?: string;
 }) {
   const source = useRoomDataSource();
   const [state, setState] = useState<ViewState>({ status: 'loading' });

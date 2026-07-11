@@ -8,11 +8,13 @@ export const fieldClass =
 
 export function TextField({
   label,
+  type = 'text',
   value,
   placeholder,
   onChange,
 }: {
   label: string;
+  type?: 'text' | 'email' | 'password';
   value: string;
   placeholder?: string;
   onChange: (value: string) => void;
@@ -21,7 +23,7 @@ export function TextField({
     <label className="flex min-w-0 flex-col gap-1.5 text-sm font-semibold text-ink">
       {label}
       <input
-        type="text"
+        type={type}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}

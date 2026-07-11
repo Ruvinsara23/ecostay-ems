@@ -63,17 +63,23 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
   );
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Save must never fire before the stored values arrive — clicking Save on the
+  // unpopulated defaults would silently overwrite real config (review finding).
+  const [loaded, setLoaded] = useState({ tariff: false, wattages: false, thresholds: false });
+  const ready = loaded.tariff && loaded.wattages && loaded.thresholds;
 
   useEffect(() => {
-    return source.subscribeTariffCategory(propertyId, (c) => c && setCategory(c));
+    return source.subscribeTariffCategory(propertyId, (c) => {
+      setCategory(c ?? 'D-1');
+      setLoaded((l) => ({ ...l, tariff: true }));
+    });
   }, [source, propertyId]);
 
   useEffect(() => {
     return source.subscribeCircuitWattages(propertyId, (w) => {
-      if (w) {
-        setLights(w.lights);
-        setExhaustFan(w.exhaustFan);
-      }
+      setLights(w?.lights ?? 0);
+      setExhaustFan(w?.exhaustFan ?? 0);
+      setLoaded((l) => ({ ...l, wattages: true }));
     });
   }, [source, propertyId]);
 
@@ -83,6 +89,7 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
       setTemperatureC(next.temperatureC);
       setWaterLevelPct(next.waterLevelPct);
       setAcPowerThresholdW(next.acPowerThresholdW ?? DEFAULT_ALERT_THRESHOLDS.acPowerThresholdW);
+      setLoaded((l) => ({ ...l, thresholds: true }));
     });
   }, [source, propertyId]);
 
@@ -111,6 +118,14 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
       setStatus('error');
       setError(settingsSaveErrorMessage(err));
     }
+  }
+
+  if (!ready) {
+    return (
+      <section className="glass mt-6 rounded-2xl p-5 sm:p-6">
+        <p className="text-sm text-ink-2">Loading settings…</p>
+      </section>
+    );
   }
 
   return (

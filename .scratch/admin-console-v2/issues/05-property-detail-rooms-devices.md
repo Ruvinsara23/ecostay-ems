@@ -1,6 +1,6 @@
 # 05 - Property detail: Rooms + Devices
 
-Status: planned
+Status: done (2026-07-11) — inline register-room + per-room device credentials (reset behind ConfirmDialog); Rooms+Devices merged into one section
 Parent: `.scratch/admin-console-v2/PRD.md`
 
 ## Goal

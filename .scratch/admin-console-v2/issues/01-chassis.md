@@ -1,6 +1,6 @@
 # 01 - Chassis
 
-Status: planned
+Status: done (2026-07-11) — sub-routes + layout rail + src/ui primitives; redirect gate resolved by discarding the uncommitted bounce
 Parent: `.scratch/admin-console-v2/PRD.md`
 
 ## Goal

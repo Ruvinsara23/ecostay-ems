@@ -18,7 +18,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <RequireAdmin>
-      <div className="mx-auto flex min-h-screen w-full bg-transparent max-sm:flex-col">
+      {/* min-w-0: body is a flex column — without it this item inflates to its
+          content's min-width on narrow screens and the right edge gets clipped. */}
+      <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-full bg-transparent max-sm:flex-col">
         <nav
           aria-label="Admin navigation"
           className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 sm:w-[90px] sm:py-6"

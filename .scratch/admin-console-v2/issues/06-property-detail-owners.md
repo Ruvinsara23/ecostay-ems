@@ -1,6 +1,6 @@
 # 06 - Property detail: Owners
 
-Status: planned
+Status: read side done (2026-07-11); assign/remove member WRITES still awaiting risk-gate #1 approval
 Parent: `.scratch/admin-console-v2/PRD.md`
 
 ## Goal
