@@ -1,18 +1,25 @@
 'use client';
 
-import { ArrowLeft, Cpu, DoorOpen, KeyRound, Plus } from 'lucide-react';
+import { ArrowLeft, Cpu, DoorOpen, KeyRound, Plus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import type { AdminRoomSummary } from '@/server/admin-directory';
+import type { OwnerSummary } from '@/server/admin-owners';
 import type { DeviceCredential } from '@/server/manage-device';
 import { ConfirmDialog } from '@/ui/confirm-dialog';
 import { TextField } from '@/ui/field';
+import { ListRow } from '@/ui/list-row';
 import { useAdminOperations } from './admin-operations-context';
 
 type RoomsState =
   | { status: 'loading' }
   | { status: 'error' }
   | { status: 'ready'; rooms: AdminRoomSummary[] };
+
+type OwnersState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; owners: OwnerSummary[] };
 
 function DeviceStatus({ room }: { room: AdminRoomSummary }) {
   return (
@@ -57,6 +64,9 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
   );
   const [confirmResetRoom, setConfirmResetRoom] = useState<string | null>(null);
 
+  const [ownersState, setOwnersState] = useState<OwnersState>({ status: 'loading' });
+  const [ownersAttempt, setOwnersAttempt] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
     operations.listRooms(propertyId).then(
@@ -71,6 +81,25 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
       cancelled = true;
     };
   }, [operations, propertyId, attempt]);
+
+  useEffect(() => {
+    let cancelled = false;
+    operations.listOwners().then(
+      (owners) => {
+        if (!cancelled)
+          setOwnersState({
+            status: 'ready',
+            owners: owners.filter((owner) => owner.propertyIds.includes(propertyId)),
+          });
+      },
+      () => {
+        if (!cancelled) setOwnersState({ status: 'error' });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [operations, propertyId, ownersAttempt]);
 
   const refresh = () => setAttempt((n) => n + 1);
 
@@ -274,6 +303,66 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
               )}
             </div>
           </form>
+        </section>
+
+        <section className="glass mt-6 rounded-2xl p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-9 w-9 place-items-center rounded-2xl bg-brand-soft text-brand">
+                <Users size={18} strokeWidth={2.2} />
+              </span>
+              <h2 className="text-sm font-bold text-ink">Owners</h2>
+            </div>
+            <Link
+              href="/admin/owners"
+              className="text-sm font-semibold text-brand transition-colors hover:text-brand-deep"
+            >
+              Manage owners →
+            </Link>
+          </div>
+
+          {ownersState.status === 'loading' ? (
+            <p className="text-sm text-ink-2">Loading…</p>
+          ) : ownersState.status === 'error' ? (
+            <div role="alert" className="text-sm text-ink-2">
+              Couldn&apos;t load owners — check your connection and try again.
+              <button
+                type="button"
+                onClick={() => {
+                  setOwnersState({ status: 'loading' });
+                  setOwnersAttempt((n) => n + 1);
+                }}
+                className="mt-3 block rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-brand-deep"
+              >
+                Retry
+              </button>
+            </div>
+          ) : ownersState.owners.length === 0 ? (
+            <p className="text-sm text-ink-2">
+              No owners have access to this property yet — assign one from the Owners view.
+            </p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-hairline">
+              {ownersState.owners.map((owner) => (
+                <ListRow
+                  key={owner.uid}
+                  title={owner.email}
+                  subtitle={owner.uid}
+                  right={
+                    owner.disabled ? (
+                      <span className="rounded-full bg-alarm/10 px-2.5 py-1 text-xs font-bold text-alarm">
+                        Disabled
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-deep">
+                        Active
+                      </span>
+                    )
+                  }
+                />
+              ))}
+            </ul>
+          )}
         </section>
 
         <ConfirmDialog

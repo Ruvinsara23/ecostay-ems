@@ -74,6 +74,38 @@ describe('property detail page', () => {
   });
 });
 
+describe('property detail — owners section (slice 06 read)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('lists only the owners with access to THIS property, with status badges', async () => {
+    const ops = new FakeAdminOperations();
+    ops.owners = [
+      { uid: 'uid_1', email: 'anna@ecostay.test', disabled: false, propertyIds: ['property_001'] },
+      { uid: 'uid_2', email: 'ben@ecostay.test', disabled: true, propertyIds: ['property_001', 'property_002'] },
+      { uid: 'uid_3', email: 'other@ecostay.test', disabled: false, propertyIds: ['property_002'] },
+    ];
+    renderDetail(ops);
+
+    expect(await screen.findByText('anna@ecostay.test')).toBeInTheDocument();
+    expect(screen.getByText('ben@ecostay.test')).toBeInTheDocument();
+    expect(screen.queryByText('other@ecostay.test')).not.toBeInTheDocument();
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('is honest when nobody has access, and links to the Owners view', async () => {
+    renderDetail(new FakeAdminOperations());
+
+    expect(await screen.findByText(/no owners have access/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /manage owners/i })).toHaveAttribute(
+      'href',
+      '/admin/owners',
+    );
+  });
+});
+
 describe('property detail — inline room registration (slice 05)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
