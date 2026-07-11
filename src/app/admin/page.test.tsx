@@ -50,16 +50,21 @@ describe('admin console shell (sub-route chassis)', () => {
     expect(await screen.findByRole('button', { name: /sign out/i })).toBeInTheDocument();
   });
 
-  it('the rail is real links: Overview · Properties · Owners (v2 slice 09)', async () => {
+  it('the rail is real links: Overview · Alerts · Properties · Devices · Owners (v2 slice 10)', async () => {
     renderAdmin(new FakeAuthGateway({ initialSession: ADMIN_SESSION }));
 
     expect(await screen.findByRole('link', { name: 'Overview' })).toHaveAttribute(
       'href',
       '/admin',
     );
+    expect(screen.getByRole('link', { name: 'Alerts' })).toHaveAttribute('href', '/admin/alerts');
     expect(screen.getByRole('link', { name: 'Properties' })).toHaveAttribute(
       'href',
       '/admin/properties',
+    );
+    expect(screen.getByRole('link', { name: 'Devices' })).toHaveAttribute(
+      'href',
+      '/admin/devices',
     );
     expect(screen.getByRole('link', { name: 'Owners' })).toHaveAttribute('href', '/admin/owners');
     // No generic dashboard/live entry: admins reach live views per-room via

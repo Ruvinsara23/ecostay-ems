@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, LayoutDashboard, LogOut, Users } from 'lucide-react';
+import { Bell, Building2, Cpu, LayoutDashboard, LogOut, Users } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/auth/auth-context';
@@ -38,10 +38,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             icon={<LayoutDashboard size={22} strokeWidth={2.2} aria-hidden />}
           />
           <RailLink
+            href="/admin/alerts"
+            label="Alerts"
+            active={pathname.startsWith('/admin/alerts')}
+            icon={<Bell size={22} strokeWidth={2.2} aria-hidden />}
+          />
+          <RailLink
             href="/admin/properties"
             label="Properties"
             active={pathname.startsWith('/admin/properties')}
             icon={<Building2 size={22} strokeWidth={2.2} aria-hidden />}
+          />
+          <RailLink
+            href="/admin/devices"
+            label="Devices"
+            active={pathname.startsWith('/admin/devices')}
+            icon={<Cpu size={22} strokeWidth={2.2} aria-hidden />}
           />
           <RailLink
             href="/admin/owners"

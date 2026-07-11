@@ -37,7 +37,13 @@ from `ops/openAlerts` — with the property registry moved to `/admin/properties
 Overview · Properties · Owners, and the admin rail collapses to a horizontal bar on phones
 (same fix the owner rail got). Scope recorded as Admin use case 6 in `docs/use-cases.md`.
 
-Latest verification: **317 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
+And 2026-07-12 (v2 slice 10, `.scratch/admin-console-v2/issues/10-fleet-alerts-devices.md`):
+**fleet Alerts** (`/admin/alerts` — one AlertCenter per property, acknowledge in one place;
+reuses the slice-08 path, no new writes) and **fleet Devices** (`/admin/devices` — read-only
+registry of every room's device account + last report, composed from existing port calls;
+credentials stay in property detail). Rail: Overview · Alerts · Properties · Devices · Owners.
+
+Latest verification: **324 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
 desktop + true-390px mobile screenshot-verified (CDP).
 
 ## What's built
