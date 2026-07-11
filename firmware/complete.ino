@@ -3,6 +3,7 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 #include <DHT.h>
+#include <PZEM004Tv30.h>
 #include <Preferences.h>
 
 Preferences preferences;
@@ -10,8 +11,15 @@ Preferences preferences;
 // ======================
 // WiFi Credentials
 // ======================
-#define WIFI_SSID "ESP32"
-#define WIFI_PASSWORD "12345678"
+#define WIFI_SSID "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+
+// ======================
+// DEBUG
+// ======================
+// 1 = per-event sensor chatter (distance/DHT/PZEM/motion prints).
+// Provisioning prompts, errors, door events, and the 3 s upload summary stay on regardless.
+#define DEBUG_VERBOSE 0
 
 // ======================
 // Firebase Credentials
@@ -33,9 +41,13 @@ bool wifiConnected = false;
 // ======================
 // Device IDs
 // ======================
-String propertyId = "property_001";
-String roomId = "room_001";
+String propertyId = "";
+String roomId = "";
+String deviceEmail = "";
+String devicePassword = "";
 String basePath;
+
+const char DEVICE_EMAIL_DOMAIN[] = "devices.ecostay.local";
 
 // ======================
 // LED PINS
@@ -145,17 +157,24 @@ float temperature = 0.0;
 float humidity = 0.0;
 unsigned long lastDHTRead = 0;
 const unsigned long DHT_INTERVAL = 2000;
+uint16_t dhtFailedReads = 0;
+unsigned long lastDhtWarnAt = 0;
 
 // ======================
-// PZEM DUMMY VALUES
+// PZEM-004T v3.0 (real reads - ADR-0007 slice 05)
+// ESP32 RX2 (GPIO16) <- PZEM TX  ·  ESP32 TX2 (GPIO17) -> PZEM RX
 // ======================
-float pzemVoltage = 216.0f;
+#define PZEM_RX_PIN 16
+#define PZEM_TX_PIN 17
+PZEM004Tv30 pzem(Serial2, PZEM_RX_PIN, PZEM_TX_PIN);
+// Honest zeros until the meter answers - never the old fake sine wave.
+float pzemVoltage = 0.0f;
 float pzemCurrent = 0.0f;
-float pzemPower = 4.41f;
+float pzemPower = 0.0f;
 float pzemEnergy = 0.0f;
-float targetVoltageV = 216.0f;
-float targetPowerW = 4.41f;
 unsigned long lastPzemRead = 0;
+uint16_t pzemFailedReads = 0;
+unsigned long lastPzemWarnAt = 0;
 
 // ======================
 // COMMAND / RUNTIME STATES
@@ -262,34 +281,41 @@ bool isOccupiedState(const String &state) {
 }
 
 // ======================
-// PZEM DUMMY TELEMETRY
+// PZEM-004T TELEMETRY (real reads - ADR-0007 slice 05)
 // ======================
-void updatePzemDummyReading() {
+void updatePzemReading() {
   if (millis() - lastPzemRead < 3000) {
     return;
   }
 
   lastPzemRead = millis();
 
-  float smoothWave = (sin(millis() * 0.00012f) + 1.0f) * 0.5f;
+  float v = pzem.voltage();
+  float i = pzem.current();
+  float p = pzem.power();
+  float e = pzem.energy();
 
-  targetVoltageV = 216.0f + (smoothWave * 14.0f);
-  targetPowerW = 4.41f + (smoothWave * 0.59f);
+  if (isnan(v) || isnan(i) || isnan(p) || isnan(e)) {
+    // Keep last-known-good values - never write NaN into telemetry.
+    if (pzemFailedReads < 65535) pzemFailedReads++;
+    if (pzemFailedReads >= 10 && millis() - lastPzemWarnAt >= 30000) {
+      lastPzemWarnAt = millis();
+      Serial.printf("PZEM: %u failed reads - check wiring on GPIO%d/GPIO%d\n",
+                    pzemFailedReads, PZEM_RX_PIN, PZEM_TX_PIN);
+    }
+    return;
+  }
 
-  pzemVoltage = targetVoltageV;
-  pzemPower = targetPowerW;
-  pzemCurrent = pzemPower / pzemVoltage;
-  pzemEnergy += pzemPower * (3000.0f / 3600000.0f);
+  pzemFailedReads = 0;
+  pzemVoltage = v;
+  pzemCurrent = i;
+  pzemPower = p;
+  pzemEnergy = e; // meter-cumulative kWh: survives ESP32 reboots
 
-  Serial.print("PZEM Dummy -> V: ");
-  Serial.print(pzemVoltage, 1);
-  Serial.print(" V, I: ");
-  Serial.print(pzemCurrent, 3);
-  Serial.print(" A, P: ");
-  Serial.print(pzemPower, 2);
-  Serial.print(" W, E: ");
-  Serial.print(pzemEnergy, 4);
-  Serial.println(" kWh");
+#if DEBUG_VERBOSE
+  Serial.printf("PZEM -> V: %.1f V, I: %.3f A, P: %.2f W, E: %.4f kWh\n",
+                pzemVoltage, pzemCurrent, pzemPower, pzemEnergy);
+#endif
 }
 
 // ======================
@@ -303,18 +329,28 @@ void updateDHTReading() {
     float newTemperature = dht.readTemperature();
 
     if (isnan(newHumidity) || isnan(newTemperature)) {
-      Serial.println("DHT11 Read Failed");
+      // Silent-failure guard: a dead/miswired DHT11 otherwise leaves the boot
+      // value 0.0 in telemetry forever with nothing on the wire to say why.
+      if (dhtFailedReads < 65535) dhtFailedReads++;
+      if (dhtFailedReads >= 10 && millis() - lastDhtWarnAt >= 30000) {
+        lastDhtWarnAt = millis();
+        Serial.printf("DHT11: %u failed reads - check wiring/pull-up on GPIO%d\n",
+                      dhtFailedReads, DHTPIN);
+      }
       return;
     }
 
+    dhtFailedReads = 0;
     humidity = newHumidity;
     temperature = newTemperature;
 
+#if DEBUG_VERBOSE
     Serial.print("Temperature: ");
     Serial.print(temperature);
     Serial.print(" C  Humidity: ");
     Serial.print(humidity);
     Serial.println(" %");
+#endif
 
     if (temperature > 40) {
       Serial.println("HIGH TEMPERATURE ALERT");
@@ -336,11 +372,13 @@ void updateDistanceReading() {
     lastDistanceRead = millis();
     currentDistance = getDistance();
 
+#if DEBUG_VERBOSE
     if (currentDistance <= 200) {
       Serial.print("Distance: ");
       Serial.print(currentDistance);
       Serial.println(" cm");
     }
+#endif
   }
 }
 
@@ -443,7 +481,9 @@ void updatePIRReading() {
 
   if (pirState != lastPIRState) {
     if (pirState == 1) {
+#if DEBUG_VERBOSE
       Serial.println("MOTION DETECTED");
+#endif
       beep(120);
     }
     lastPIRState = pirState;
@@ -468,12 +508,16 @@ void updateOccupancyState() {
 
   if (newHumanDetected != lastHumanDetected) {
     if (newHumanDetected) {
+#if DEBUG_VERBOSE
       Serial.print("HUMAN DETECTED - DIST: ");
       Serial.print(currentDistance);
       Serial.println(" cm");
+#endif
       beep(200);
     } else {
+#if DEBUG_VERBOSE
       Serial.println("AREA CLEAR");
+#endif
     }
     lastHumanDetected = newHumanDetected;
   }
@@ -627,10 +671,9 @@ void uploadLatestTelemetry() {
 
     bool success = Firebase.RTDB.updateNode(&fbdo, basePath + "/latest", &payload);
     if (success) {
-      Serial.println("Data uploaded to Firebase");
-      Serial.printf("Temperature: %.1f C\n", temperature);
-      Serial.printf("Humidity: %.1f %%\n", humidity);
-      Serial.printf("Distance: %.1f cm\n", currentDistance);
+      // One-line 3 s heartbeat: the values that matter, always on.
+      Serial.printf("Upload OK | %.1f C  %.1f %%  %.1f W  %.4f kWh  %s\n",
+                    temperature, humidity, pzemPower, pzemEnergy, occupancyState.c_str());
       firebaseBlinkPulse();
     } else {
       Serial.print("Firebase upload failed: ");
@@ -663,15 +706,195 @@ void uploadLatestTelemetry() {
 }
 
 // ======================
+// PROVISIONING
+// ======================
+void drainSerialActivationLine() {
+  // Serial Monitor can deliver the line ending just after the triggering 'p'.
+  // Wait for a short quiet period so a late CR/LF cannot become the first answer.
+  unsigned long quietSince = millis();
+  while (millis() - quietSince < 50) {
+    while (Serial.available()) {
+      Serial.read();
+      quietSince = millis();
+    }
+    delay(1);
+  }
+}
+
+String expectedDeviceEmail() {
+  return "device+" + propertyId + "+" + roomId + "@" + String(DEVICE_EMAIL_DOMAIN);
+}
+
+bool hasBasicEmailShape(const String &email) {
+  int at = email.indexOf('@');
+  return email.length() > 3 &&
+         at > 0 &&
+         at == email.lastIndexOf('@') &&
+         email.indexOf(' ') < 0;
+}
+
+void printProvisioningStatus() {
+  Serial.println("\n--- DEVICE CONFIG ---");
+  Serial.print("Property ID: ");
+  if (propertyId.length() > 0) {
+    Serial.println(propertyId);
+  } else {
+    Serial.println("<not set>");
+  }
+  Serial.print("Room ID: ");
+  if (roomId.length() > 0) {
+    Serial.println(roomId);
+  } else {
+    Serial.println("<not set>");
+  }
+  Serial.print("Base path: ");
+  if (basePath.length() > 0) {
+    Serial.println(basePath);
+  } else {
+    Serial.println("<not built yet>");
+  }
+  Serial.print("Device email: ");
+  if (deviceEmail.length() > 0) {
+    Serial.println(deviceEmail);
+  } else {
+    Serial.println("<not set>");
+  }
+  Serial.print("Expected device email for this room: ");
+  Serial.println(expectedDeviceEmail());
+  Serial.print("Device password: ");
+  Serial.println(devicePassword.length() > 0 ? "<set, hidden>" : "<not set>");
+  Serial.println("Serial commands:");
+  Serial.println("  PRINT_CONFIG");
+  Serial.println("  CLEAR_CONFIG");
+  Serial.println("  SET_CONFIG <propertyId> <roomId> <deviceEmail> <devicePassword>");
+}
+
+void clearProvisioning() {
+  preferences.remove("propertyId");
+  preferences.remove("roomId");
+  preferences.remove("deviceEmail");
+  preferences.remove("devicePassword");
+  Serial.println("Provisioning cleared. Rebooting...");
+  delay(1000);
+  ESP.restart();
+}
+
+void promptProvisioning() {
+  Serial.println("\n--- PROVISIONING MODE ---");
+
+  drainSerialActivationLine();
+
+  Serial.println("Enter Property ID (or press Enter to skip):");
+  while (!Serial.available()) { delay(10); }
+  String p = Serial.readStringUntil('\n');
+  p.trim();
+  if(p.length() > 0) preferences.putString("propertyId", p);
+
+  Serial.println("Enter Room ID (or press Enter to skip):");
+  while (!Serial.available()) { delay(10); }
+  String r = Serial.readStringUntil('\n');
+  r.trim();
+  if(r.length() > 0) preferences.putString("roomId", r);
+
+  Serial.println("Enter Device Email (or press Enter to skip):");
+  while (!Serial.available()) { delay(10); }
+  String e = Serial.readStringUntil('\n');
+  e.trim();
+  if(e.length() > 0) preferences.putString("deviceEmail", e);
+
+  Serial.println("Enter Device Password (or press Enter to skip):");
+  while (!Serial.available()) { delay(10); }
+  String pw = Serial.readStringUntil('\n');
+  pw.trim();
+  if(pw.length() > 0) preferences.putString("devicePassword", pw);
+
+  Serial.println("Provisioning saved! Rebooting...");
+  delay(1000);
+  ESP.restart();
+}
+
+void loadProvisioning() {
+  preferences.begin("ecostay", false);
+
+  propertyId = preferences.getString("propertyId", "");
+  roomId = preferences.getString("roomId", "");
+  deviceEmail = preferences.getString("deviceEmail", "");
+  devicePassword = preferences.getString("devicePassword", "");
+
+  if (propertyId == "" || roomId == "") {
+    Serial.println("Device unprovisioned. Using bench node defaults (property_001 / room_001).");
+    propertyId = "property_001";
+    roomId = "room_001";
+  }
+
+  Serial.println("\n>>> Press 'p' within 5 seconds to enter Provisioning Mode...");
+  unsigned long start = millis();
+  while (millis() - start < 5000) {
+    if (Serial.available()) {
+      char c = Serial.read();
+      if (c == 'p' || c == 'P') {
+        promptProvisioning();
+      }
+    }
+    delay(10);
+  }
+}
+
+void handleSerialCommand(const String &cmd) {
+  if (cmd == "PRINT_CONFIG") {
+    printProvisioningStatus();
+    return;
+  }
+
+  if (cmd == "CLEAR_CONFIG") {
+    clearProvisioning();
+    return;
+  }
+
+  if (cmd.startsWith("SET_CONFIG ")) {
+    int s1 = cmd.indexOf(' ');
+    int s2 = cmd.indexOf(' ', s1 + 1);
+    int s3 = cmd.indexOf(' ', s2 + 1);
+    int s4 = cmd.indexOf(' ', s3 + 1);
+    if (s1 > 0 && s2 > 0 && s3 > 0 && s4 > 0) {
+      String pId = cmd.substring(s1 + 1, s2);
+      String rId = cmd.substring(s2 + 1, s3);
+      String email = cmd.substring(s3 + 1, s4);
+      String pwd = cmd.substring(s4 + 1);
+      email.trim();
+      pwd.trim();
+
+      if (!hasBasicEmailShape(email)) {
+        Serial.println("Invalid device email. Use the full email returned by Admin -> Rooms.");
+        Serial.println("Expected format: device+property_001+room_001@devices.ecostay.local");
+        return;
+      }
+
+      if (pwd.length() == 0) {
+        Serial.println("Invalid device password. Use the one-time password returned by Admin -> Rooms.");
+        return;
+      }
+
+      preferences.putString("propertyId", pId);
+      preferences.putString("roomId", rId);
+      preferences.putString("deviceEmail", email);
+      preferences.putString("devicePassword", pwd);
+      Serial.println("Config and credentials saved. Rebooting...");
+      delay(1000);
+      ESP.restart();
+    }
+    Serial.println("Usage: SET_CONFIG <propertyId> <roomId> <deviceEmail> <devicePassword>");
+  }
+}
+
+// ======================
 // SETUP
 // ======================
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  preferences.begin("ecostay", false);
-  propertyId = preferences.getString("propertyId", "property_001");
-  roomId = preferences.getString("roomId", "room_001");
+  loadProvisioning();
 
   basePath = "properties/" + propertyId + "/rooms/" + roomId;
 
@@ -680,6 +903,8 @@ void setup() {
   pathLights = basePath + "/devices/lights";
   pathPump = basePath + "/devices/waterPump";
   pathMainRelay = basePath + "/devices/mainRelay";
+
+  printProvisioningStatus();
 
   pinMode(ledPin, OUTPUT);
   pinMode(extLedPin, OUTPUT);
@@ -732,11 +957,22 @@ void setup() {
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
 
-  if (Firebase.signUp(&config, &auth, "", "")) {
+  if (deviceEmail.length() > 0 && devicePassword.length() > 0 && hasBasicEmailShape(deviceEmail)) {
+    if (deviceEmail != expectedDeviceEmail()) {
+      Serial.println("WARNING: Device email does not match this property/room.");
+      Serial.println("Auth may succeed, but RTDB rules will deny writes if the custom claims differ.");
+    }
+    auth.user.email = deviceEmail.c_str();
+    auth.user.password = devicePassword.c_str();
     signupOK = true;
-    Serial.println("Firebase Signup OK");
+    Serial.println("Using device credentials for Firebase Auth.");
+  } else if (deviceEmail.length() > 0 && !hasBasicEmailShape(deviceEmail)) {
+    Serial.println("Invalid saved device email; staying offline.");
+    Serial.println("Run CLEAR_CONFIG, then SET_CONFIG with the full Admin -> Rooms device email.");
+    signupOK = false;
   } else {
-    Serial.printf("Firebase Signup Failed: %s\n", config.signer.signupError.message.c_str());
+    Serial.println("Unprovisioned: Missing credentials, staying offline");
+    signupOK = false;
   }
 
   config.token_status_callback = tokenStatusCallback;
@@ -753,19 +989,7 @@ void loop() {
   if (Serial.available() > 0) {
     String cmd = Serial.readStringUntil('\n');
     cmd.trim();
-    if (cmd.startsWith("SET_CONFIG ")) {
-      int firstSpace = cmd.indexOf(' ');
-      int secondSpace = cmd.indexOf(' ', firstSpace + 1);
-      if (firstSpace > 0 && secondSpace > 0) {
-        String pId = cmd.substring(firstSpace + 1, secondSpace);
-        String rId = cmd.substring(secondSpace + 1);
-        preferences.putString("propertyId", pId);
-        preferences.putString("roomId", rId);
-        Serial.println("Config saved. Rebooting...");
-        delay(1000);
-        ESP.restart();
-      }
-    }
+    handleSerialCommand(cmd);
   }
 
   updateFlowReading();
@@ -776,7 +1000,7 @@ void loop() {
   updateDoorReading();
   updatePIRReading();
   updateOccupancyState();
-  updatePzemDummyReading();
+  updatePzemReading();
 
   readDeviceCommands();
   updateLogic();

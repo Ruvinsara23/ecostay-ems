@@ -122,9 +122,18 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
    Slice 03 adds a Serial provisioning config block to the ESP32 to load `propertyId`, `roomId` and credentials dynamically from NVS instead of hardcoding.
    Slice 04 replaces anonymous Firebase sign-up with strict email/password auth for provisioned devices.
    UNBLOCKED 2026-07-11: key rotated, rules published, and a real device is live end-to-end
-   (provisioned over Serial, email/password auth, scoped writes passing rules). Next slice:
-   **05 firmware logic and hardware tuning** (also: DHT11 reads 0 °C on the bench device; the
-   per-loop PZEM debug print floods Serial ~20×/s — rate-limit it in slice 05).
+   (provisioned over Serial, email/password auth, scoped writes passing rules).
+   **Slice 05 IMPLEMENTED 2026-07-12** (gate #7 approved): real PZEM-004T v3.0 reads on
+   Serial2 (GPIO16 RX / GPIO17 TX), NaN-guarded (last-known-good, never invalid JSON),
+   `energy` = meter-cumulative kWh (survives ESP32 reboots); DHT11 consecutive-failure
+   diagnostic (the bench 0 °C was silent wiring failure); serial chatter (distance/DHT/
+   PZEM/motion) gated behind `DEBUG_VERBOSE 0`, one-line 3 s upload heartbeat. Compiled
+   clean via arduino-cli (97% flash — next growth needs a bigger partition scheme).
+   The slices 03-05 firmware is now COMMITTED (working copy carries placeholder WiFi
+   creds; real ones live in NVS via SET_CONFIG). **Blocked on hardware:** buy a
+   PZEM-004T v3.0, wire it, reflash, run the bench verification in
+   `.scratch/firmware-workstream/issues/05-real-pzem-readings-draft.md`, then slice 06
+   cutover removes the dashboard's "Simulated" badge (gate #8 eyeball of first real bill).
 3. **v1.1 queue** — ~~FCM web push~~ (done 2026-07-11), **TOU tariffs** (in flight: engine +
    window split + tests green; H-2/H-3 kVA demand charges still unmodeled — those bills are
    understated; awaiting money eyeball), multi-room switcher polish, savings/threshold refinements.
