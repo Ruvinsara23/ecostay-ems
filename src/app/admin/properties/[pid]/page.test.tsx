@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeAdminOperations } from '@/admin/admin-operations.fake';
 import { AdminOperationsProvider } from '@/admin/admin-operations-context';
@@ -70,5 +71,119 @@ describe('property detail page', () => {
     renderDetail(new FakeAdminOperations());
     const back = await screen.findByRole('link', { name: /back to properties/i });
     expect(back).toHaveAttribute('href', '/admin');
+  });
+});
+
+describe('property detail — inline room registration (slice 05)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('registers a room with the property id pre-bound from the route', async () => {
+    const user = userEvent.setup();
+    const ops = new FakeAdminOperations();
+    renderDetail(ops);
+
+    // No free-text property box anywhere — the route decides the property.
+    expect(screen.queryByLabelText(/property id/i)).not.toBeInTheDocument();
+
+    await user.type(await screen.findByLabelText('Room ID'), 'room_009');
+    await user.type(screen.getByLabelText('Room name'), 'Lake Room');
+    // Simulate the server accepting the registration before the list refresh.
+    ops.roomsByProperty = {
+      property_001: [
+        { roomId: 'room_009', roomName: 'Lake Room', deviceAccountEmail: null, lastSeenAt: null },
+      ],
+    };
+    await user.click(screen.getByRole('button', { name: /register room/i }));
+
+    expect(ops.registrations).toEqual([
+      { propertyId: 'property_001', roomId: 'room_009', roomName: 'Lake Room' },
+    ]);
+    // The list refreshed and now shows the new room.
+    expect(await screen.findByText('Lake Room')).toBeInTheDocument();
+    expect(screen.getByText('Room registered')).toBeInTheDocument();
+  });
+
+  it('shows the server error when registration fails', async () => {
+    const user = userEvent.setup();
+    const ops = new FakeAdminOperations();
+    renderDetail(ops);
+
+    await user.type(await screen.findByLabelText('Room ID'), 'room_009');
+    ops.failWith = 'roomId must match room_NNN';
+    await user.click(screen.getByRole('button', { name: /register room/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('roomId must match room_NNN');
+  });
+});
+
+describe('property detail — per-room device credentials (slice 05)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const unprovisioned = {
+    property_001: [
+      { roomId: 'room_001', roomName: 'Garden Room', deviceAccountEmail: null, lastSeenAt: null },
+    ],
+  };
+  const provisioned = {
+    property_001: [
+      {
+        roomId: 'room_001',
+        roomName: 'Garden Room',
+        deviceAccountEmail: 'device+property_001+room_001@devices.ecostay.local',
+        lastSeenAt: null,
+      },
+    ],
+  };
+
+  it('creates a device account for a room and shows the credential once', async () => {
+    const user = userEvent.setup();
+    const ops = new FakeAdminOperations();
+    ops.roomsByProperty = unprovisioned;
+    renderDetail(ops);
+
+    await user.click(await screen.findByRole('button', { name: /create device account/i }));
+
+    expect(ops.deviceCreates).toEqual([{ propertyId: 'property_001', roomId: 'room_001' }]);
+    expect(
+      await screen.findByText('device+property_001+room_001@devices.ecostay.local'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('fake-device-password')).toBeInTheDocument();
+    expect(screen.getByText(/shown once/i)).toBeInTheDocument();
+  });
+
+  it('resetting a credential requires confirmation first', async () => {
+    const user = userEvent.setup();
+    const ops = new FakeAdminOperations();
+    ops.roomsByProperty = provisioned;
+    renderDetail(ops);
+
+    await user.click(await screen.findByRole('button', { name: /reset password/i }));
+    // Nothing reset yet — the dialog is asking.
+    expect(ops.deviceResets).toEqual([]);
+    const dialog = await screen.findByRole('dialog', { name: /reset device password/i });
+    expect(dialog).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Reset password' }));
+    await waitFor(() =>
+      expect(ops.deviceResets).toEqual([{ propertyId: 'property_001', roomId: 'room_001' }]),
+    );
+    expect(await screen.findByText('fake-device-password')).toBeInTheDocument();
+  });
+
+  it('cancelling the confirmation resets nothing', async () => {
+    const user = userEvent.setup();
+    const ops = new FakeAdminOperations();
+    ops.roomsByProperty = provisioned;
+    renderDetail(ops);
+
+    await user.click(await screen.findByRole('button', { name: /reset password/i }));
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    expect(ops.deviceResets).toEqual([]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

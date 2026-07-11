@@ -1,9 +1,12 @@
 'use client';
 
-import { ArrowLeft, Cpu, DoorOpen } from 'lucide-react';
+import { ArrowLeft, Cpu, DoorOpen, KeyRound, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import type { AdminRoomSummary } from '@/server/admin-directory';
+import type { DeviceCredential } from '@/server/manage-device';
+import { ConfirmDialog } from '@/ui/confirm-dialog';
+import { TextField } from '@/ui/field';
 import { useAdminOperations } from './admin-operations-context';
 
 type RoomsState =
@@ -31,11 +34,28 @@ function DeviceStatus({ room }: { room: AdminRoomSummary }) {
   );
 }
 
-/** One property's rooms with device-account + last-seen status (admin-console-v2 slice 04/05). */
+/**
+ * One property's rooms with device accounts and inline admin actions
+ * (admin-console-v2 slices 04+05): register a room, create/reset the room's
+ * device credential — the property id always comes from the route, never a
+ * free-text box. Credentials are shown once and never persisted client-side.
+ */
 export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
   const operations = useAdminOperations();
   const [state, setState] = useState<RoomsState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+
+  const [roomId, setRoomId] = useState('');
+  const [roomName, setRoomName] = useState('');
+  const [formStatus, setFormStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [deviceBusyRoom, setDeviceBusyRoom] = useState<string | null>(null);
+  const [deviceError, setDeviceError] = useState<{ roomId: string; message: string } | null>(null);
+  const [credential, setCredential] = useState<{ roomId: string; value: DeviceCredential } | null>(
+    null,
+  );
+  const [confirmResetRoom, setConfirmResetRoom] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +71,46 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
       cancelled = true;
     };
   }, [operations, propertyId, attempt]);
+
+  const refresh = () => setAttempt((n) => n + 1);
+
+  async function handleRegister(event: FormEvent) {
+    event.preventDefault();
+    setFormStatus('saving');
+    setFormError(null);
+    try {
+      await operations.registerRoom({ propertyId, roomId, roomName });
+      setFormStatus('saved');
+      setRoomId('');
+      setRoomName('');
+      refresh();
+    } catch (error) {
+      setFormStatus('error');
+      setFormError(error instanceof Error ? error.message : 'Registration failed - try again.');
+    }
+  }
+
+  async function provisionDevice(targetRoomId: string, action: 'create' | 'reset') {
+    setDeviceBusyRoom(targetRoomId);
+    setDeviceError(null);
+    setCredential(null);
+    try {
+      const input = { propertyId, roomId: targetRoomId };
+      const value =
+        action === 'create'
+          ? await operations.createDeviceAccount(input)
+          : await operations.resetDeviceCredential(input);
+      setCredential({ roomId: targetRoomId, value });
+      refresh();
+    } catch (error) {
+      setDeviceError({
+        roomId: targetRoomId,
+        message: error instanceof Error ? error.message : 'Could not save - try again.',
+      });
+    } finally {
+      setDeviceBusyRoom(null);
+    }
+  }
 
   return (
     <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-5 sm:p-8 lg:p-10">
@@ -69,7 +129,8 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
           </p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink">{propertyId}</h1>
           <p className="mt-1 text-sm text-ink-2">
-            Rooms in this property, each with its device account and last report.
+            Rooms in this property with their device accounts — register rooms and manage
+            credentials right here.
           </p>
         </div>
 
@@ -78,7 +139,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
             <span className="grid h-9 w-9 place-items-center rounded-2xl bg-brand-soft text-brand">
               <DoorOpen size={18} strokeWidth={2.2} />
             </span>
-            <h2 className="text-sm font-bold text-ink">Rooms</h2>
+            <h2 className="text-sm font-bold text-ink">Rooms &amp; devices</h2>
           </div>
 
           {state.status === 'loading' ? (
@@ -90,7 +151,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
                 type="button"
                 onClick={() => {
                   setState({ status: 'loading' });
-                  setAttempt((n) => n + 1);
+                  refresh();
                 }}
                 className="mt-3 block rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-brand-deep"
               >
@@ -99,29 +160,134 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
             </div>
           ) : state.rooms.length === 0 ? (
             <p className="text-sm text-ink-2">
-              No rooms registered for this property yet — use the Rooms view to register one.
+              No rooms registered for this property yet — add the first one below.
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline">
               {state.rooms.map((room) => (
-                <li
-                  key={room.roomId}
-                  className="flex items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold text-ink">
-                      {room.roomName ?? room.roomId}
+                <li key={room.roomId} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-ink">
+                        {room.roomName ?? room.roomId}
+                      </span>
+                      {room.roomName && (
+                        <span className="block text-xs text-ink-3">{room.roomId}</span>
+                      )}
                     </span>
-                    {room.roomName && (
-                      <span className="block text-xs text-ink-3">{room.roomId}</span>
-                    )}
-                  </span>
-                  <DeviceStatus room={room} />
+                    <span className="flex min-w-0 items-center gap-3">
+                      <DeviceStatus room={room} />
+                      {room.deviceAccountEmail ? (
+                        <button
+                          type="button"
+                          disabled={deviceBusyRoom !== null}
+                          onClick={() => setConfirmResetRoom(room.roomId)}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline bg-white/70 px-3.5 py-2 text-xs font-bold text-ink transition-colors hover:bg-white disabled:opacity-50"
+                        >
+                          <KeyRound size={13} strokeWidth={2.4} aria-hidden />
+                          {deviceBusyRoom === room.roomId ? 'Resetting…' : 'Reset password'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={deviceBusyRoom !== null}
+                          onClick={() => provisionDevice(room.roomId, 'create')}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-md transition-colors hover:bg-brand-deep disabled:opacity-50"
+                        >
+                          <Plus size={13} strokeWidth={2.4} aria-hidden />
+                          {deviceBusyRoom === room.roomId ? 'Creating…' : 'Create device account'}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+
+                  {deviceError?.roomId === room.roomId && (
+                    <p role="alert" className="mt-2 text-sm font-semibold text-alarm">
+                      {deviceError.message}
+                    </p>
+                  )}
+
+                  {credential?.roomId === room.roomId && (
+                    <dl className="mt-3 grid gap-3 rounded-xl border border-hairline bg-white/70 p-4 text-sm sm:grid-cols-[8rem_minmax(0,1fr)]">
+                      <dt className="font-semibold text-ink-2">Email</dt>
+                      <dd className="min-w-0 break-all font-mono text-ink">
+                        {credential.value.email}
+                      </dd>
+                      <dt className="font-semibold text-ink-2">Password</dt>
+                      <dd className="min-w-0 break-all font-mono text-ink">
+                        {credential.value.password}
+                      </dd>
+                      <dt className="font-semibold text-ink-2">Shown once</dt>
+                      <dd className="text-ink-2">
+                        Copy it now — it is never stored and cannot be retrieved later.
+                      </dd>
+                    </dl>
+                  )}
                 </li>
               ))}
             </ul>
           )}
+
+          <form
+            onSubmit={handleRegister}
+            className="mt-5 flex flex-col gap-4 border-t border-hairline pt-5"
+          >
+            <h3 className="text-sm font-bold text-ink">Register a room in this property</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                label="Room ID"
+                value={roomId}
+                placeholder="room_002"
+                onChange={(value) => {
+                  setRoomId(value);
+                  setFormStatus('idle');
+                  setFormError(null);
+                }}
+              />
+              <TextField
+                label="Room name"
+                value={roomName}
+                placeholder="Garden Room"
+                onChange={(value) => {
+                  setRoomName(value);
+                  setFormStatus('idle');
+                  setFormError(null);
+                }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={formStatus === 'saving'}
+                className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-brand-deep disabled:opacity-50"
+              >
+                <Plus size={16} strokeWidth={2.4} aria-hidden />
+                {formStatus === 'saving' ? 'Registering…' : 'Register room'}
+              </button>
+              {formStatus === 'saved' && (
+                <span className="text-sm font-semibold text-brand-deep">Room registered</span>
+              )}
+              {formStatus === 'error' && (
+                <span role="alert" className="text-sm font-semibold text-alarm">
+                  {formError ?? 'Could not register - try again.'}
+                </span>
+              )}
+            </div>
+          </form>
         </section>
+
+        <ConfirmDialog
+          open={confirmResetRoom !== null}
+          title="Reset device password?"
+          body={`The current password for ${confirmResetRoom ?? ''} stops working immediately. The device must be re-provisioned with the new one.`}
+          confirmLabel="Reset password"
+          onCancel={() => setConfirmResetRoom(null)}
+          onConfirm={() => {
+            const target = confirmResetRoom;
+            setConfirmResetRoom(null);
+            if (target) provisionDevice(target, 'reset');
+          }}
+        />
       </div>
     </main>
   );
