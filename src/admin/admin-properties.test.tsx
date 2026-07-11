@@ -70,6 +70,6 @@ describe('AdminProperties', () => {
   it('explains how properties come to exist when there are none', async () => {
     renderView(new FakeAdminOperations());
     expect(await screen.findByText(/no properties yet/i)).toBeInTheDocument();
-    expect(screen.getByText(/register a room/i)).toBeInTheDocument();
+    expect(screen.getByText(/register the first one below/i)).toBeInTheDocument();
   });
 });

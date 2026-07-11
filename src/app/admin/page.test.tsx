@@ -50,7 +50,7 @@ describe('admin console shell (sub-route chassis)', () => {
     expect(await screen.findByRole('button', { name: /sign out/i })).toBeInTheDocument();
   });
 
-  it('the rail is real links: every view is URL-addressable', async () => {
+  it('the rail is real links, consolidated to Properties · Owners (v2 slice 07)', async () => {
     renderAdmin(new FakeAuthGateway({ initialSession: ADMIN_SESSION }));
 
     expect(await screen.findByRole('link', { name: 'Properties' })).toHaveAttribute(
@@ -58,12 +58,10 @@ describe('admin console shell (sub-route chassis)', () => {
       '/admin',
     );
     expect(screen.getByRole('link', { name: 'Owners' })).toHaveAttribute('href', '/admin/owners');
-    expect(screen.getByRole('link', { name: 'Rooms' })).toHaveAttribute('href', '/admin/rooms');
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
-      'href',
-      '/admin/settings',
-    );
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/');
+    // Rooms and Settings live inside property detail now — no standalone entries.
+    expect(screen.queryByRole('link', { name: 'Rooms' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
   it('marks the current route active in the rail', async () => {

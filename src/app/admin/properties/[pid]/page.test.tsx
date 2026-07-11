@@ -5,6 +5,8 @@ import { FakeAdminOperations } from '@/admin/admin-operations.fake';
 import { AdminOperationsProvider } from '@/admin/admin-operations-context';
 import { AuthProvider } from '@/auth/auth-context';
 import { FakeAuthGateway } from '@/auth/fake-auth-gateway';
+import { FakeRoomDataSource } from '@/rooms/fake-room-data-source';
+import { RoomDataSourceProvider } from '@/rooms/room-data-source-context';
 import PropertyDetailPage from '@/app/admin/properties/[pid]/page';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
@@ -21,12 +23,17 @@ const ADMIN_SESSION = {
   role: 'admin',
 } as const;
 
-function renderDetail(operations: FakeAdminOperations) {
+function renderDetail(
+  operations: FakeAdminOperations,
+  source: FakeRoomDataSource = new FakeRoomDataSource(),
+) {
   return render(
     <AuthProvider gateway={new FakeAuthGateway({ initialSession: ADMIN_SESSION })}>
-      <AdminOperationsProvider operations={operations}>
-        <PropertyDetailPage />
-      </AdminOperationsProvider>
+      <RoomDataSourceProvider source={source}>
+        <AdminOperationsProvider operations={operations}>
+          <PropertyDetailPage />
+        </AdminOperationsProvider>
+      </RoomDataSourceProvider>
     </AuthProvider>,
   );
 }
@@ -71,6 +78,21 @@ describe('property detail page', () => {
     renderDetail(new FakeAdminOperations());
     const back = await screen.findByRole('link', { name: /back to properties/i });
     expect(back).toHaveAttribute('href', '/admin');
+  });
+});
+
+describe('property detail — embedded settings (slice 07)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows this property’s settings inline, loaded from the routed property id', async () => {
+    const source = new FakeRoomDataSource();
+    source.setTariffCategory('property_001', 'H-1');
+    renderDetail(new FakeAdminOperations(), source);
+
+    await waitFor(() => expect(screen.getByLabelText(/tariff category/i)).toHaveValue('H-1'));
+    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
   });
 });
 

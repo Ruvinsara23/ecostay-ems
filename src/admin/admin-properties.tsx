@@ -1,9 +1,10 @@
 'use client';
 
-import { Building2, ChevronRight } from 'lucide-react';
+import { Building2, ChevronRight, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import type { AdminPropertySummary } from '@/server/admin-directory';
+import { TextField } from '@/ui/field';
 import { useAdminOperations } from './admin-operations-context';
 
 type PropertiesState =
@@ -21,6 +22,45 @@ export function AdminProperties() {
   const router = useRouter();
   const [state, setState] = useState<PropertiesState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+
+  const [propertyId, setPropertyId] = useState('');
+  const [propertyName, setPropertyName] = useState('');
+  const [roomId, setRoomId] = useState('');
+  const [roomName, setRoomName] = useState('');
+  const [formStatus, setFormStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function touched(setter: (value: string) => void) {
+    return (value: string) => {
+      setter(value);
+      setFormStatus('idle');
+      setFormError(null);
+    };
+  }
+
+  async function handleRegister(event: FormEvent) {
+    event.preventDefault();
+    setFormStatus('saving');
+    setFormError(null);
+    try {
+      const input: Parameters<typeof operations.registerRoom>[0] = {
+        propertyId,
+        roomId,
+        roomName,
+      };
+      if (propertyName.trim()) input.propertyName = propertyName;
+      await operations.registerRoom(input);
+      setFormStatus('saved');
+      setPropertyId('');
+      setPropertyName('');
+      setRoomId('');
+      setRoomName('');
+      setAttempt((n) => n + 1);
+    } catch (error) {
+      setFormStatus('error');
+      setFormError(error instanceof Error ? error.message : 'Registration failed - try again.');
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +116,7 @@ export function AdminProperties() {
             </div>
           ) : state.properties.length === 0 ? (
             <p className="text-sm text-ink-2">
-              No properties yet — register a room (Rooms view) to create the first one.
+              No properties yet — register the first one below.
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline">
@@ -106,6 +146,60 @@ export function AdminProperties() {
               ))}
             </ul>
           )}
+
+          <form
+            onSubmit={handleRegister}
+            className="mt-5 flex flex-col gap-4 border-t border-hairline pt-5"
+          >
+            <h3 className="text-sm font-bold text-ink">Register a property</h3>
+            <p className="text-sm text-ink-2">
+              A property is created with its first room; add more rooms from its detail page.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                label="Property ID"
+                value={propertyId}
+                placeholder="property_002"
+                onChange={touched(setPropertyId)}
+              />
+              <TextField
+                label="Property name (optional)"
+                value={propertyName}
+                placeholder="Lagoon Villa"
+                onChange={touched(setPropertyName)}
+              />
+              <TextField
+                label="First room ID"
+                value={roomId}
+                placeholder="room_001"
+                onChange={touched(setRoomId)}
+              />
+              <TextField
+                label="First room name"
+                value={roomName}
+                placeholder="Garden Room"
+                onChange={touched(setRoomName)}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={formStatus === 'saving'}
+                className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-brand-deep disabled:opacity-50"
+              >
+                <Plus size={16} strokeWidth={2.4} aria-hidden />
+                {formStatus === 'saving' ? 'Registering…' : 'Register property'}
+              </button>
+              {formStatus === 'saved' && (
+                <span className="text-sm font-semibold text-brand-deep">Property registered</span>
+              )}
+              {formStatus === 'error' && (
+                <span role="alert" className="text-sm font-semibold text-alarm">
+                  {formError ?? 'Could not register - try again.'}
+                </span>
+              )}
+            </div>
+          </form>
         </section>
       </div>
     </main>

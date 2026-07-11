@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/ui/confirm-dialog';
 import { TextField } from '@/ui/field';
 import { ListRow } from '@/ui/list-row';
 import { useAdminOperations } from './admin-operations-context';
+import { AdminPropertySettings } from './admin-property-settings';
 
 type RoomsState =
   | { status: 'loading' }
@@ -364,6 +365,8 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
             </ul>
           )}
         </section>
+
+        <AdminPropertySettings propertyId={propertyId} />
 
         <ConfirmDialog
           open={confirmResetRoom !== null}
