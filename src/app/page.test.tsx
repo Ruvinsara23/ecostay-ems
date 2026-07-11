@@ -245,9 +245,10 @@ describe('dashboard shell cleanup (no dead controls)', () => {
     expect(screen.queryByRole('button', { name: /add device/i })).not.toBeInTheDocument();
   });
 
-  it('shows owners no Settings rail entry (nothing "coming soon")', async () => {
+  it('shows owners no Admin rail entry (and nothing "coming soon")', async () => {
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
     await screen.findByText('Room 1');
+    expect(screen.queryByRole('button', { name: /admin/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /settings/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
   });
@@ -260,7 +261,8 @@ describe('dashboard shell cleanup (no dead controls)', () => {
       }),
       sourceWithOneRoom(),
     );
-    await user.click(await screen.findByRole('button', { name: /settings/i }));
+    // Labeled "Admin" — it opens the admin console, not a settings page.
+    await user.click(await screen.findByRole('button', { name: /admin/i }));
     expect(routerMock.push).toHaveBeenCalledWith('/admin');
   });
 });

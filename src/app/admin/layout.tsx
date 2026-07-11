@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Building2, LogOut, Users } from 'lucide-react';
+import { Building2, LayoutDashboard, LogOut, Users } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/auth/auth-context';
@@ -28,24 +28,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand">
             i
           </span>
+          {/* Primary nav at the TOP (matches the owner rail's gravity); only Sign out sits at the bottom. */}
+          <RailLink
+            href="/admin"
+            label="Properties"
+            active={pathname === '/admin' || pathname.startsWith('/admin/properties')}
+            icon={<Building2 size={22} strokeWidth={2.2} aria-hidden />}
+          />
+          <RailLink
+            href="/admin/owners"
+            label="Owners"
+            active={pathname.startsWith('/admin/owners')}
+            icon={<Users size={22} strokeWidth={2.2} aria-hidden />}
+          />
           <RailLink
             href="/"
-            label="Dashboard"
-            icon={<ArrowLeft size={22} strokeWidth={2.2} aria-hidden />}
+            label="Live rooms"
+            icon={<LayoutDashboard size={22} strokeWidth={2.2} aria-hidden />}
           />
           <div className="mt-auto flex w-full flex-col gap-4">
-            <RailLink
-              href="/admin"
-              label="Properties"
-              active={pathname === '/admin' || pathname.startsWith('/admin/properties')}
-              icon={<Building2 size={22} strokeWidth={2.2} aria-hidden />}
-            />
-            <RailLink
-              href="/admin/owners"
-              label="Owners"
-              active={pathname.startsWith('/admin/owners')}
-              icon={<Users size={22} strokeWidth={2.2} aria-hidden />}
-            />
             <RailButton
               label="Sign out"
               icon={<LogOut size={22} strokeWidth={2.2} aria-hidden />}

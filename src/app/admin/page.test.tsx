@@ -58,7 +58,7 @@ describe('admin console shell (sub-route chassis)', () => {
       '/admin',
     );
     expect(screen.getByRole('link', { name: 'Owners' })).toHaveAttribute('href', '/admin/owners');
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Live rooms' })).toHaveAttribute('href', '/');
     // Rooms and Settings live inside property detail now — no standalone entries.
     expect(screen.queryByRole('link', { name: 'Rooms' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();

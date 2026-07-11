@@ -18,8 +18,10 @@ const W = 560;
 const H = 130;
 const PLOT = { left: 34, right: 552, top: 12, bottom: 104 };
 
-const BRAND = '#12a15e';
-const BRAND_DEEP = '#0e8a4f';
+// Chart strokes must match the brand tokens (globals.css --color-brand /
+// --color-brand-deep). These were left emerald from the pre-lavender design.
+const BRAND = '#7c3aed';
+const BRAND_DEEP = '#5b21b6';
 
 function timeLabel(ms: number): string {
   const d = new Date(ms);
