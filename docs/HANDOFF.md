@@ -1,25 +1,31 @@
 # HANDOFF — EcoStay EMS (state & where to continue)
 
-_Last updated 2026-07-09. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
+_Last updated 2026-07-11. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
 
 EcoStay EMS is a smart-IoT energy management system for Sri Lankan tourist accommodations:
 an ESP32 per room writes telemetry to Firebase RTDB; a Next.js dashboard (Firebase Auth + RTDB)
 gives owners live monitoring, control, cost, and savings. **The firmware is an immutable contract
 (`docs/firmware-contract.md`); the dashboard adapts to it, never the reverse.**
 
-## Status: v1 is feature-complete and deployed
+## Status: v1 deployed AND a live device is reporting (2026-07-11)
 
-Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`). Local `main` has not
-been pushed. Recent local-only work includes:
+Live at `https://ecostay-ems.vercel.app` (auto-deploys on push to `main`); `main` is pushed
+through `aab3d73`. **The first real ESP32 is provisioned (NVS + Serial `SET_CONFIG`),
+authenticated with its device account, and writing telemetry to production** — verified
+2026-07-11 (`latest/updatedAt` seconds-fresh; known hardware nit: DHT11 reads 0 °C, check wiring).
 
-- firmware workstream slice 00: PRD + sliced plan + CONTEXT vocabulary
-- firmware workstream slice 01: device credential provisioning
-- firmware workstream slice 02: device-scoped RTDB rules draft
-- reverted UI cleanup commit `eff39f1` via `60c832b`; live-view routing/rail behavior is back to
-  the pre-cleanup state
+Ops items CLOSED 2026-07-11: `database.rules.json` republished (incl. `acPowerThresholdW`),
+the leaked service-account key rotated (old key deleted), FCM env vars set in Vercel.
 
-Latest post-revert verification: **230 unit tests green** and `typecheck` clean. Latest slice 02
-rules verification: **51 emulator-integration tests green**.
+Shipped since 2026-07-09 (all pushed): frontend audit + admin-console-v2 plan (`.scratch/`),
+admin console Properties/rooms browse layer + sign-out, owner dashboard tabs
+(Devices/Routines/Activity) + dead-control cleanup, `ac-left-on` alert + threshold,
+admin-token 401/503 split, working FCM push (fixed members path, 500-token batching,
+invalid-token pruning, env-injected service worker at `/firebase-messaging-sw.js`).
+
+Latest verification: **290 unit + 51 emulator tests green**, typecheck clean. In flight,
+uncommitted: TOU tariffs (D-TOU/H-2/H-3) — tests written and green; awaiting the risk-gate #8
+human eyeball of rendered money before commit.
 
 ## What's built
 
@@ -86,17 +92,23 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
    (`src/admin/admin-operations.ts`) keeps UI off `fetch`/Admin SDK. Owner role is hardcoded on
    create (no privilege escalation); non-owner targets are refused disable/reset. `ops/**`,
    `users/**`, `members` writes go through the Admin SDK — **no client rule changes for slices
-   03-04**. **Human: re-publish `database.rules.json` after slice 02** (the `alertThresholds`
-   rules) and **rotate the leaked service-account key** (the Owners route uses it in prod).
+   03-04**. DONE 2026-07-11: rules republished and the service-account key rotated. The
+   **admin-console-v2** workstream (`.scratch/admin-console-v2/`) has since added the read side:
+   Properties list (default view) + property detail with per-room device account/last-seen.
+   Remaining v2 slices: sub-route chassis, inline forms, per-property owners, settings-in-detail.
 2. **Firmware workstream** (ADR-0007) — slices 00-03 are implemented locally. Slice 01 adds
    admin-only create/reset for Firebase Auth users with `role:'device'`, `propertyId`, and `roomId`
    claims; passwords are generated server-side, returned once, and never written to RTDB. Slice 02
    adds the matching local RTDB rules draft and emulator tests, but those rules are **not published**.
    Slice 03 adds a Serial provisioning config block to the ESP32 to load `propertyId`, `roomId` and credentials dynamically from NVS instead of hardcoding.
    Slice 04 replaces anonymous Firebase sign-up with strict email/password auth for provisioned devices.
-   Production use is blocked until the Firebase service-account key is rotated and a human republishes
-   `database.rules.json`. Next slice: **05 firmware logic and hardware tuning**.
-3. **v1.1 queue** — FCM web push, TOU tariffs, multi-room switcher polish, savings/threshold refinements.
+   UNBLOCKED 2026-07-11: key rotated, rules published, and a real device is live end-to-end
+   (provisioned over Serial, email/password auth, scoped writes passing rules). Next slice:
+   **05 firmware logic and hardware tuning** (also: DHT11 reads 0 °C on the bench device; the
+   per-loop PZEM debug print floods Serial ~20×/s — rate-limit it in slice 05).
+3. **v1.1 queue** — ~~FCM web push~~ (done 2026-07-11), **TOU tariffs** (in flight: engine +
+   window split + tests green; H-2/H-3 kVA demand charges still unmodeled — those bills are
+   understated; awaiting money eyeball), multi-room switcher polish, savings/threshold refinements.
 
 ## How to continue (the framework)
 
