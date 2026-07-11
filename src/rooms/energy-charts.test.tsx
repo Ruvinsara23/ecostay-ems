@@ -24,7 +24,7 @@ describe('EnergyHistorySection', () => {
   it('shows the estimated monthly bill from month-to-date kWh × the H-1 tariff', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {
-      [colomboDateKey(Date.now())]: { kWhUsed: 250, occupiedMinutes: 300 },
+      [colomboDateKey(Date.now())]: { kWhUsed: 250, occupiedMinutes: 300, avoidedKWh: 1.2, costLKR: null },
     });
     source.setTariffCategory('property_001', 'H-1');
     renderSection(source);
@@ -36,7 +36,7 @@ describe('EnergyHistorySection', () => {
   it('shows OBJ-07 savings when the rollup recorded avoided energy', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {
-      [colomboDateKey(Date.now())]: { kWhUsed: 100, occupiedMinutes: 200, avoidedKWh: 12 },
+      [colomboDateKey(Date.now())]: { kWhUsed: 100, occupiedMinutes: 300, costLKR: null, avoidedKWh: 12.0 },
     });
     source.setTariffCategory('property_001', 'H-1');
     renderSection(source);
@@ -48,8 +48,11 @@ describe('EnergyHistorySection', () => {
 
   it('prompts to set a tariff when none is configured', () => {
     const source = new FakeRoomDataSource();
+    const todayKey = colomboDateKey(Date.now());
+    const yesterdayKey = colomboDateKey(Date.now() - DAY_MS);
     source.emitDailyAggregates('property_001', 'room_001', {
-      [colomboDateKey(Date.now())]: { kWhUsed: 100, occupiedMinutes: 0 },
+      [todayKey]: { kWhUsed: 2.0, occupiedMinutes: 300, costLKR: null, avoidedKWh: 0 },
+      [yesterdayKey]: { kWhUsed: 3.5, occupiedMinutes: 400, costLKR: null, avoidedKWh: 0 },
     });
     renderSection(source);
     expect(screen.getByText(/set a tariff/i)).toBeInTheDocument();
@@ -100,8 +103,8 @@ describe('EnergyHistorySection', () => {
   it('renders 7 day slots: bars for recorded days, gaps (not zeros) for missing ones', () => {
     const source = new FakeRoomDataSource();
     source.emitDailyAggregates('property_001', 'room_001', {
-      [colomboDateKey(Date.now() - DAY_MS)]: { kWhUsed: 0.45, occupiedMinutes: 300 },
-      [colomboDateKey(Date.now() - 2 * DAY_MS)]: { kWhUsed: 0.3, occupiedMinutes: 120 },
+      [colomboDateKey(Date.now() - DAY_MS)]: { kWhUsed: 0.45, occupiedMinutes: 300, costLKR: null, avoidedKWh: 0 },
+      [colomboDateKey(Date.now() - 2 * DAY_MS)]: { kWhUsed: 0.3, occupiedMinutes: 120, costLKR: null, avoidedKWh: 0 },
     });
     renderSection(source);
 

@@ -1,6 +1,6 @@
 import { OCCUPANCY_STATES, OccupancyState } from '@/telemetry/contract';
 import { isOccupied } from '@/telemetry/is-occupied';
-import { colomboDayWindow } from './colombo-time';
+import { colomboDayWindow, colomboTouWindow } from './colombo-time';
 import type { EnergySample } from './sample-energy';
 
 export const SAMPLE_INTERVAL_MINUTES = 5;
@@ -10,10 +10,16 @@ export type CircuitWattages = { lights: number; exhaustFan: number };
 
 export type DailyAggregate = {
   kWhUsed: number;
+  kWhUsedPeak?: number;
+  kWhUsedDay?: number;
+  kWhUsedOffPeak?: number;
   costLKR: number | null; // null: cost is priced on the client via the tariff engine (ADR-0008)
   occupiedMinutes: number;
   /** Counterfactual energy the controlled circuits would have drawn while confirmed-vacant. */
   avoidedKWh: number;
+  avoidedKWhPeak?: number;
+  avoidedKWhDay?: number;
+  avoidedKWhOffPeak?: number;
 };
 
 export type RollupDeps = {
@@ -57,9 +63,20 @@ export async function rollupDaily(deps: RollupDeps, dateKey: string): Promise<Ro
     if (samples.length === 0) continue;
 
     let kWhUsed = 0;
+    let kWhUsedPeak = 0;
+    let kWhUsedDay = 0;
+    let kWhUsedOffPeak = 0;
+
     for (let i = 1; i < samples.length; i++) {
-      const delta = samples[i].energy - samples[i - 1].energy;
-      kWhUsed += delta >= 0 ? delta : samples[i].energy;
+      let delta = samples[i].energy - samples[i - 1].energy;
+      if (delta < 0) delta = samples[i].energy;
+      
+      kWhUsed += delta;
+      
+      const window = colomboTouWindow(samples[i].sampledAt);
+      if (window === 'peak') kWhUsedPeak += delta;
+      else if (window === 'day') kWhUsedDay += delta;
+      else kWhUsedOffPeak += delta;
     }
 
     const occupiedMinutes =
@@ -72,18 +89,37 @@ export async function rollupDaily(deps: RollupDeps, dateKey: string): Promise<Ro
 
     // OBJ-07 savings: while confirmed-vacant, the vacancy cut-off holds the controlled
     // circuits off, so their rated wattage × that time is the counterfactual avoided energy.
-    const confirmedVacantMinutes =
-      samples.filter((s) => s.occupancyState === 'VACANT_CONFIRMED').length *
-      SAMPLE_INTERVAL_MINUTES;
     const wattages = await deps.readCircuitWattages(propertyId);
     const controlledW = wattages ? wattages.lights + wattages.exhaustFan : 0;
-    const avoidedKWh = (controlledW * (confirmedVacantMinutes / 60)) / 1000;
+    
+    let avoidedKWh = 0;
+    let avoidedKWhPeak = 0;
+    let avoidedKWhDay = 0;
+    let avoidedKWhOffPeak = 0;
+    
+    const avoidedPerSample = (controlledW * (SAMPLE_INTERVAL_MINUTES / 60)) / 1000;
+
+    for (const s of samples) {
+      if (s.occupancyState === 'VACANT_CONFIRMED') {
+        avoidedKWh += avoidedPerSample;
+        const window = colomboTouWindow(s.sampledAt);
+        if (window === 'peak') avoidedKWhPeak += avoidedPerSample;
+        else if (window === 'day') avoidedKWhDay += avoidedPerSample;
+        else avoidedKWhOffPeak += avoidedPerSample;
+      }
+    }
 
     await deps.writeDailyAggregate(propertyId, roomId, dateKey, {
       kWhUsed: Number(kWhUsed.toFixed(6)),
+      kWhUsedPeak: Number(kWhUsedPeak.toFixed(6)),
+      kWhUsedDay: Number(kWhUsedDay.toFixed(6)),
+      kWhUsedOffPeak: Number(kWhUsedOffPeak.toFixed(6)),
       costLKR: null,
       occupiedMinutes,
       avoidedKWh: Number(avoidedKWh.toFixed(6)),
+      avoidedKWhPeak: Number(avoidedKWhPeak.toFixed(6)),
+      avoidedKWhDay: Number(avoidedKWhDay.toFixed(6)),
+      avoidedKWhOffPeak: Number(avoidedKWhOffPeak.toFixed(6)),
     });
     report.aggregatesWritten += 1;
   }

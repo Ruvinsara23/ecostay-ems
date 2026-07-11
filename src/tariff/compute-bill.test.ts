@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeBill } from './compute-bill';
-import { CEB_D1, CEB_GP1, CEB_H1 } from './ceb-tariffs';
+import { computeBill, marginalRatePerKWh } from './compute-bill';
+import { CEB_D1, CEB_D_TOU, CEB_GP1, CEB_H1, CEB_H2 } from './ceb-tariffs';
 
 // Worked examples are transcribed from docs/research/ceb-tariff-schedule.md (PUCSL decision
 // effective 11 May 2026). Expected values are computed there, independent of this code —
@@ -64,6 +64,54 @@ describe('computeBill — D-1 domestic (regime-selected, incremental slabs)', ()
     expect(computeBill(CEB_D1, 60).beforeSsclLKR).toBe(30 * 5 + 30 * 9 + 210); // 630
     // 61 kWh → regime B (blocks from unit 1): 60×14 + 1×20 + fixed 400 = 1260
     expect(computeBill(CEB_D1, 61).beforeSsclLKR).toBe(60 * 14 + 1 * 20 + 400); // 1260
+  });
+});
+
+describe('computeBill — D-TOU (time-of-use: window kWh × window rate + fixed)', () => {
+  it('prices each window at its own rate: 10 peak + 20 day + 30 off-peak', () => {
+    // 10×106 + 20×47 + 30×33 = 1060 + 940 + 990 = 2990; fixed 2500 → 5490 before SSCL
+    const bill = computeBill(CEB_D_TOU, 60, { peak: 10, day: 20, offPeak: 30 });
+    expect(bill.energyLKR).toBe(2990);
+    expect(bill.fixedLKR).toBe(2500);
+    expect(bill.beforeSsclLKR).toBe(5490);
+    expect(bill.totalLKR).toBe(withSscl(5490)); // 5630.77
+  });
+
+  it('H-2 hotel TOU: 100 peak + 200 day + 300 off-peak (kVA demand charge NOT modeled — understates real H-2 bills)', () => {
+    // 100×39 + 200×19 + 300×16.5 = 3900 + 3800 + 4950 = 12650; fixed 6000 → 18650
+    const bill = computeBill(CEB_H2, 600, { peak: 100, day: 200, offPeak: 300 });
+    expect(bill.energyLKR).toBe(12650);
+    expect(bill.beforeSsclLKR).toBe(18650);
+  });
+
+  it('with no TOU breakdown charges only the fixed charge — never guesses windows', () => {
+    const bill = computeBill(CEB_D_TOU, 60);
+    expect(bill.energyLKR).toBe(0);
+    expect(bill.fixedLKR).toBe(2500);
+  });
+
+  it('zero consumption still charges the TOU fixed charge', () => {
+    const bill = computeBill(CEB_D_TOU, 0, { peak: 0, day: 0, offPeak: 0 });
+    expect(bill.beforeSsclLKR).toBe(2500);
+  });
+});
+
+describe('marginalRatePerKWh — TOU prices the next unit by the CURRENT window', () => {
+  // Colombo = UTC+5:30 → 13:00Z = 18:30 Colombo (peak opens)
+  it('peak window → peak rate', () => {
+    expect(marginalRatePerKWh(CEB_D_TOU, 100, Date.UTC(2026, 6, 9, 13, 0))).toBe(106);
+  });
+  it('day window → day rate', () => {
+    expect(marginalRatePerKWh(CEB_D_TOU, 100, Date.UTC(2026, 6, 9, 6, 30))).toBe(47);
+  });
+  it('off-peak window → off-peak rate', () => {
+    expect(marginalRatePerKWh(CEB_D_TOU, 100, Date.UTC(2026, 6, 9, 17, 30))).toBe(33);
+  });
+  it('without a timestamp assumes the day rate', () => {
+    expect(marginalRatePerKWh(CEB_D_TOU, 100)).toBe(47);
+  });
+  it('non-TOU tariffs ignore the timestamp and price by band', () => {
+    expect(marginalRatePerKWh(CEB_H1, 100, Date.UTC(2026, 6, 9, 13, 0))).toBe(9);
   });
 });
 

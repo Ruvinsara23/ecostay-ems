@@ -18,12 +18,22 @@ export type TariffRegime = {
   blocks: TariffBlock[];
 };
 
+export type TariffTouRates = {
+  peak: number;
+  day: number;
+  offPeak: number;
+  fixedChargeLKR: number;
+};
+
 export type Tariff = {
   category: string;
   /** Levy multiplier applied to the whole bill (LECO SSCL ≈ 2.5⁄97.5). */
   sscl: number;
-  /** Ordered by upToKWh ascending; the last regime's upToKWh is null. */
-  regimes: TariffRegime[];
+  isTOU?: boolean;
+  /** Ordered by upToKWh ascending; the last regime's upToKWh is null. Used for standard tariffs. */
+  regimes?: TariffRegime[];
+  /** Rates for Time of Use tariffs. */
+  touRates?: TariffTouRates;
 };
 
 export type Bill = {

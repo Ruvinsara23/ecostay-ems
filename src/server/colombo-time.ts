@@ -22,3 +22,13 @@ export function colomboDayWindow(dateKey: string): { startMs: number; endMs: num
 export function colomboYesterdayKey(nowMs: number): string {
   return colomboDateKey(nowMs - 86_400_000);
 }
+
+/** Determines the TOU window (peak/day/offPeak) for a given UTC timestamp in Colombo time. */
+export function colomboTouWindow(ms: number): 'peak' | 'day' | 'offPeak' {
+  const shifted = new Date(ms + COLOMBO_OFFSET_MS);
+  const h = shifted.getUTCHours() + shifted.getUTCMinutes() / 60;
+  
+  if (h >= 5.5 && h < 18.5) return 'day';
+  if (h >= 18.5 && h < 22.5) return 'peak';
+  return 'offPeak';
+}

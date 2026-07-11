@@ -88,10 +88,53 @@ describe('rollupDaily', () => {
       {
         key: 'property_001/room_001',
         dateKey: '2026-07-04',
-        // 1 VACANT_CONFIRMED sample × 5 min × (60+45)W = 105W·(5/60)h/1000 = 0.00875 kWh avoided
-        aggregate: { kWhUsed: 0.012, costLKR: null, occupiedMinutes: 10, avoidedKWh: 0.00875 },
+        aggregate: {
+          kWhUsed: 0.012,
+          kWhUsedPeak: 0,
+          kWhUsedDay: 0,
+          kWhUsedOffPeak: 0.012,
+          costLKR: null,
+          occupiedMinutes: 10,
+          avoidedKWh: 0.00875,
+          avoidedKWhPeak: 0,
+          avoidedKWhDay: 0,
+          avoidedKWhOffPeak: 0.00875,
+        },
       },
     ]);
+  });
+
+  it('splits kWh and avoided energy into TOU windows by each delta\'s later sample', async () => {
+    // Colombo windows on 2026-07-04, in minutes after Colombo midnight:
+    // day opens 05:30 = T(330), peak 18:30 = T(1110), off-peak 22:30 = T(1380).
+    const { deps, written } = makeDeps(
+      {
+        'property_001/room_001': [
+          sample(T(330), 1.0), // 05:30 — baseline, no delta
+          sample(T(335), 1.2), // 05:35 → +0.2 lands in day
+          sample(T(1110), 1.5, 'VACANT_CONFIRMED'), // 18:30 → +0.3 lands in peak (boundary sample)
+          sample(T(1385), 1.9), // 23:05 → +0.4 lands in off-peak
+        ],
+      },
+      { lights: 100, exhaustFan: 20 }, // 120 W → 0.01 kWh per confirmed-vacant sample
+    );
+
+    await rollupDaily(deps, '2026-07-04');
+
+    const aggregate = written[0].aggregate;
+    expect(aggregate.kWhUsed).toBeCloseTo(0.9, 6);
+    expect(aggregate.kWhUsedDay).toBeCloseTo(0.2, 6);
+    expect(aggregate.kWhUsedPeak).toBeCloseTo(0.3, 6);
+    expect(aggregate.kWhUsedOffPeak).toBeCloseTo(0.4, 6);
+    // the window buckets always reconcile with the total
+    expect(
+      (aggregate.kWhUsedDay ?? 0) + (aggregate.kWhUsedPeak ?? 0) + (aggregate.kWhUsedOffPeak ?? 0),
+    ).toBeCloseTo(aggregate.kWhUsed, 6);
+    // the one confirmed-vacant sample sat at 18:30 → its avoided energy is peak energy
+    expect(aggregate.avoidedKWh).toBeCloseTo(0.01, 6);
+    expect(aggregate.avoidedKWhPeak).toBeCloseTo(0.01, 6);
+    expect(aggregate.avoidedKWhDay).toBeCloseTo(0, 6);
+    expect(aggregate.avoidedKWhOffPeak).toBeCloseTo(0, 6);
   });
 
   it('avoided energy = controlled wattage × confirmed-vacant time', async () => {

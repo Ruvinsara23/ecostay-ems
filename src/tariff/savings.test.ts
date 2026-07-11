@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CEB_D1, CEB_H1 } from './ceb-tariffs';
+import { CEB_D1, CEB_D_TOU, CEB_H1 } from './ceb-tariffs';
 import { savedLKR } from './savings';
 
 const sscl = 1 + 2.5 / 97.5;
@@ -24,5 +24,28 @@ describe('savedLKR — avoided energy at the current band marginal rate', () => 
 
   it('is zero when nothing was avoided', () => {
     expect(savedLKR(CEB_H1, 100, 0)).toBe(0);
+  });
+});
+
+describe('savedLKR — TOU prices avoided energy by the window it was avoided in', () => {
+  it('D-TOU: 1 peak + 2 day + 3 off-peak avoided', () => {
+    // 1×106 + 2×47 + 3×33 = 299, then SSCL on top
+    expect(savedLKR(CEB_D_TOU, 100, 6, { peak: 1, day: 2, offPeak: 3 })).toBeCloseTo(299 * sscl, 2);
+  });
+
+  it('peak-hour savings are worth more than the same energy off-peak', () => {
+    const peakSaving = savedLKR(CEB_D_TOU, 100, 2, { peak: 2, day: 0, offPeak: 0 });
+    const offPeakSaving = savedLKR(CEB_D_TOU, 100, 2, { peak: 0, day: 0, offPeak: 2 });
+    expect(peakSaving).toBeGreaterThan(offPeakSaving);
+    expect(peakSaving).toBeCloseTo(2 * 106 * sscl, 2);
+    expect(offPeakSaving).toBeCloseTo(2 * 33 * sscl, 2);
+  });
+
+  it('without a TOU breakdown falls back to the day-rate marginal price', () => {
+    expect(savedLKR(CEB_D_TOU, 100, 2)).toBeCloseTo(2 * 47 * sscl, 2);
+  });
+
+  it('TOU zero avoided is zero', () => {
+    expect(savedLKR(CEB_D_TOU, 100, 0, { peak: 0, day: 0, offPeak: 0 })).toBe(0);
   });
 });

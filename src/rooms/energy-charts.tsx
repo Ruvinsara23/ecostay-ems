@@ -216,8 +216,8 @@ export function EnergyHistorySection({
   const mtdKWh = monthToDateKWh(byDate, nowMs);
   const mtdAvoided = monthToDateAvoidedKWh(byDate, nowMs);
   const tariff = tariffCategory ? CEB_TARIFFS[tariffCategory] : undefined;
-  const bill = tariff ? computeBill(tariff, mtdKWh) : null;
-  const saved = tariff && mtdAvoided > 0 ? savedLKR(tariff, mtdKWh, mtdAvoided) : 0;
+  const bill = tariff ? computeBill(tariff, mtdKWh.total, mtdKWh) : null;
+  const saved = tariff && mtdAvoided.total > 0 ? savedLKR(tariff, mtdKWh.total, mtdAvoided.total, mtdAvoided) : 0;
 
   return (
     <section aria-label="Energy history" className="glass rounded-2xl p-4">
@@ -238,7 +238,7 @@ export function EnergyHistorySection({
           </p>
           {bill ? (
             <p className="text-[11px] text-ink-3">
-              {tariff?.category} · {mtdKWh.toFixed(2)} kWh so far
+              {tariff?.category} · {mtdKWh.total.toFixed(2)} kWh so far
             </p>
           ) : (
             <p className="text-[11px] text-ink-3">Set a tariff to estimate cost</p>
@@ -257,7 +257,7 @@ export function EnergyHistorySection({
               Saved this month
             </p>
             <p className="text-[11px] text-brand-deep/80">
-              {mtdAvoided.toFixed(1)} kWh avoided by vacancy cut-off (estimated)
+              {mtdAvoided.total.toFixed(1)} kWh avoided by vacancy cut-off (estimated)
             </p>
           </div>
           <p className="text-lg font-bold text-brand-deep [font-variant-numeric:tabular-nums]">
