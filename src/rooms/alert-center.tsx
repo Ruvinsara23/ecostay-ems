@@ -51,9 +51,11 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
   const { sessionState } = useAuth();
   const [alerts, setAlerts] = useState<AlertView[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [feedFailed, setFeedFailed] = useState(false);
 
   useEffect(() => {
-    return source.subscribeAlerts(propertyId, setAlerts);
+    setFeedFailed(false);
+    return source.subscribeAlerts(propertyId, setAlerts, () => setFeedFailed(true));
   }, [source, propertyId]);
 
   const open = alerts
@@ -78,8 +80,14 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
     <section aria-label="Alerts" className="glass rounded-2xl p-4">
       <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">Alerts</h3>
 
-      {alerts.length === 0 && (
-        <p className="py-3 text-center text-sm text-ink-2">No alerts — all quiet.</p>
+      {feedFailed ? (
+        <p role="alert" className="py-3 text-center text-sm font-semibold text-alarm">
+          Couldn&apos;t load alerts — check your connection. Alerts may be missing.
+        </p>
+      ) : (
+        alerts.length === 0 && (
+          <p className="py-3 text-center text-sm text-ink-2">No alerts — all quiet.</p>
+        )
       )}
 
       {open.length > 0 && (

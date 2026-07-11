@@ -69,11 +69,19 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       return propertyIds.flatMap((propertyId, i) => roomsOf(propertyId, nodes[i]));
     },
 
-    subscribeLatest(propertyId, roomId, callback) {
+    subscribeLatest(propertyId, roomId, callback, onError) {
       const latestRef = ref(db, `properties/${propertyId}/rooms/${roomId}/latest`);
-      return onValue(latestRef, (snapshot) => {
-        callback(snapshot.exists() ? (snapshot.val() as RoomLatest) : null);
-      });
+      return onValue(
+        latestRef,
+        (snapshot) => {
+          callback(snapshot.exists() ? (snapshot.val() as RoomLatest) : null);
+        },
+        (error) => {
+          // A dropped/denied subscription must surface, never hang as "Loading…" (audit A3).
+          console.error('[room-data-source] latest subscription failed', error);
+          onError?.();
+        },
+      );
     },
 
     subscribeServerTimeOffset(callback) {
@@ -113,25 +121,36 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       );
     },
 
-    subscribeEnergyHistory(propertyId, roomId, sinceMs, callback) {
+    subscribeEnergyHistory(propertyId, roomId, sinceMs, callback, onError) {
       const windowed = query(
         ref(db, `properties/${propertyId}/energyHistory/${roomId}`),
         orderByChild('sampledAt'),
         startAt(sinceMs),
       );
-      return onValue(windowed, (snapshot) => {
-        const samples = Object.values(
-          (snapshot.val() ?? {}) as Record<string, EnergyHistorySample>,
-        ).sort((a, b) => a.sampledAt - b.sampledAt);
-        callback(samples);
-      });
+      return onValue(
+        windowed,
+        (snapshot) => {
+          const samples = Object.values(
+            (snapshot.val() ?? {}) as Record<string, EnergyHistorySample>,
+          ).sort((a, b) => a.sampledAt - b.sampledAt);
+          callback(samples);
+        },
+        (error) => {
+          console.error('[room-data-source] energy-history subscription failed', error);
+          onError?.();
+        },
+      );
     },
 
-    subscribeDailyAggregates(propertyId, roomId, callback) {
+    subscribeDailyAggregates(propertyId, roomId, callback, onError) {
       return onValue(
         ref(db, `properties/${propertyId}/dailyAggregates/${roomId}`),
         (snapshot) => {
           callback((snapshot.val() ?? {}) as Record<string, DailyAggregateView>);
+        },
+        (error) => {
+          console.error('[room-data-source] aggregates subscription failed', error);
+          onError?.();
         },
       );
     },
@@ -172,11 +191,18 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
       await set(ref(db, `properties/${propertyId}/settings/alertThresholds`), thresholds);
     },
 
-    subscribeAlerts(propertyId, callback) {
-      return onValue(ref(db, `properties/${propertyId}/alerts`), (snapshot) => {
+    subscribeAlerts(propertyId, callback, onError) {
+      return onValue(
+        ref(db, `properties/${propertyId}/alerts`),
+        (snapshot) => {
         const raw = (snapshot.val() ?? {}) as Record<string, Omit<AlertView, 'id'>>;
         callback(Object.entries(raw).map(([id, alert]) => ({ ...alert, id })));
-      });
+        },
+        (error) => {
+          console.error('[room-data-source] alerts subscription failed', error);
+          onError?.();
+        },
+      );
     },
 
     async acknowledgeAlert(propertyId, alertId, uid) {

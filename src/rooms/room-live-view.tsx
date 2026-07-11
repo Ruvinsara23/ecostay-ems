@@ -18,7 +18,10 @@ import { useRoomDataSource } from './room-data-source-context';
 import { RoomScene } from './room-scene';
 import { Toggle } from '@/ui/toggle';
 
-type ViewState = { status: 'loading' } | { status: 'ready'; latest: RoomLatest | null };
+type ViewState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; latest: RoomLatest | null };
 
 function ageLabel(ageSeconds: number | null): string {
   if (ageSeconds === null) return 'unknown';
@@ -190,8 +193,11 @@ export function RoomLiveView({
   const [localNowMs, setLocalNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    return source.subscribeLatest(propertyId, roomId, (latest) =>
-      setState({ status: 'ready', latest }),
+    return source.subscribeLatest(
+      propertyId,
+      roomId,
+      (latest) => setState({ status: 'ready', latest }),
+      () => setState({ status: 'error' }),
     );
   }, [source, propertyId, roomId]);
 
@@ -207,6 +213,14 @@ export function RoomLiveView({
 
   if (state.status === 'loading') {
     return <p className="text-sm text-ink-2">Loading room…</p>;
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div role="alert" className="glass mx-auto mt-16 max-w-md rounded-2xl p-8 text-center text-sm text-ink-2">
+        Couldn&apos;t load live data for this room — check your connection and refresh.
+      </div>
+    );
   }
 
   if (state.latest === null) {

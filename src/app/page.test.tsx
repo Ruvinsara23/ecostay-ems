@@ -247,6 +247,19 @@ describe('dashboard shell cleanup (no dead controls)', () => {
     expect(screen.queryByRole('button', { name: /add device/i })).not.toBeInTheDocument();
   });
 
+  it('a failed realtime subscription shows an error, never an endless spinner or fake all-quiet (S4)', async () => {
+    const source = sourceWithOneRoom();
+    source.subscriptionFailure = true;
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
+
+    expect(
+      await screen.findByText(/couldn't load live data for this room/i),
+    ).toBeInTheDocument();
+    // The alert center must admit failure instead of claiming "all quiet".
+    expect(screen.getByText(/couldn't load alerts/i)).toBeInTheDocument();
+    expect(screen.queryByText(/all quiet/i)).not.toBeInTheDocument();
+  });
+
   it('titles the header per tab instead of always saying Live 3D Room View (S2)', async () => {
     const user = userEvent.setup();
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());

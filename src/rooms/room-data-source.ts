@@ -41,6 +41,7 @@ export interface RoomDataSource {
     propertyId: string,
     roomId: string,
     callback: (latest: RoomLatest | null) => void,
+    onError?: () => void,
   ): () => void;
 
   /**
@@ -91,6 +92,7 @@ export interface RoomDataSource {
     roomId: string,
     sinceMs: number,
     callback: (samples: EnergyHistorySample[]) => void,
+    onError?: () => void,
   ): () => void;
 
   /** Nightly per-day aggregates for the room, keyed 'yyyy-mm-dd' (Colombo dates), live. */
@@ -98,6 +100,7 @@ export interface RoomDataSource {
     propertyId: string,
     roomId: string,
     callback: (byDate: Record<string, DailyAggregateView>) => void,
+    onError?: () => void,
   ): () => void;
 
   /** The property's CEB tariff category (e.g. 'H-1'), null until set; live. */
@@ -128,7 +131,11 @@ export interface RoomDataSource {
   setAlertThresholds(propertyId: string, thresholds: AlertThresholds): Promise<void>;
 
   /** The property's alert records (open and resolved), live. */
-  subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void;
+  subscribeAlerts(
+    propertyId: string,
+    callback: (alerts: AlertView[]) => void,
+    onError?: () => void,
+  ): () => void;
 
   /**
    * Acknowledge an open alert as the given user. Rules permit writing ONLY

@@ -5,7 +5,10 @@ import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 import { deviceFreshness } from '@/telemetry/device-freshness';
 
-type ViewState = { status: 'loading' } | { status: 'ready'; latest: RoomLatest | null };
+type ViewState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; latest: RoomLatest | null };
 
 export function RoomActivityView({
   propertyId,
@@ -22,8 +25,11 @@ export function RoomActivityView({
   const [localNowMs, setLocalNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    return source.subscribeLatest(propertyId, roomId, (latest) =>
-      setState({ status: 'ready', latest }),
+    return source.subscribeLatest(
+      propertyId,
+      roomId,
+      (latest) => setState({ status: 'ready', latest }),
+      () => setState({ status: 'error' }),
     );
   }, [source, propertyId, roomId]);
 
@@ -38,6 +44,16 @@ export function RoomActivityView({
 
   if (state.status === 'loading') {
     return <div className="flex h-full w-full items-center justify-center p-12"><p className="text-sm text-ink-2">Loading activity…</p></div>;
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-12">
+        <div role="alert" className="glass rounded-2xl p-8 text-center text-sm text-ink-2">
+          Couldn&apos;t load activity data — check your connection and refresh.
+        </div>
+      </div>
+    );
   }
 
   if (state.latest === null) {

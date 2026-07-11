@@ -201,13 +201,18 @@ export function EnergyHistorySection({
   const [samples, setSamples] = useState<EnergyHistorySample[]>([]);
   const [byDate, setByDate] = useState<Record<string, DailyAggregateView>>({});
   const [tariffCategory, setTariffCategory] = useState<string | null>(null);
+  const [feedFailed, setFeedFailed] = useState(false);
 
   useEffect(() => {
-    return source.subscribeEnergyHistory(propertyId, roomId, sinceMs, setSamples);
+    return source.subscribeEnergyHistory(propertyId, roomId, sinceMs, setSamples, () =>
+      setFeedFailed(true),
+    );
   }, [source, propertyId, roomId, sinceMs]);
 
   useEffect(() => {
-    return source.subscribeDailyAggregates(propertyId, roomId, setByDate);
+    return source.subscribeDailyAggregates(propertyId, roomId, setByDate, () =>
+      setFeedFailed(true),
+    );
   }, [source, propertyId, roomId]);
 
   useEffect(() => {
@@ -229,6 +234,11 @@ export function EnergyHistorySection({
           Simulated
         </span>
       </h3>
+      {feedFailed && (
+        <p role="alert" className="py-2 text-center text-sm font-semibold text-alarm">
+          Couldn&apos;t load energy data — the numbers below may be incomplete.
+        </p>
+      )}
       <PowerLine samples={samples} sinceMs={sinceMs} />
       <div className="mt-2 border-t border-hairline pt-2">
         <DailyBars byDate={byDate} nowMs={nowMs} />

@@ -22,6 +22,9 @@ export class FakeRoomDataSource implements RoomDataSource {
   private serverTimeOffsetMs = 0;
   private offsetListeners = new Set<(offsetMs: number) => void>();
 
+  /** When true, the error-capable subscriptions fail immediately (audit A3 tests). */
+  subscriptionFailure = false;
+
   setAccessibleRooms(rooms: RoomRef[]): void {
     this.accessibleRooms = rooms;
   }
@@ -141,7 +144,12 @@ export class FakeRoomDataSource implements RoomDataSource {
     roomId: string,
     sinceMs: number,
     callback: (samples: EnergyHistorySample[]) => void,
+    onError?: () => void,
   ): () => void {
+    if (this.subscriptionFailure) {
+      onError?.();
+      return () => {};
+    }
     const key = `${propertyId}/${roomId}`;
     const entry = { sinceMs, callback };
     const forKey =
@@ -168,7 +176,12 @@ export class FakeRoomDataSource implements RoomDataSource {
     propertyId: string,
     roomId: string,
     callback: (byDate: Record<string, DailyAggregateView>) => void,
+    onError?: () => void,
   ): () => void {
+    if (this.subscriptionFailure) {
+      onError?.();
+      return () => {};
+    }
     const key = `${propertyId}/${roomId}`;
     const forKey =
       this.aggregateListeners.get(key) ??
@@ -257,7 +270,15 @@ export class FakeRoomDataSource implements RoomDataSource {
     this.alertListeners.get(propertyId)?.forEach((listener) => listener(alerts));
   }
 
-  subscribeAlerts(propertyId: string, callback: (alerts: AlertView[]) => void): () => void {
+  subscribeAlerts(
+    propertyId: string,
+    callback: (alerts: AlertView[]) => void,
+    onError?: () => void,
+  ): () => void {
+    if (this.subscriptionFailure) {
+      onError?.();
+      return () => {};
+    }
     const forKey = this.alertListeners.get(propertyId) ?? new Set<typeof callback>();
     forKey.add(callback);
     this.alertListeners.set(propertyId, forKey);
@@ -290,7 +311,12 @@ export class FakeRoomDataSource implements RoomDataSource {
     propertyId: string,
     roomId: string,
     callback: Listener,
+    onError?: () => void,
   ): () => void {
+    if (this.subscriptionFailure) {
+      onError?.();
+      return () => {};
+    }
     const key = `${propertyId}/${roomId}`;
     const forKey = this.listeners.get(key) ?? new Set<Listener>();
     forKey.add(callback);
