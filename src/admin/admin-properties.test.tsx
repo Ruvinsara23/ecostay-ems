@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FakeAdminOperations } from './admin-operations';
+import { FakeAdminOperations } from './admin-operations.fake';
 import { AdminOperationsProvider } from './admin-operations-context';
 import { AdminProperties } from './admin-properties';
 

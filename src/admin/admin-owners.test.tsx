@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { FakeAdminOperations } from './admin-operations';
+import { FakeAdminOperations } from './admin-operations.fake';
 import { AdminOperationsProvider } from './admin-operations-context';
 import { AdminOwners } from './admin-owners';
 

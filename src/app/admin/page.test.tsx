@@ -1,12 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FakeAdminOperations } from '@/admin/admin-operations';
+import { FakeAdminOperations } from '@/admin/admin-operations.fake';
 import { AdminOperationsProvider } from '@/admin/admin-operations-context';
 import { AuthProvider } from '@/auth/auth-context';
 import { FakeAuthGateway } from '@/auth/fake-auth-gateway';
 import { FakeRoomDataSource } from '@/rooms/fake-room-data-source';
 import { RoomDataSourceProvider } from '@/rooms/room-data-source-context';
+import AdminLayout from '@/app/admin/layout';
 import AdminPage from '@/app/admin/page';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
@@ -30,14 +31,16 @@ function renderAdmin(
     <AuthProvider gateway={gateway}>
       <RoomDataSourceProvider source={new FakeRoomDataSource()}>
         <AdminOperationsProvider operations={operations}>
-          <AdminPage />
+          <AdminLayout>
+            <AdminPage />
+          </AdminLayout>
         </AdminOperationsProvider>
       </RoomDataSourceProvider>
     </AuthProvider>,
   );
 }
 
-describe('admin console shell', () => {
+describe('admin console shell (sub-route chassis)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -45,6 +48,30 @@ describe('admin console shell', () => {
   it('has a sign-out control in the rail', async () => {
     renderAdmin(new FakeAuthGateway({ initialSession: ADMIN_SESSION }));
     expect(await screen.findByRole('button', { name: /sign out/i })).toBeInTheDocument();
+  });
+
+  it('the rail is real links: every view is URL-addressable', async () => {
+    renderAdmin(new FakeAuthGateway({ initialSession: ADMIN_SESSION }));
+
+    expect(await screen.findByRole('link', { name: 'Properties' })).toHaveAttribute(
+      'href',
+      '/admin',
+    );
+    expect(screen.getByRole('link', { name: 'Owners' })).toHaveAttribute('href', '/admin/owners');
+    expect(screen.getByRole('link', { name: 'Rooms' })).toHaveAttribute('href', '/admin/rooms');
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'href',
+      '/admin/settings',
+    );
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/');
+  });
+
+  it('marks the current route active in the rail', async () => {
+    renderAdmin(new FakeAuthGateway({ initialSession: ADMIN_SESSION }));
+
+    const properties = await screen.findByRole('link', { name: 'Properties' });
+    expect(properties).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Owners' })).not.toHaveAttribute('aria-current');
   });
 
   it('defaults to the Properties view and lists registered properties', async () => {

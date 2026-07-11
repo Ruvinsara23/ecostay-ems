@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FakeAdminOperations } from '@/admin/admin-operations';
+import { FakeAdminOperations } from '@/admin/admin-operations.fake';
 import { AdminOperationsProvider } from '@/admin/admin-operations-context';
 import { AuthProvider } from '@/auth/auth-context';
 import { FakeAuthGateway } from '@/auth/fake-auth-gateway';
