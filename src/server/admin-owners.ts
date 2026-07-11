@@ -1,6 +1,11 @@
 import type { Auth, UserRecord } from 'firebase-admin/auth';
 import type { Database } from 'firebase-admin/database';
-import type { CreateOwnerInput, ResetPasswordInput, SetDisabledInput } from './manage-owner';
+import type {
+  CreateOwnerInput,
+  MembershipInput,
+  ResetPasswordInput,
+  SetDisabledInput,
+} from './manage-owner';
 
 export type OwnerSummary = {
   uid: string;
@@ -72,6 +77,48 @@ async function requireOwnerByUid(auth: Auth, uid: string): Promise<UserRecord> {
     throw new OwnerOperationError('uid', 'target is not an owner account');
   }
   return user;
+}
+
+/**
+ * Grant an EXISTING owner access to a property (slice 06, risk gate #1 — approved
+ * 2026-07-11). Keeps the two tenancy records consistent in one multi-path update:
+ * `properties/{pid}/members/{uid}` (authority) and `users/{uid}/properties/{pid}` (index).
+ */
+export async function assignOwnerToProperty(
+  auth: Auth,
+  db: Database,
+  input: MembershipInput,
+): Promise<void> {
+  await requireOwnerByUid(auth, input.uid);
+  if (!(await db.ref(`properties/${input.propertyId}`).get()).exists()) {
+    throw new OwnerOperationError(
+      'propertyId',
+      `property "${input.propertyId}" does not exist — register a room first`,
+    );
+  }
+  if ((await db.ref(`properties/${input.propertyId}/members/${input.uid}`).get()).exists()) {
+    throw new OwnerOperationError('uid', 'owner already has access to this property');
+  }
+  await db.ref().update({
+    [`properties/${input.propertyId}/members/${input.uid}`]: 'owner',
+    [`users/${input.uid}/properties/${input.propertyId}`]: true,
+  });
+}
+
+/** Revoke an owner's access to a property — removes both tenancy records atomically. */
+export async function removeOwnerFromProperty(
+  auth: Auth,
+  db: Database,
+  input: MembershipInput,
+): Promise<void> {
+  await requireOwnerByUid(auth, input.uid);
+  if (!(await db.ref(`properties/${input.propertyId}/members/${input.uid}`).get()).exists()) {
+    throw new OwnerOperationError('uid', 'owner does not have access to this property');
+  }
+  await db.ref().update({
+    [`properties/${input.propertyId}/members/${input.uid}`]: null,
+    [`users/${input.uid}/properties/${input.propertyId}`]: null,
+  });
 }
 
 /** Disable/enable an owner login. Refuses non-owner targets (can't lock out an admin). */

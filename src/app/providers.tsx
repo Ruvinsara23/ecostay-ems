@@ -97,6 +97,12 @@ const prerenderAdminOperations: AdminOperations = {
   async createOwner() {
     throw new Error('not available during prerender');
   },
+  async assignOwnerToProperty() {
+    throw new Error('not available during prerender');
+  },
+  async removeOwnerFromProperty() {
+    throw new Error('not available during prerender');
+  },
   async setOwnerDisabled() {
     throw new Error('not available during prerender');
   },

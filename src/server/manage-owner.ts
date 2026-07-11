@@ -1,6 +1,7 @@
 export type CreateOwnerInput = { email: string; password: string; propertyId: string };
 export type SetDisabledInput = { uid: string; disabled: boolean };
 export type ResetPasswordInput = { email: string };
+export type MembershipInput = { uid: string; propertyId: string };
 
 export type ManageOwnerError = { field: string; message: string };
 type Validation<T> = { ok: true; value: T } | { ok: false; error: ManageOwnerError };
@@ -55,6 +56,20 @@ export function validateSetDisabled(raw: unknown): Validation<SetDisabledInput> 
   }
   if (typeof b.disabled !== 'boolean') return err('disabled', 'must be a boolean');
   return { ok: true, value: { uid: b.uid, disabled: b.disabled } };
+}
+
+/** Validate an assign/remove property-access request (slice 06 member writes). */
+export function validateMembership(raw: unknown): Validation<MembershipInput> {
+  const b = asObject(raw);
+  if (!b) return err('body', 'expected a JSON object');
+
+  if (typeof b.uid !== 'string' || !UID_RE.test(b.uid)) {
+    return err('uid', 'must be a valid account id');
+  }
+  if (typeof b.propertyId !== 'string' || !ID_RE.test(b.propertyId)) {
+    return err('propertyId', 'must be a lowercase id slug [a-z0-9_-], 1–64 chars');
+  }
+  return { ok: true, value: { uid: b.uid, propertyId: b.propertyId } };
 }
 
 /** Validate a password-reset request. */

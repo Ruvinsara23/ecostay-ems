@@ -110,3 +110,59 @@ describe('/api/admin/owners (emulator)', () => {
     expect((await POST(req('POST', adminToken, { action: 'frobnicate' }))).status).toBe(400);
   });
 });
+
+describe('/api/admin/owners assign/unassign (slice 06 member writes, emulator)', () => {
+  it('assign grants both tenancy records and real read access; unassign revokes both', async () => {
+    const adminToken = await tokenFor('admin');
+    const db = getAdminDatabase();
+    await db.ref('properties/property_003/name').set('Second Villa');
+
+    // Create an owner on property_002, then assign them to property_003 too.
+    const email = `assignee-${appCounter}@ecostay.test`;
+    const created = await POST(
+      req('POST', adminToken, { action: 'create', email, password: 'brand-new-pass', propertyId: PROPERTY_ID }),
+    );
+    const { uid } = (await created.json()) as { uid: string };
+
+    const assigned = await POST(req('POST', adminToken, { action: 'assign', uid, propertyId: 'property_003' }));
+    expect(assigned.status).toBe(200);
+    expect((await db.ref(`properties/property_003/members/${uid}`).get()).val()).toBe('owner');
+    expect((await db.ref(`users/${uid}/properties/property_003`).get()).val()).toBe(true);
+
+    // The assignment is real access under the PUBLISHED rules: the owner can read the property.
+    const ownerApp = initClientApp({ apiKey: 'fake', projectId: PROJECT_ID }, `member-client-${appCounter++}`);
+    const ownerAuth = getClientAuth(ownerApp);
+    connectAuthEmulator(ownerAuth, `http://${AUTH_EMULATOR}`, { disableWarnings: true });
+    await signInWithEmailAndPassword(ownerAuth, email, 'brand-new-pass');
+    const { getDatabase: getClientDb, connectDatabaseEmulator, ref: clientRef, get: clientGet } =
+      await import('firebase/database');
+    const clientDb = getClientDb(ownerApp, `http://${DB_EMULATOR}?ns=${NAMESPACE}`);
+    connectDatabaseEmulator(clientDb, '127.0.0.1', 9000);
+    const read = await clientGet(clientRef(clientDb, 'properties/property_003/name'));
+    expect(read.val()).toBe('Second Villa');
+
+    // Duplicate assignment is refused.
+    const dup = await POST(req('POST', adminToken, { action: 'assign', uid, propertyId: 'property_003' }));
+    expect(dup.status).toBe(400);
+
+    // Unassign: both records gone, and the same read is now DENIED by the rules.
+    const removed = await POST(req('POST', adminToken, { action: 'unassign', uid, propertyId: 'property_003' }));
+    expect(removed.status).toBe(200);
+    expect((await db.ref(`properties/property_003/members/${uid}`).get()).exists()).toBe(false);
+    expect((await db.ref(`users/${uid}/properties/property_003`).get()).exists()).toBe(false);
+    await ownerAuth.currentUser!.getIdToken(true); // refresh so rules see current membership
+    await expect(clientGet(clientRef(clientDb, 'properties/property_003/name'))).rejects.toThrow(
+      /permission/i,
+    );
+
+    // Removing a non-member and assigning to a ghost property are caller errors.
+    expect((await POST(req('POST', adminToken, { action: 'unassign', uid, propertyId: 'property_003' }))).status).toBe(400);
+    expect((await POST(req('POST', adminToken, { action: 'assign', uid, propertyId: 'property_ghost' }))).status).toBe(400);
+  });
+
+  it('denies assign/unassign to non-admins', async () => {
+    const ownerToken = await tokenFor('owner');
+    const res = await POST(req('POST', ownerToken, { action: 'assign', uid: 'whatever', propertyId: PROPERTY_ID }));
+    expect(res.status).toBe(403);
+  });
+});

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   validateCreateOwner,
+  validateMembership,
   validateResetPassword,
   validateSetDisabled,
 } from './manage-owner';
@@ -64,5 +65,28 @@ describe('validateResetPassword', () => {
     const result = validateResetPassword({ email: 'nope' });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.field).toBe('email');
+  });
+});
+
+describe('validateMembership (slice 06 assign/remove)', () => {
+  it('accepts a valid uid + propertyId', () => {
+    const result = validateMembership({ uid: 'Abc123_-x', propertyId: 'property_001' });
+    expect(result).toEqual({
+      ok: true,
+      value: { uid: 'Abc123_-x', propertyId: 'property_001' },
+    });
+  });
+
+  it('rejects a path-hostile uid', () => {
+    const result = validateMembership({ uid: 'a/b', propertyId: 'property_001' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.field).toBe('uid');
+  });
+
+  it('rejects a malformed propertyId and a non-object body', () => {
+    const bad = validateMembership({ uid: 'abc', propertyId: 'NOPE UPPER' });
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error.field).toBe('propertyId');
+    expect(validateMembership(null).ok).toBe(false);
   });
 });

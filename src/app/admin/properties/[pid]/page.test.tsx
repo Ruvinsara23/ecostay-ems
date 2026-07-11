@@ -112,7 +112,9 @@ describe('property detail — owners section (slice 06 read)', () => {
 
     expect(await screen.findByText('anna@ecostay.test')).toBeInTheDocument();
     expect(screen.getByText('ben@ecostay.test')).toBeInTheDocument();
-    expect(screen.queryByText('other@ecostay.test')).not.toBeInTheDocument();
+    // The unassigned owner is offered only in the assign dropdown, never as a member row.
+    const stray = screen.getAllByText('other@ecostay.test');
+    expect(stray.every((el) => el.tagName === 'OPTION')).toBe(true);
     expect(screen.getByText('Disabled')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
@@ -125,6 +127,80 @@ describe('property detail — owners section (slice 06 read)', () => {
       'href',
       '/admin/owners',
     );
+  });
+});
+
+describe('property detail — owner access writes (slice 06, gate #1 approved)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function opsWithOwners() {
+    const ops = new FakeAdminOperations();
+    ops.owners = [
+      { uid: 'uid_1', email: 'anna@ecostay.test', disabled: false, propertyIds: ['property_001'] },
+      { uid: 'uid_2', email: 'ben@ecostay.test', disabled: false, propertyIds: ['property_002'] },
+    ];
+    return ops;
+  }
+
+  it('assigns an existing owner picked from the unassigned list', async () => {
+    const user = userEvent.setup();
+    const ops = opsWithOwners();
+    renderDetail(ops);
+
+    await user.selectOptions(
+      await screen.findByLabelText(/assign an existing owner/i),
+      'uid_2',
+    );
+    await user.click(screen.getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() =>
+      expect(ops.owners[1].propertyIds).toEqual(['property_002', 'property_001']),
+    );
+    // The refreshed list now shows ben as assigned.
+    expect(await screen.findByText('ben@ecostay.test')).toBeInTheDocument();
+  });
+
+  it('removing access requires confirmation, then updates the list', async () => {
+    const user = userEvent.setup();
+    const ops = opsWithOwners();
+    renderDetail(ops);
+
+    await user.click(await screen.findByRole('button', { name: /remove access/i }));
+    expect(ops.owners[0].propertyIds).toEqual(['property_001']); // nothing yet
+    const dialog = await screen.findByRole('dialog', { name: /remove this owner/i });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove access' }));
+
+    await waitFor(() => expect(ops.owners[0].propertyIds).toEqual([]));
+    expect(await screen.findByText(/no owners have access/i)).toBeInTheDocument();
+  });
+
+  it('cancelling the removal changes nothing', async () => {
+    const user = userEvent.setup();
+    const ops = opsWithOwners();
+    renderDetail(ops);
+
+    await user.click(await screen.findByRole('button', { name: /remove access/i }));
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    expect(ops.owners[0].propertyIds).toEqual(['property_001']);
+    expect(screen.getByText('anna@ecostay.test')).toBeInTheDocument();
+  });
+
+  it('surfaces an assign failure without corrupting the list', async () => {
+    const user = userEvent.setup();
+    const ops = opsWithOwners();
+    renderDetail(ops);
+
+    await user.selectOptions(
+      await screen.findByLabelText(/assign an existing owner/i),
+      'uid_2',
+    );
+    ops.failWith = 'owner already has access to this property';
+    await user.click(screen.getByRole('button', { name: /^assign$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already has access/i);
   });
 });
 

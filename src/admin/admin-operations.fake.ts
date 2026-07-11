@@ -50,6 +50,18 @@ export class FakeAdminOperations implements AdminOperations {
     return { uid };
   }
 
+  async assignOwnerToProperty(uid: string, propertyId: string): Promise<void> {
+    this.guard();
+    const owner = this.owners.find((o) => o.uid === uid);
+    if (owner && !owner.propertyIds.includes(propertyId)) owner.propertyIds.push(propertyId);
+  }
+
+  async removeOwnerFromProperty(uid: string, propertyId: string): Promise<void> {
+    this.guard();
+    const owner = this.owners.find((o) => o.uid === uid);
+    if (owner) owner.propertyIds = owner.propertyIds.filter((pid) => pid !== propertyId);
+  }
+
   async setOwnerDisabled(uid: string, disabled: boolean): Promise<void> {
     this.guard();
     const owner = this.owners.find((o) => o.uid === uid);

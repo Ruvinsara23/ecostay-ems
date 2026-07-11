@@ -1,6 +1,6 @@
 # 06 - Property detail: Owners
 
-Status: read side done (2026-07-11); assign/remove member WRITES still awaiting risk-gate #1 approval
+Status: done (2026-07-11) — read + assign/remove writes (gate #1 approved by owner); emulator-verified access lifecycle
 Parent: `.scratch/admin-console-v2/PRD.md`
 
 ## Goal

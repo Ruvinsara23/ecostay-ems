@@ -70,6 +70,10 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
 
   const [ownersState, setOwnersState] = useState<OwnersState>({ status: 'loading' });
   const [ownersAttempt, setOwnersAttempt] = useState(0);
+  const [assignUid, setAssignUid] = useState('');
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [ownerActionError, setOwnerActionError] = useState<string | null>(null);
+  const [confirmRemoveOwner, setConfirmRemoveOwner] = useState<OwnerSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,11 +94,7 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
     let cancelled = false;
     operations.listOwners().then(
       (owners) => {
-        if (!cancelled)
-          setOwnersState({
-            status: 'ready',
-            owners: owners.filter((owner) => owner.propertyIds.includes(propertyId)),
-          });
+        if (!cancelled) setOwnersState({ status: 'ready', owners });
       },
       () => {
         if (!cancelled) setOwnersState({ status: 'error' });
@@ -103,9 +103,25 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [operations, propertyId, ownersAttempt]);
+  }, [operations, ownersAttempt]);
 
   const refresh = () => setAttempt((n) => n + 1);
+
+  async function runOwnerAction(action: () => Promise<void>) {
+    setOwnerBusy(true);
+    setOwnerActionError(null);
+    try {
+      await action();
+      setAssignUid('');
+      setOwnersAttempt((n) => n + 1);
+    } catch (error) {
+      setOwnerActionError(
+        error instanceof Error ? error.message : 'Could not update access - try again.',
+      );
+    } finally {
+      setOwnerBusy(false);
+    }
+  }
 
   async function handleRegister(event: FormEvent) {
     event.preventDefault();
@@ -359,35 +375,114 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
                 Retry
               </button>
             </div>
-          ) : ownersState.owners.length === 0 ? (
-            <p className="text-sm text-ink-2">
-              No owners have access to this property yet — assign one from the Owners view.
-            </p>
           ) : (
-            <ul className="flex flex-col divide-y divide-hairline">
-              {ownersState.owners.map((owner) => (
-                <ListRow
-                  key={owner.uid}
-                  title={owner.email}
-                  subtitle={owner.uid}
-                  right={
-                    owner.disabled ? (
-                      <span className="rounded-full bg-alarm/10 px-2.5 py-1 text-xs font-bold text-alarm">
-                        Disabled
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-deep">
-                        Active
-                      </span>
-                    )
-                  }
-                />
-              ))}
-            </ul>
+            (() => {
+              const assigned = ownersState.owners.filter((owner) =>
+                owner.propertyIds.includes(propertyId),
+              );
+              const unassigned = ownersState.owners.filter(
+                (owner) => !owner.propertyIds.includes(propertyId),
+              );
+              return (
+                <>
+                  {assigned.length === 0 ? (
+                    <p className="text-sm text-ink-2">
+                      No owners have access to this property yet — assign one below.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col divide-y divide-hairline">
+                      {assigned.map((owner) => (
+                        <ListRow
+                          key={owner.uid}
+                          title={owner.email}
+                          subtitle={owner.uid}
+                          right={
+                            <span className="flex items-center gap-2">
+                              {owner.disabled ? (
+                                <span className="rounded-full bg-alarm/10 px-2.5 py-1 text-xs font-bold text-alarm">
+                                  Disabled
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-deep">
+                                  Active
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                disabled={ownerBusy}
+                                onClick={() => setConfirmRemoveOwner(owner)}
+                                className="rounded-full border border-hairline bg-white/70 px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:bg-white disabled:opacity-50"
+                              >
+                                Remove access
+                              </button>
+                            </span>
+                          }
+                        />
+                      ))}
+                    </ul>
+                  )}
+
+                  {ownerActionError && (
+                    <p role="alert" className="mt-3 text-sm font-semibold text-alarm">
+                      {ownerActionError}
+                    </p>
+                  )}
+
+                  {unassigned.length > 0 && (
+                    <div className="mt-5 flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-end">
+                      <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm font-semibold text-ink">
+                        Assign an existing owner
+                        <select
+                          value={assignUid}
+                          onChange={(e) => {
+                            setAssignUid(e.target.value);
+                            setOwnerActionError(null);
+                          }}
+                          className="box-border w-full min-w-0 rounded-xl border border-hairline bg-white/70 px-3.5 py-2.5 font-normal text-ink outline-none transition focus:ring-2 focus:ring-brand"
+                        >
+                          <option value="">Choose an owner…</option>
+                          {unassigned.map((owner) => (
+                            <option key={owner.uid} value={owner.uid}>
+                              {owner.email}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={ownerBusy || assignUid === ''}
+                        onClick={() =>
+                          runOwnerAction(() =>
+                            operations.assignOwnerToProperty(assignUid, propertyId),
+                          )
+                        }
+                        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-brand-deep disabled:opacity-50"
+                      >
+                        <Plus size={16} strokeWidth={2.4} aria-hidden />
+                        {ownerBusy ? 'Assigning…' : 'Assign'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()
           )}
         </section>
 
         <AdminPropertySettings propertyId={propertyId} />
+
+        <ConfirmDialog
+          open={confirmRemoveOwner !== null}
+          title="Remove this owner's access?"
+          body={`${confirmRemoveOwner?.email ?? ''} will immediately lose access to ${propertyId} and its rooms.`}
+          confirmLabel="Remove access"
+          onCancel={() => setConfirmRemoveOwner(null)}
+          onConfirm={() => {
+            const target = confirmRemoveOwner;
+            setConfirmRemoveOwner(null);
+            if (target) runOwnerAction(() => operations.removeOwnerFromProperty(target.uid, propertyId));
+          }}
+        />
 
         <ConfirmDialog
           open={confirmResetRoom !== null}

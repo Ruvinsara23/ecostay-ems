@@ -15,6 +15,8 @@ export interface AdminOperations {
   registerRoom(input: RegisterRoomInput): Promise<void>;
   listOwners(): Promise<OwnerSummary[]>;
   createOwner(input: CreateOwnerInput): Promise<{ uid: string }>;
+  assignOwnerToProperty(uid: string, propertyId: string): Promise<void>;
+  removeOwnerFromProperty(uid: string, propertyId: string): Promise<void>;
   setOwnerDisabled(uid: string, disabled: boolean): Promise<void>;
   resetOwnerPassword(email: string): Promise<{ resetLink: string }>;
   createDeviceAccount(input: DeviceAccountInput): Promise<DeviceCredential>;
@@ -68,6 +70,12 @@ export function createHttpAdminOperations(
       return (await (await send('/api/admin/owners', 'POST', { action: 'create', ...input })).json()) as {
         uid: string;
       };
+    },
+    async assignOwnerToProperty(uid, propertyId) {
+      await send('/api/admin/owners', 'POST', { action: 'assign', uid, propertyId });
+    },
+    async removeOwnerFromProperty(uid, propertyId) {
+      await send('/api/admin/owners', 'POST', { action: 'unassign', uid, propertyId });
     },
     async setOwnerDisabled(uid, disabled) {
       await send('/api/admin/owners', 'POST', { action: 'setDisabled', uid, disabled });

@@ -1,7 +1,9 @@
 import {
   OwnerOperationError,
+  assignOwnerToProperty,
   createOwner,
   listOwners,
+  removeOwnerFromProperty,
   resetOwnerPassword,
   setOwnerDisabled,
 } from '@/server/admin-owners';
@@ -10,6 +12,7 @@ import { authorizeAdmin } from '@/server/admin-token';
 import type { ManageOwnerError } from '@/server/manage-owner';
 import {
   validateCreateOwner,
+  validateMembership,
   validateResetPassword,
   validateSetDisabled,
 } from '@/server/manage-owner';
@@ -67,6 +70,18 @@ export async function POST(request: Request) {
       const parsed = validateResetPassword(body);
       if (!parsed.ok) return badRequest(parsed.error);
       return Response.json(await resetOwnerPassword(getAdminAuth(), parsed.value));
+    }
+    if (action === 'assign') {
+      const parsed = validateMembership(body);
+      if (!parsed.ok) return badRequest(parsed.error);
+      await assignOwnerToProperty(getAdminAuth(), getAdminDatabase(), parsed.value);
+      return Response.json({ ok: true });
+    }
+    if (action === 'unassign') {
+      const parsed = validateMembership(body);
+      if (!parsed.ok) return badRequest(parsed.error);
+      await removeOwnerFromProperty(getAdminAuth(), getAdminDatabase(), parsed.value);
+      return Response.json({ ok: true });
     }
     return Response.json({ error: 'unknown action' }, { status: 400 });
   } catch (error) {
