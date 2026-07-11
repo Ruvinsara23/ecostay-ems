@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
-import { AuthGatewayError } from '@/auth/auth-gateway';
+import { AuthGatewayError, isDashboardRole } from '@/auth/auth-gateway';
 
 /** Only ever redirect within the app — a `next` like `https://evil.example` or `//host` is discarded. */
 function safeNextPath(raw: string | null): string {
@@ -120,18 +120,39 @@ function LoginPageInner() {
   const { gateway, sessionState } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = safeNextPath(searchParams.get('next'));
+  const nextParam = searchParams.get('next');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const session = sessionState.status === 'signed-in' ? sessionState.session : null;
+  // Role-aware landing (UI-architecture S1, approved): an explicit ?next= wins;
+  // otherwise admins land on the console, owners on the dashboard.
+  const destination = session
+    ? nextParam
+      ? safeNextPath(nextParam)
+      : session.role === 'admin'
+        ? '/admin'
+        : '/'
+    : null;
+  const redirecting = session !== null && isDashboardRole(session.role);
+
   useEffect(() => {
-    if (sessionState.status === 'signed-in') {
-      router.replace(nextPath);
+    if (redirecting && destination) {
+      router.replace(destination);
     }
-  }, [sessionState.status, nextPath, router]);
+  }, [redirecting, destination, router]);
+
+  if (redirecting) {
+    // Never flash the login form at an already-signed-in user.
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-ink-2">Signing you in…</p>
+      </main>
+    );
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

@@ -66,9 +66,14 @@ describe('RequireSession guard', () => {
     expect(screen.getByText('protected content')).toBeInTheDocument();
   });
 
-  it('treats a device-role session as unauthorized (defense in depth)', async () => {
+  it('gives a device-role session an explicit dead end, never a redirect loop (S1)', async () => {
     renderGuarded(new FakeAuthGateway({ initialSession: sessionOf('device') }));
-    await waitFor(() => expect(routerMock.replace).toHaveBeenCalled());
+    expect(
+      await screen.findByText(/this account can't use the dashboard/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
     expect(screen.queryByText('protected content')).not.toBeInTheDocument();
+    // No bounce to /login — that used to ping-pong forever.
+    expect(routerMock.replace).not.toHaveBeenCalled();
   });
 });

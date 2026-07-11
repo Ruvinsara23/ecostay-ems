@@ -98,4 +98,42 @@ describe('login page', () => {
     renderLogin(gateway);
     await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/'));
   });
+
+  it('lands an ADMIN on the admin console by default (role-aware, S1)', async () => {
+    const gateway = new FakeAuthGateway({
+      initialSession: {
+        uid: 'fake-uid-admin@ecostay.test',
+        email: 'admin@ecostay.test',
+        role: 'admin',
+      },
+    });
+    renderLogin(gateway);
+    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/admin'));
+  });
+
+  it('an explicit ?next= still outranks the role default for admins', async () => {
+    searchParams = new URLSearchParams('next=%2F');
+    const gateway = new FakeAuthGateway({
+      initialSession: {
+        uid: 'fake-uid-admin@ecostay.test',
+        email: 'admin@ecostay.test',
+        role: 'admin',
+      },
+    });
+    renderLogin(gateway);
+    await waitFor(() => expect(routerMock.replace).toHaveBeenCalledWith('/'));
+  });
+
+  it('never flashes the form at a signed-in visitor', async () => {
+    const gateway = new FakeAuthGateway({
+      initialSession: {
+        uid: 'fake-uid-owner@ecostay.test',
+        email: 'owner@ecostay.test',
+        role: 'owner',
+      },
+    });
+    renderLogin(gateway);
+    expect(screen.getByText(/signing you in/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+  });
 });
