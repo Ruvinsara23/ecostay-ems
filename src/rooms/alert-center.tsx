@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import type { AlertView } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
+import { Badge } from '@/ui/badge';
 
 const TYPE_LABELS: Record<AlertView['type'], string> = {
   'device-offline': 'Device offline',
@@ -34,14 +35,10 @@ function timeLabel(ms: number): string {
 }
 
 function SeverityChip({ severity }: { severity: AlertView['severity'] }) {
-  return severity === 'critical' ? (
-    <span className="rounded-md bg-alarm-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-alarm">
-      Critical
-    </span>
-  ) : (
-    <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
-      Warning
-    </span>
+  return (
+    <Badge tone={severity === 'critical' ? 'danger' : 'warn'}>
+      {severity === 'critical' ? 'Critical' : 'Warning'}
+    </Badge>
   );
 }
 
@@ -116,7 +113,7 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
                 <button
                   type="button"
                   onClick={() => acknowledge(alert.id)}
-                  className="rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-white hover:bg-ink/80"
+                  className="rounded-full bg-brand px-3 py-1.5 text-xs font-bold text-white shadow-md transition-colors hover:bg-brand-deep"
                 >
                   Acknowledge
                 </button>

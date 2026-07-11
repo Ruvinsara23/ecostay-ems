@@ -16,6 +16,7 @@ import { EnergyHistorySection } from './energy-charts';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 import { RoomScene } from './room-scene';
+import { Badge } from '@/ui/badge';
 import { Toggle } from '@/ui/toggle';
 
 type ViewState =
@@ -46,11 +47,7 @@ function Group({ title, badge, children }: { title: string; badge?: string; chil
     <section className="glass rounded-[1.25rem] p-5 shadow-sm">
       <h3 className="mb-4 flex items-center justify-between text-sm font-bold text-ink">
         {title}
-        {badge && (
-          <span className="rounded-md bg-warnbrand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warnbrand">
-            {badge}
-          </span>
-        )}
+        {badge && <Badge tone="warn">{badge}</Badge>}
       </h3>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
     </section>

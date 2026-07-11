@@ -8,8 +8,10 @@ import type { OwnerSummary } from '@/server/admin-owners';
 import type { DeviceCredential } from '@/server/manage-device';
 import { ConfirmDialog } from '@/ui/confirm-dialog';
 import { TextField } from '@/ui/field';
+import { Badge } from '@/ui/badge';
 import { ListRow } from '@/ui/list-row';
 import { usePageTitle } from '@/ui/use-page-title';
+import { AlertCenter } from '@/rooms/alert-center';
 import { useAdminOperations } from './admin-operations-context';
 import { AdminPropertySettings } from './admin-property-settings';
 
@@ -407,13 +409,9 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
                           right={
                             <span className="flex items-center gap-2">
                               {owner.disabled ? (
-                                <span className="rounded-full bg-alarm/10 px-2.5 py-1 text-xs font-bold text-alarm">
-                                  Disabled
-                                </span>
+                                <Badge tone="danger">Disabled</Badge>
                               ) : (
-                                <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-deep">
-                                  Active
-                                </span>
+                                <Badge tone="brand">Active</Badge>
                               )}
                               <button
                                 type="button"
@@ -476,6 +474,10 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
             })()
           )}
         </section>
+
+        <div className="mt-6">
+          <AlertCenter propertyId={propertyId} />
+        </div>
 
         <AdminPropertySettings propertyId={propertyId} />
 

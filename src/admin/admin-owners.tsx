@@ -3,6 +3,7 @@
 import { KeyRound, Power, UserPlus } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import type { OwnerSummary } from '@/server/admin-owners';
+import { Badge } from '@/ui/badge';
 import { ConfirmDialog } from '@/ui/confirm-dialog';
 import { TextField } from '@/ui/field';
 import { usePageTitle } from '@/ui/use-page-title';
@@ -210,11 +211,7 @@ export function AdminOwners() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-semibold text-ink">{owner.email}</span>
-                      {owner.disabled && (
-                        <span className="rounded-full bg-alarm/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-alarm">
-                          Disabled
-                        </span>
-                      )}
+                      {owner.disabled && <Badge tone="danger">Disabled</Badge>}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {owner.propertyIds.length === 0 ? (

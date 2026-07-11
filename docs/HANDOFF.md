@@ -23,9 +23,16 @@ admin console Properties/rooms browse layer + sign-out, owner dashboard tabs
 admin-token 401/503 split, working FCM push (fixed members path, 500-token batching,
 invalid-token pruning, env-injected service worker at `/firebase-messaging-sw.js`).
 
-Latest verification: **290 unit + 51 emulator tests green**, typecheck clean. In flight,
-uncommitted: TOU tariffs (D-TOU/H-2/H-3) — tests written and green; awaiting the risk-gate #8
-human eyeball of rendered money before commit.
+Also shipped 2026-07-11 (all pushed): **TOU tariffs live** (gate #8 signed off on rendered
+money), **admin-console-v2 complete** (sub-routes, property detail with rooms/devices/owners/
+settings inline, owner-access assign/remove writes — gate #1 approved), and the
+**UI-architecture overhaul** (.scratch/ui-architecture-audit/): role-aware login landing,
+owner-dashboard layout rebuilt (header overlap + hidden Alert Center fixed), subscription
+error honesty, deep-linkable rooms/tabs, per-route titles, branded 404, one shared rail/badge
+system, alerts + acknowledge inside the admin property detail, foreground-push toast.
+
+Latest verification: **309 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
+desktop + true-390px mobile screenshot-verified (CDP).
 
 ## What's built
 

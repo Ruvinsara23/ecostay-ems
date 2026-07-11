@@ -130,23 +130,36 @@ function RoomArea({
   const active = rooms.length === 1 ? rooms[0] : picked;
 
   if (!active) {
+    // Grouped by property so an admin's (or multi-property owner's) list scales.
+    const byProperty = new Map<string, RoomRef[]>();
+    for (const room of rooms) {
+      const list = byProperty.get(room.propertyId) ?? [];
+      list.push(room);
+      byProperty.set(room.propertyId, list);
+    }
     return (
       <div className="mx-auto w-full max-w-md px-6 py-8">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">Your rooms</p>
         <h2 className="mt-1 mb-4 text-lg font-bold tracking-tight text-ink">Choose a room</h2>
-        <nav aria-label="Rooms" className="flex flex-col gap-2.5">
-          {rooms.map((room) => (
-            <button
-              key={`${room.propertyId}/${room.roomId}`}
-              type="button"
-              onClick={() => setPicked(room)}
-              className="glass rounded-2xl px-4 py-3.5 text-left text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
-            >
-              <span className="block truncate">{room.roomName ?? room.roomId}</span>
-              <span className="block truncate text-xs font-normal text-ink-3">
-                {room.propertyName ?? room.propertyId}
-              </span>
-            </button>
+        <nav aria-label="Rooms" className="flex flex-col gap-4">
+          {[...byProperty.entries()].map(([propertyId, list]) => (
+            <div key={propertyId}>
+              <p className="mb-2 truncate text-xs font-semibold text-ink-2">
+                {list[0].propertyName ?? propertyId}
+              </p>
+              <div className="flex flex-col gap-2.5">
+                {list.map((room) => (
+                  <button
+                    key={`${room.propertyId}/${room.roomId}`}
+                    type="button"
+                    onClick={() => setPicked(room)}
+                    className="glass rounded-2xl px-4 py-3.5 text-left text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
+                  >
+                    <span className="block truncate">{room.roomName ?? room.roomId}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </div>
@@ -334,12 +347,49 @@ function DashboardLanding() {
 }
 
 function NotificationBell() {
-  const { token, requestPermission, permission, error, isAvailable } = useFcm();
+  const {
+    token,
+    requestPermission,
+    permission,
+    error,
+    isAvailable,
+    foregroundMessage,
+    dismissForegroundMessage,
+  } = useFcm();
 
-  if (!isAvailable) return null;
+  // A push arriving while the app is open shows as a brief toast (audit: these
+  // were silently console.log'd before).
+  useEffect(() => {
+    if (!foregroundMessage) return;
+    const timer = setTimeout(dismissForegroundMessage, 8000);
+    return () => clearTimeout(timer);
+  }, [foregroundMessage, dismissForegroundMessage]);
+
+  const toast = foregroundMessage && (
+    <div
+      role="status"
+      className="glass fixed bottom-5 right-5 z-50 w-80 max-w-[calc(100vw-2.5rem)] rounded-2xl bg-white/90 p-4 shadow-xl"
+    >
+      <p className="text-sm font-bold text-ink">{foregroundMessage.title}</p>
+      {foregroundMessage.body && (
+        <p className="mt-1 text-sm text-ink-2">{foregroundMessage.body}</p>
+      )}
+      <button
+        type="button"
+        onClick={dismissForegroundMessage}
+        className="mt-2 text-xs font-semibold text-brand hover:text-brand-deep"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+
+  if (!isAvailable) return toast || null;
 
   if (permission === 'denied') {
     return (
+      <>
+      {toast}
       <p
         role="status"
         title="Notifications are blocked. Enable them in your browser's site settings to get alerts."
@@ -347,11 +397,14 @@ function NotificationBell() {
       >
         Alerts blocked in browser
       </p>
+      </>
     );
   }
 
   if (permission === 'granted' && token) {
     return (
+      <>
+      {toast}
       <div
         role="status"
         title="Notifications enabled"
@@ -363,11 +416,13 @@ function NotificationBell() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
       </div>
+      </>
     );
   }
 
   return (
     <>
+    {toast}
     <button
       onClick={requestPermission}
       title={error || "Enable Push Notifications"}

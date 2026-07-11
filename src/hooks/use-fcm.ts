@@ -30,6 +30,10 @@ export function useFcm() {
   const uid = sessionState.status === 'signed-in' ? sessionState.session.uid : null;
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [foregroundMessage, setForegroundMessage] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default',
   );
@@ -79,8 +83,12 @@ export function useFcm() {
       const app = getFirebaseApp();
       const messaging = getMessaging(app);
       const unsubscribe = onMessage(messaging, (payload) => {
-        console.log('Message received. ', payload);
-        // Optionally, show a toast or in-app notification here
+        // Surface pushes that arrive while the app is OPEN (background pushes go
+        // through the service worker) — previously these were silently dropped.
+        setForegroundMessage({
+          title: payload.notification?.title ?? 'EcoStay alert',
+          body: payload.notification?.body ?? '',
+        });
       });
       return unsubscribe;
     } catch (err) {
@@ -89,5 +97,15 @@ export function useFcm() {
     }
   }, []);
 
-  return { token, requestPermission, permission, error, isAvailable };
+  const dismissForegroundMessage = useCallback(() => setForegroundMessage(null), []);
+
+  return {
+    token,
+    requestPermission,
+    permission,
+    error,
+    isAvailable,
+    foregroundMessage,
+    dismissForegroundMessage,
+  };
 }

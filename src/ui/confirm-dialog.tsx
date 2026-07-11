@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 // Confirmation before destructive actions (AUDIT B). Controlled component:
 // the caller owns `open` and decides what confirm/cancel mean.
@@ -22,14 +22,34 @@ export function ConfirmDialog({
 }) {
   const titleId = useId();
   const bodyId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    // Restore focus to whatever opened the dialog when it closes.
+    const opener = document.activeElement as HTMLElement | null;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel();
+      if (event.key === 'Tab') {
+        // Two-button trap: keep Tab cycling inside the dialog.
+        const focusables = dialogRef.current?.querySelectorAll<HTMLElement>('button');
+        if (!focusables || focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      opener?.focus?.();
+    };
   }, [open, onCancel]);
 
   if (!open) return null;
@@ -40,6 +60,7 @@ export function ConfirmDialog({
       onClick={onCancel}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
