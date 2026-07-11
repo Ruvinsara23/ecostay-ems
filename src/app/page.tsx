@@ -93,40 +93,47 @@ function RoomArea({ activeTab }: { activeTab: RoomTabView }) {
 
   if (!active) {
     return (
-      <nav aria-label="Rooms" className="flex flex-col gap-2.5">
-        {rooms.map((room) => (
-          <button
-            key={`${room.propertyId}/${room.roomId}`}
-            type="button"
-            onClick={() => setPicked(room)}
-            className="glass rounded-2xl px-4 py-3.5 text-left text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
-          >
-            {room.roomName ?? room.roomId}
-            <span className="block text-xs font-normal text-ink-3">
-              {room.propertyName ?? room.propertyId}
-            </span>
-          </button>
-        ))}
-      </nav>
+      <div className="mx-auto w-full max-w-md px-6 py-8">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">Your rooms</p>
+        <h2 className="mt-1 mb-4 text-lg font-bold tracking-tight text-ink">Choose a room</h2>
+        <nav aria-label="Rooms" className="flex flex-col gap-2.5">
+          {rooms.map((room) => (
+            <button
+              key={`${room.propertyId}/${room.roomId}`}
+              type="button"
+              onClick={() => setPicked(room)}
+              className="glass rounded-2xl px-4 py-3.5 text-left text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
+            >
+              <span className="block truncate">{room.roomName ?? room.roomId}</span>
+              <span className="block truncate text-xs font-normal text-ink-3">
+                {room.propertyName ?? room.propertyId}
+              </span>
+            </button>
+          ))}
+        </nav>
+      </div>
     );
   }
 
   return (
-    <div className="relative h-full w-full flex-1">
+    <div className="flex min-h-full flex-col">
       {rooms.length > 1 && (
-        <div className="absolute left-6 top-24 z-30 flex items-center gap-2">
-          <p className="text-xs font-medium text-ink bg-white/80 px-2 py-1 rounded-md shadow-sm">
+        <div className="z-30 flex items-center gap-2 px-6 pb-1">
+          <p className="max-w-56 truncate rounded-md bg-white/80 px-2 py-1 text-xs font-medium text-ink shadow-sm">
             {active.propertyName ?? active.propertyId}
           </p>
           <button
             type="button"
             onClick={() => setPicked(null)}
-            className="text-xs font-semibold text-brand hover:text-brand-deep bg-white/80 px-2 py-1 rounded-md shadow-sm"
+            className="rounded-md bg-white/80 px-2 py-1 text-xs font-semibold text-brand shadow-sm hover:text-brand-deep"
           >
             Switch Room
           </button>
         </div>
       )}
+      {/* The 3D stage keeps a full-height feel; alerts live BELOW it in normal
+          flow so the Alert Center is actually reachable (audit A2). */}
+      <div className="relative h-[calc(100dvh-150px)] min-h-[560px] flex-none">
       {activeTab === 'Live View' && (
         <RoomLiveView
           propertyId={active.propertyId}
@@ -156,7 +163,10 @@ function RoomArea({ activeTab }: { activeTab: RoomTabView }) {
           roomName={active.roomName}
         />
       )}
-      <AlertCenter propertyId={active.propertyId} />
+      </div>
+      <div className="px-6 pb-8 pt-2">
+        <AlertCenter propertyId={active.propertyId} />
+      </div>
     </div>
   );
 }
@@ -210,13 +220,13 @@ function DashboardLanding() {
   };
 
   return (
-    <div className="mx-auto flex h-screen w-full bg-transparent overflow-hidden max-sm:flex-col">
-      {/* icon rail */}
+    <div className="mx-auto flex h-dvh w-full bg-transparent overflow-hidden max-sm:flex-col">
+      {/* icon rail — horizontal bar on phones instead of a viewport-eating stack */}
       <nav
         aria-label="Navigation"
-        className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 sm:w-[90px] sm:py-6"
+        className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 max-sm:flex-row max-sm:justify-around max-sm:gap-1 max-sm:border-b max-sm:border-r-0 sm:w-[90px] sm:py-6"
       >
-        <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand">
+        <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand max-sm:hidden">
           i
         </span>
         <RailIcon label="Home" active={activeTab === 'Home'} onClick={goHome}>
@@ -250,7 +260,7 @@ function DashboardLanding() {
           </svg>
         </RailIcon>
         {role === 'admin' && (
-        <div className="mt-auto w-full">
+        <div className="mt-auto w-full max-sm:mt-0 max-sm:w-auto">
           <RailIcon label="Admin" onClick={() => router.push('/admin')}>
             {/* Shield: this opens the ADMIN CONSOLE (properties/owners), not settings. */}
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -262,18 +272,18 @@ function DashboardLanding() {
         )}
       </nav>
 
-      {/* main column */}
-      <main className="relative flex min-w-0 flex-1 flex-col">
-        {/* Absolute floating header over the 3D scene */}
-        <header className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between p-6">
+      {/* main column: normal-flow header + scrollable content (the header used to
+          float absolutely and the room picker rendered underneath it — audit A1). */}
+      <main className="flex min-w-0 flex-1 flex-col">
+        <header className="z-20 flex flex-none items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" className="text-brand">
                 <path d="M2 12h4l3-8 4 16 3-8h6" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">
-              Live 3D Room View
+            <h1 className="text-2xl font-bold tracking-tight text-ink max-sm:text-lg">
+              {roomTab === 'Live View' ? 'Live 3D Room View' : roomTab}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -291,7 +301,9 @@ function DashboardLanding() {
             </button>
           </div>
         </header>
-        <RoomArea key={homeResetKey} activeTab={roomTab} />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <RoomArea key={homeResetKey} activeTab={roomTab} />
+        </div>
       </main>
     </div>
   );

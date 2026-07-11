@@ -245,6 +245,19 @@ describe('dashboard shell cleanup (no dead controls)', () => {
     expect(screen.queryByRole('button', { name: /add device/i })).not.toBeInTheDocument();
   });
 
+  it('titles the header per tab instead of always saying Live 3D Room View (S2)', async () => {
+    const user = userEvent.setup();
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
+    await screen.findByText('Room 1');
+    expect(screen.getByRole('heading', { level: 1, name: /live 3d room view/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Devices' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Devices' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Activity' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Activity' })).toBeInTheDocument();
+  });
+
   it('shows owners no Admin rail entry (and nothing "coming soon")', async () => {
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
     await screen.findByText('Room 1');

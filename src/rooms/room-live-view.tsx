@@ -266,10 +266,10 @@ export function RoomLiveView({
         data-stale={freshness.online ? undefined : 'true'}
       >
 
-        {/* Top layer widgets */}
-        <div className="flex justify-between items-start pt-16">
+        {/* Top layer widgets — stack full-width on phones (fixed w-72 columns clipped at 390px) */}
+        <div className="flex justify-between items-start pt-16 max-sm:flex-col max-sm:gap-5 max-sm:pt-14">
           {/* Left Widgets */}
-          <div className="flex flex-col gap-5 w-72 pointer-events-auto">
+          <div className="flex flex-col gap-5 w-72 max-sm:w-full pointer-events-auto">
             <Group title="Activity">
               <Value label="Door">{flag(latest.doorOpen, 'Open', 'Closed')}</Value>
               <Value label="Motion">{flag(latest.motionDetected, 'Detected', 'None')}</Value>
@@ -286,7 +286,7 @@ export function RoomLiveView({
           </div>
 
           {/* Right Widgets */}
-          <div className="flex flex-col gap-5 w-72 pointer-events-auto">
+          <div className="flex flex-col gap-5 w-72 max-sm:w-full pointer-events-auto">
             <Group title="Lighting & Relays">
               <Value label="Presence relay">{flag(latest.relayStatus, 'On', 'Off')}</Value>
               <Value label="Buzzer">{flag(latest.buzzerStatus, 'On', 'Off')}</Value>
@@ -306,8 +306,8 @@ export function RoomLiveView({
         </div>
 
         {/* Bottom layer widgets */}
-        <div className="flex justify-between items-end mt-auto pointer-events-auto gap-5 pt-8 pb-4">
-          <div className="w-80">
+        <div className="flex justify-between items-end mt-auto pointer-events-auto gap-5 pt-8 pb-4 max-sm:flex-col max-sm:items-stretch">
+          <div className="w-80 max-sm:w-full">
             <DeviceControls propertyId={propertyId} roomId={roomId} online={freshness.online} gasAlarm={gasAlarm} relayActual={latest.relayStatus} />
           </div>
           <div className="flex-1 max-w-2xl glass rounded-[1.25rem] shadow-sm overflow-hidden p-2">
