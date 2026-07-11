@@ -31,6 +31,10 @@
   --color-warnbrand-soft: rgb(180 106 25 / 0.14);
   --color-alarm: #d6453d;
   --color-alarm-soft: rgb(214 69 61 / 0.12);
+  /* semantic online/ok state (UI-architecture S5) - components must not reach
+     for raw green-* utilities; offline/danger reuses alarm. */
+  --color-success: #15803d;
+  --color-success-soft: rgb(21 128 61 / 0.14);
 
   /* shadcn passthroughs kept for future vendored components */
   --color-ring: var(--ring);

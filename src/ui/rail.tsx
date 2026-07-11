@@ -46,10 +46,12 @@ export function RailButton({
   label,
   icon,
   onClick,
+  active = false,
 }: {
   label: string;
   icon: ReactNode;
   onClick: () => void;
+  active?: boolean;
 }) {
   return (
     <button
@@ -57,9 +59,10 @@ export function RailButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={entryClass(false)}
+      aria-current={active ? 'page' : undefined}
+      className={entryClass(active)}
     >
-      <span className={iconClass(false)}>{icon}</span>
+      <span className={iconClass(active)}>{icon}</span>
       <span className="text-[11px] font-medium max-sm:hidden">{label}</span>
     </button>
   );

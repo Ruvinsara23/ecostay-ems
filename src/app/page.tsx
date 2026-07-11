@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { usePageTitle } from '@/ui/use-page-title';
+import { RailButton } from '@/ui/rail';
 import { useAuth } from '@/auth/auth-context';
 import { RequireSession } from '@/auth/require-session';
 import { AlertCenter } from '@/rooms/alert-center';
@@ -64,16 +65,6 @@ function RoomArea({
     onPickChange(pick);
   };
 
-  // Deep link: /?pid=…&rid=… (e.g. the admin console's "View live" links).
-  useEffect(() => {
-    if (!initialPick || roomsState.status !== 'ready') return;
-    const match = roomsState.rooms.find(
-      (room) => room.propertyId === initialPick.propertyId && room.roomId === initialPick.roomId,
-    );
-    if (match) setPickedState(match);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomsState.status]);
-
   const session = sessionState.status === 'signed-in' ? sessionState.session : null;
 
   useEffect(() => {
@@ -81,7 +72,16 @@ function RoomArea({
     let cancelled = false;
     source.listAccessibleRooms(session).then(
       (rooms) => {
-        if (!cancelled) setRoomsState({ status: 'ready', rooms });
+        if (cancelled) return;
+        setRoomsState({ status: 'ready', rooms });
+        // Deep link: /?pid=…&rid=… (e.g. the admin console's "View live" links).
+        if (initialPick) {
+          const match = rooms.find(
+            (room) =>
+              room.propertyId === initialPick.propertyId && room.roomId === initialPick.roomId,
+          );
+          if (match) setPickedState(match);
+        }
       },
       () => {
         if (!cancelled) setRoomsState({ status: 'error' });
@@ -90,6 +90,9 @@ function RoomArea({
     return () => {
       cancelled = true;
     };
+    // initialPick is deliberately frozen to the mount-time deep link — later URL
+    // mirroring must not re-trigger the fetch or re-pick the room.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, session, attempt]);
 
   if (roomsState.status === 'loading') {
@@ -206,39 +209,6 @@ function RoomArea({
   );
 }
 
-function RailIcon({
-  children,
-  label,
-  active,
-  onClick,
-}: {
-  children: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      className={`flex w-full flex-col items-center gap-1.5 py-2 transition-colors ${
-        active ? 'text-brand' : 'text-ink-3 hover:text-ink'
-      }`}
-    >
-      <span
-        aria-hidden
-        className={`grid h-10 w-10 place-items-center rounded-2xl transition-colors ${
-          active ? 'bg-brand text-white shadow-md' : 'bg-transparent text-current hover:bg-brand/10'
-        }`}
-      >
-        {children}
-      </span>
-      <span className="text-[11px] font-medium max-sm:hidden">{label}</span>
-    </button>
-  );
-}
 
 function DashboardLanding() {
   const { gateway, sessionState } = useAuth();
@@ -285,47 +255,35 @@ function DashboardLanding() {
         className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 max-sm:flex-row max-sm:justify-around max-sm:gap-1 max-sm:border-b max-sm:border-r-0 sm:w-[90px] sm:py-6"
       >
         <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand max-sm:hidden">
-          i
+          e<b className="text-brand">·</b>
         </span>
-        <RailIcon label="Home" active={activeTab === 'Home'} onClick={goHome}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <RailButton label="Home" active={activeTab === 'Home'} onClick={goHome} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
-        </RailIcon>
-        <RailIcon label="Live View" active={activeTab === 'Live View'} onClick={() => setActiveTab('Live View')}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          </svg>} />
+        <RailButton label="Live View" active={activeTab === 'Live View'} onClick={() => setActiveTab('Live View')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
             <polyline points="2 17 12 22 22 17"></polyline>
             <polyline points="2 12 12 17 22 12"></polyline>
-          </svg>
-        </RailIcon>
-        <RailIcon label="Devices" active={activeTab === 'Devices'} onClick={() => setActiveTab('Devices')}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          </svg>} />
+        <RailButton label="Devices" active={activeTab === 'Devices'} onClick={() => setActiveTab('Devices')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="8" rx="2" />
             <rect x="3" y="13" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" />
-          </svg>
-        </RailIcon>
-        <RailIcon label="Routines" active={activeTab === 'Routines'} onClick={() => setActiveTab('Routines')}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          </svg>} />
+        <RailButton label="Routines" active={activeTab === 'Routines'} onClick={() => setActiveTab('Routines')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </RailIcon>
-        <RailIcon label="Activity" active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          </svg>} />
+        <RailButton label="Activity" active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-          </svg>
-        </RailIcon>
+          </svg>} />
         {role === 'admin' && (
         <div className="mt-auto w-full max-sm:mt-0 max-sm:w-auto">
-          <RailIcon label="Admin" onClick={() => router.push('/admin')}>
-            {/* Shield: this opens the ADMIN CONSOLE (properties/owners), not settings. */}
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {/* Shield: this opens the ADMIN CONSOLE (properties/owners), not settings. */}
+          <RailButton label="Admin" onClick={() => router.push('/admin')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
               <path d="M9 12l2 2 4-4"></path>
-            </svg>
-          </RailIcon>
+            </svg>} />
         </div>
         )}
       </nav>
@@ -379,12 +337,24 @@ function NotificationBell() {
 
   if (!isAvailable) return null;
 
+  if (permission === 'denied') {
+    return (
+      <p
+        role="status"
+        title="Notifications are blocked. Enable them in your browser's site settings to get alerts."
+        className="rounded-full bg-well px-3 py-2 text-xs font-semibold text-ink-3"
+      >
+        Alerts blocked in browser
+      </p>
+    );
+  }
+
   if (permission === 'granted' && token) {
     return (
       <div
         role="status"
         title="Notifications enabled"
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-green-50 text-green-600 shadow-sm"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-success-soft text-success shadow-sm"
       >
         <span className="sr-only">Notifications enabled</span>
         <svg aria-hidden viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -396,6 +366,7 @@ function NotificationBell() {
   }
 
   return (
+    <>
     <button
       onClick={requestPermission}
       title={error || "Enable Push Notifications"}
@@ -407,6 +378,12 @@ function NotificationBell() {
       </svg>
       Enable Alerts
     </button>
+    {error && (
+      <span role="alert" className="max-w-48 text-xs font-semibold text-alarm">
+        {error}
+      </span>
+    )}
+    </>
   );
 }
 

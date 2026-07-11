@@ -54,8 +54,14 @@ export function AlertCenter({ propertyId }: { propertyId: string }) {
   const [feedFailed, setFeedFailed] = useState(false);
 
   useEffect(() => {
-    setFeedFailed(false);
-    return source.subscribeAlerts(propertyId, setAlerts, () => setFeedFailed(true));
+    return source.subscribeAlerts(
+      propertyId,
+      (next) => {
+        setFeedFailed(false); // live data clears a previous failure
+        setAlerts(next);
+      },
+      () => setFeedFailed(true),
+    );
   }, [source, propertyId]);
 
   const open = alerts

@@ -88,7 +88,7 @@ export function RoomActivityView({
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-bold tracking-tight text-ink">Recent Activity</h2>
             <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${freshness.online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
+              <span className={`h-2 w-2 rounded-full ${freshness.online ? 'bg-success shadow-[0_0_8px_rgba(21,128,61,0.5)]' : 'bg-alarm'}`} />
               <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">
                 {freshness.online ? 'Online' : 'Offline'}
               </span>
@@ -99,7 +99,7 @@ export function RoomActivityView({
             <div className="glass flex flex-col justify-between rounded-[1.25rem] p-6 shadow-sm bg-white/60">
               <span className="text-sm font-medium text-ink-3 uppercase tracking-wider">Door Status</span>
               <div className="mt-4 flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${doorOpen ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${doorOpen ? 'bg-warnbrand-soft text-warnbrand' : 'bg-success-soft text-success'}`}>
                   {doorOpen ? (
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M9 15h1"></path></svg>
                   ) : (
