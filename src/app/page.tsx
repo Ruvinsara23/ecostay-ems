@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { usePageTitle } from '@/ui/use-page-title';
 import { RailButton } from '@/ui/rail';
@@ -213,6 +213,7 @@ function RoomArea({
 function DashboardLanding() {
   const { gateway, sessionState } = useAuth();
   const router = useRouter();
+  const pathname = usePathname() ?? '/';
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabView>(
     () => SLUG_TO_TAB[searchParams.get('tab') ?? ''] ?? 'Live View',
@@ -236,8 +237,8 @@ function DashboardLanding() {
       params.set('rid', pick.roomId);
     }
     const query = params.toString();
-    router.replace(query ? `/?${query}` : '/', { scroll: false });
-  }, [roomTab, pick, router]);
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [roomTab, pick, router, pathname]);
 
   if (sessionState.status !== 'signed-in') return null;
   const { email, role } = sessionState.session;
@@ -254,7 +255,7 @@ function DashboardLanding() {
         aria-label="Navigation"
         className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 max-sm:flex-row max-sm:justify-around max-sm:gap-1 max-sm:border-b max-sm:border-r-0 sm:w-[90px] sm:py-6"
       >
-        <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand max-sm:hidden">
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand max-sm:hidden">
           e<b className="text-brand">·</b>
         </span>
         <RailButton label="Home" active={activeTab === 'Home'} onClick={goHome} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

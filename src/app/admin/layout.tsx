@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           aria-label="Admin navigation"
           className="glass flex flex-none flex-col items-center gap-4 border-r border-hairline bg-white/80 p-3 sm:w-[90px] sm:py-6"
         >
-          <span className="mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand">
+          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-2xl font-extrabold text-brand">
             e<b className="text-brand-deep">·</b>
           </span>
           {/* Primary nav at the TOP (matches the owner rail's gravity); only Sign out sits at the bottom. */}
