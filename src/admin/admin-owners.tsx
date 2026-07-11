@@ -5,10 +5,12 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import type { OwnerSummary } from '@/server/admin-owners';
 import { ConfirmDialog } from '@/ui/confirm-dialog';
 import { TextField } from '@/ui/field';
+import { usePageTitle } from '@/ui/use-page-title';
 import { useAdminOperations } from './admin-operations-context';
 
 export function AdminOwners() {
   const operations = useAdminOperations();
+  usePageTitle('Owners');
   const [owners, setOwners] = useState<OwnerSummary[] | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

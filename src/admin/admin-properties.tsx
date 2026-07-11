@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import type { AdminPropertySummary } from '@/server/admin-directory';
 import { TextField } from '@/ui/field';
+import { usePageTitle } from '@/ui/use-page-title';
 import { ListRow } from '@/ui/list-row';
 import { useAdminOperations } from './admin-operations-context';
 
@@ -21,6 +22,7 @@ function count(n: number, noun: string): string {
 export function AdminProperties() {
   const operations = useAdminOperations();
   const router = useRouter();
+  usePageTitle('Properties');
   const [state, setState] = useState<PropertiesState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 

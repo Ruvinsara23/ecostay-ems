@@ -9,6 +9,7 @@ import type { DeviceCredential } from '@/server/manage-device';
 import { ConfirmDialog } from '@/ui/confirm-dialog';
 import { TextField } from '@/ui/field';
 import { ListRow } from '@/ui/list-row';
+import { usePageTitle } from '@/ui/use-page-title';
 import { useAdminOperations } from './admin-operations-context';
 import { AdminPropertySettings } from './admin-property-settings';
 
@@ -52,6 +53,7 @@ function DeviceStatus({ room }: { room: AdminRoomSummary }) {
  */
 export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
   const operations = useAdminOperations();
+  usePageTitle(propertyId);
   const [state, setState] = useState<RoomsState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -233,6 +235,12 @@ export function AdminPropertyDetail({ propertyId }: { propertyId: string }) {
                       )}
                     </span>
                     <span className="flex min-w-0 flex-wrap items-center gap-3 sm:justify-end">
+                      <Link
+                        href={`/?pid=${encodeURIComponent(propertyId)}&rid=${encodeURIComponent(room.roomId)}`}
+                        className="shrink-0 text-xs font-semibold text-brand transition-colors hover:text-brand-deep"
+                      >
+                        View live →
+                      </Link>
                       <DeviceStatus room={room} />
                       {room.deviceAccountEmail ? (
                         <button

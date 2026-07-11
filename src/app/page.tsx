@@ -1,7 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { usePageTitle } from '@/ui/use-page-title';
 import { useAuth } from '@/auth/auth-context';
 import { RequireSession } from '@/auth/require-session';
 import { AlertCenter } from '@/rooms/alert-center';
@@ -32,12 +33,46 @@ function Spinner({ label }: { label: string }) {
 type RoomTabView = 'Live View' | 'Devices' | 'Routines' | 'Activity';
 type TabView = 'Home' | RoomTabView;
 
-function RoomArea({ activeTab }: { activeTab: RoomTabView }) {
+/** ?tab= slugs so tabs and the picked room survive refresh and can be deep-linked. */
+const TAB_SLUGS: Record<RoomTabView, string> = {
+  'Live View': 'live',
+  Devices: 'devices',
+  Routines: 'routines',
+  Activity: 'activity',
+};
+const SLUG_TO_TAB: Record<string, RoomTabView> = Object.fromEntries(
+  Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab as RoomTabView]),
+);
+
+function RoomArea({
+  activeTab,
+  initialPick,
+  onPickChange,
+}: {
+  activeTab: RoomTabView;
+  initialPick: { propertyId: string; roomId: string } | null;
+  onPickChange: (pick: RoomRef | null) => void;
+}) {
   const { sessionState } = useAuth();
   const source = useRoomDataSource();
   const [roomsState, setRoomsState] = useState<RoomsState>({ status: 'loading' });
-  const [picked, setPicked] = useState<RoomRef | null>(null);
+  const [picked, setPickedState] = useState<RoomRef | null>(null);
   const [attempt, setAttempt] = useState(0);
+
+  const setPicked = (pick: RoomRef | null) => {
+    setPickedState(pick);
+    onPickChange(pick);
+  };
+
+  // Deep link: /?pid=…&rid=… (e.g. the admin console's "View live" links).
+  useEffect(() => {
+    if (!initialPick || roomsState.status !== 'ready') return;
+    const match = roomsState.rooms.find(
+      (room) => room.propertyId === initialPick.propertyId && room.roomId === initialPick.roomId,
+    );
+    if (match) setPickedState(match);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomsState.status]);
 
   const session = sessionState.status === 'signed-in' ? sessionState.session : null;
 
@@ -208,14 +243,37 @@ function RailIcon({
 function DashboardLanding() {
   const { gateway, sessionState } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabView>('Live View');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabView>(
+    () => SLUG_TO_TAB[searchParams.get('tab') ?? ''] ?? 'Live View',
+  );
   const [homeResetKey, setHomeResetKey] = useState(0);
+  const [pick, setPick] = useState<{ propertyId: string; roomId: string } | null>(() => {
+    const propertyId = searchParams.get('pid');
+    const roomId = searchParams.get('rid');
+    return propertyId && roomId ? { propertyId, roomId } : null;
+  });
+
+  const roomTab: RoomTabView = activeTab === 'Home' ? 'Live View' : activeTab;
+  usePageTitle(roomTab);
+
+  // Mirror tab + picked room into the URL so refresh and sharing keep the place.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (roomTab !== 'Live View') params.set('tab', TAB_SLUGS[roomTab]);
+    if (pick) {
+      params.set('pid', pick.propertyId);
+      params.set('rid', pick.roomId);
+    }
+    const query = params.toString();
+    router.replace(query ? `/?${query}` : '/', { scroll: false });
+  }, [roomTab, pick, router]);
 
   if (sessionState.status !== 'signed-in') return null;
   const { email, role } = sessionState.session;
-  const roomTab: RoomTabView = activeTab === 'Home' ? 'Live View' : activeTab;
   const goHome = () => {
     setHomeResetKey((key) => key + 1);
+    setPick(null);
     setActiveTab('Home');
   };
 
@@ -302,7 +360,14 @@ function DashboardLanding() {
           </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <RoomArea key={homeResetKey} activeTab={roomTab} />
+          <RoomArea
+            key={homeResetKey}
+            activeTab={roomTab}
+            initialPick={pick}
+            onPickChange={(room) =>
+              setPick(room ? { propertyId: room.propertyId, roomId: room.roomId } : null)
+            }
+          />
         </div>
       </main>
     </div>
@@ -348,7 +413,9 @@ function NotificationBell() {
 export default function DashboardPage() {
   return (
     <RequireSession>
-      <DashboardLanding />
+      <Suspense fallback={null}>
+        <DashboardLanding />
+      </Suspense>
     </RequireSession>
   );
 }

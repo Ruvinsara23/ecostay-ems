@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { AuthGatewayError, isDashboardRole } from '@/auth/auth-gateway';
+import { usePageTitle } from '@/ui/use-page-title';
 
 /** Only ever redirect within the app — a `next` like `https://evil.example` or `//host` is discarded. */
 function safeNextPath(raw: string | null): string {
@@ -117,6 +118,7 @@ function AuthShowcase() {
 }
 
 function LoginPageInner() {
+  usePageTitle('Sign in');
   const { gateway, sessionState } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();

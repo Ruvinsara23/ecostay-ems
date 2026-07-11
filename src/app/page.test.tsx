@@ -8,9 +8,11 @@ import { RoomDataSourceProvider } from '@/rooms/room-data-source-context';
 import Page from '@/app/page';
 
 const routerMock = { replace: vi.fn(), push: vi.fn() };
+let searchParamsMock = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
+  useSearchParams: () => searchParamsMock,
   usePathname: () => '/',
 }));
 
