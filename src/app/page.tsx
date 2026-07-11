@@ -9,6 +9,7 @@ import { RequireSession } from '@/auth/require-session';
 import { AlertCenter } from '@/rooms/alert-center';
 import type { RoomRef } from '@/rooms/room-data-source';
 import { useRoomDataSource } from '@/rooms/room-data-source-context';
+import { OwnerHome } from '@/rooms/owner-home';
 import { RoomLiveView } from '@/rooms/room-live-view';
 import { RoomDevicesView } from '@/rooms/room-devices-view';
 import { RoomRoutinesView } from '@/rooms/room-routines-view';
@@ -47,23 +48,21 @@ const SLUG_TO_TAB: Record<string, RoomTabView> = Object.fromEntries(
 
 function RoomArea({
   activeTab,
-  initialPick,
-  onPickChange,
+  pick,
+  onOpenRoom,
+  onBackHome,
+  onOverviewChange,
 }: {
-  activeTab: RoomTabView;
-  initialPick: { propertyId: string; roomId: string } | null;
-  onPickChange: (pick: RoomRef | null) => void;
+  activeTab: TabView;
+  pick: { propertyId: string; roomId: string } | null;
+  onOpenRoom: (room: RoomRef) => void;
+  onBackHome: () => void;
+  onOverviewChange: (showing: boolean) => void;
 }) {
   const { sessionState } = useAuth();
   const source = useRoomDataSource();
   const [roomsState, setRoomsState] = useState<RoomsState>({ status: 'loading' });
-  const [picked, setPickedState] = useState<RoomRef | null>(null);
   const [attempt, setAttempt] = useState(0);
-
-  const setPicked = (pick: RoomRef | null) => {
-    setPickedState(pick);
-    onPickChange(pick);
-  };
 
   const session = sessionState.status === 'signed-in' ? sessionState.session : null;
 
@@ -72,16 +71,7 @@ function RoomArea({
     let cancelled = false;
     source.listAccessibleRooms(session).then(
       (rooms) => {
-        if (cancelled) return;
-        setRoomsState({ status: 'ready', rooms });
-        // Deep link: /?pid=…&rid=… (e.g. the admin console's "View live" links).
-        if (initialPick) {
-          const match = rooms.find(
-            (room) =>
-              room.propertyId === initialPick.propertyId && room.roomId === initialPick.roomId,
-          );
-          if (match) setPickedState(match);
-        }
+        if (!cancelled) setRoomsState({ status: 'ready', rooms });
       },
       () => {
         if (!cancelled) setRoomsState({ status: 'error' });
@@ -90,10 +80,28 @@ function RoomArea({
     return () => {
       cancelled = true;
     };
-    // initialPick is deliberately frozen to the mount-time deep link — later URL
-    // mirroring must not re-trigger the fetch or re-pick the room.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, session, attempt]);
+
+  const rooms = roomsState.status === 'ready' ? roomsState.rooms : [];
+  // One room → straight in. Otherwise the active room is whichever the URL/Home
+  // selection points at (null = show the overview).
+  const activeRoom =
+    rooms.length === 1
+      ? rooms[0]
+      : pick
+        ? (rooms.find((r) => r.propertyId === pick.propertyId && r.roomId === pick.roomId) ?? null)
+        : null;
+  const showOverview =
+    roomsState.status === 'ready' &&
+    rooms.length > 0 &&
+    (!activeRoom || (activeTab === 'Home' && rooms.length > 1));
+
+  // Tell the shell whether the overview (vs a room) is on screen, so the header
+  // title matches. Depends only on the boolean — the callback is stable enough.
+  useEffect(() => {
+    onOverviewChange(showOverview);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showOverview]);
 
   if (roomsState.status === 'loading') {
     return <Spinner label="Loading rooms" />;
@@ -117,8 +125,6 @@ function RoomArea({
     );
   }
 
-  const { rooms } = roomsState;
-
   if (rooms.length === 0) {
     return (
       <div className="glass rounded-2xl p-8 text-center text-sm text-ink-2">
@@ -127,44 +133,12 @@ function RoomArea({
     );
   }
 
-  const active = rooms.length === 1 ? rooms[0] : picked;
-
-  if (!active) {
-    // Grouped by property so an admin's (or multi-property owner's) list scales.
-    const byProperty = new Map<string, RoomRef[]>();
-    for (const room of rooms) {
-      const list = byProperty.get(room.propertyId) ?? [];
-      list.push(room);
-      byProperty.set(room.propertyId, list);
-    }
-    return (
-      <div className="mx-auto w-full max-w-md px-6 py-8">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">Your rooms</p>
-        <h2 className="mt-1 mb-4 text-lg font-bold tracking-tight text-ink">Choose a room</h2>
-        <nav aria-label="Rooms" className="flex flex-col gap-4">
-          {[...byProperty.entries()].map(([propertyId, list]) => (
-            <div key={propertyId}>
-              <p className="mb-2 truncate text-xs font-semibold text-ink-2">
-                {list[0].propertyName ?? propertyId}
-              </p>
-              <div className="flex flex-col gap-2.5">
-                {list.map((room) => (
-                  <button
-                    key={`${room.propertyId}/${room.roomId}`}
-                    type="button"
-                    onClick={() => setPicked(room)}
-                    className="glass rounded-2xl px-4 py-3.5 text-left text-sm font-semibold text-ink transition-transform hover:-translate-y-0.5"
-                  >
-                    <span className="block truncate">{room.roomName ?? room.roomId}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-      </div>
-    );
+  if (showOverview || !activeRoom) {
+    return <OwnerHome rooms={rooms} onOpenRoom={onOpenRoom} />;
   }
+
+  const active = activeRoom;
+  const view: RoomTabView = activeTab === 'Home' ? 'Live View' : activeTab;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -175,17 +149,17 @@ function RoomArea({
           </p>
           <button
             type="button"
-            onClick={() => setPicked(null)}
+            onClick={onBackHome}
             className="rounded-md bg-white/80 px-2 py-1 text-xs font-semibold text-brand shadow-sm hover:text-brand-deep"
           >
-            Switch Room
+            All rooms
           </button>
         </div>
       )}
       {/* The 3D stage keeps a full-height feel; alerts live BELOW it in normal
           flow so the Alert Center is actually reachable (audit A2). */}
       <div className="relative h-[calc(100dvh-150px)] min-h-[560px] flex-none">
-      {activeTab === 'Live View' && (
+      {view === 'Live View' && (
         <RoomLiveView
           propertyId={active.propertyId}
           roomId={active.roomId}
@@ -193,21 +167,21 @@ function RoomArea({
           propertyName={active.propertyName}
         />
       )}
-      {activeTab === 'Devices' && (
+      {view === 'Devices' && (
         <RoomDevicesView
           propertyId={active.propertyId}
           roomId={active.roomId}
           roomName={active.roomName}
         />
       )}
-      {activeTab === 'Routines' && (
+      {view === 'Routines' && (
         <RoomRoutinesView
           propertyId={active.propertyId}
           roomId={active.roomId}
           roomName={active.roomName}
         />
       )}
-      {activeTab === 'Activity' && (
+      {view === 'Activity' && (
         <RoomActivityView
           propertyId={active.propertyId}
           roomId={active.roomId}
@@ -228,15 +202,20 @@ function DashboardLanding() {
   const router = useRouter();
   const pathname = usePathname() ?? '/';
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabView>(
-    () => SLUG_TO_TAB[searchParams.get('tab') ?? ''] ?? 'Live View',
-  );
-  const [homeResetKey, setHomeResetKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabView>(() => {
+    const slug = searchParams.get('tab');
+    if (slug && SLUG_TO_TAB[slug]) return SLUG_TO_TAB[slug];
+    // A room deep link opens its live view; otherwise land on the overview.
+    return searchParams.get('pid') && searchParams.get('rid') ? 'Live View' : 'Home';
+  });
   const [pick, setPick] = useState<{ propertyId: string; roomId: string } | null>(() => {
     const propertyId = searchParams.get('pid');
     const roomId = searchParams.get('rid');
     return propertyId && roomId ? { propertyId, roomId } : null;
   });
+  // RoomArea reports whether the property overview (vs a single room) is showing,
+  // so the header title stays truthful. Starts true; corrected on first render.
+  const [overviewShowing, setOverviewShowing] = useState(true);
 
   // Admins' home is the CONSOLE (owner-reported). A signed-in admin landing on
   // "/" bare is redirected; an EXPLICIT visit (?tab=/?pid= — e.g. the console's
@@ -253,24 +232,25 @@ function DashboardLanding() {
     if (bounceToConsole) router.replace('/admin');
   }, [bounceToConsole, router]);
 
+  // Header title: the overview reads "My Properties"; a room reads its tab.
   const roomTab: RoomTabView = activeTab === 'Home' ? 'Live View' : activeTab;
-  usePageTitle(roomTab);
+  usePageTitle(overviewShowing ? 'My Properties' : roomTab);
 
   // Mirror tab + picked room into the URL so refresh and sharing keep the place.
   useEffect(() => {
     if (bounceToConsole) return; // redirecting — don't fight it with a mirror write
     const params = new URLSearchParams();
-    if (roomTab !== 'Live View') params.set('tab', TAB_SLUGS[roomTab]);
-    // Admins keep ?tab=live even on the default tab: a reload must still read
-    // as an explicit live-rooms visit, not bounce them back to the console.
-    if (isAdmin && roomTab === 'Live View') params.set('tab', TAB_SLUGS['Live View']);
+    if (activeTab !== 'Home' && activeTab !== 'Live View') params.set('tab', TAB_SLUGS[activeTab]);
+    // Admins keep ?tab=live off the overview: a reload must still read as an
+    // explicit live visit, not bounce them back to the console.
+    if (isAdmin && activeTab !== 'Home') params.set('tab', TAB_SLUGS[roomTab]);
     if (pick) {
       params.set('pid', pick.propertyId);
       params.set('rid', pick.roomId);
     }
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [roomTab, pick, router, pathname, bounceToConsole, isAdmin]);
+  }, [activeTab, roomTab, pick, router, pathname, bounceToConsole, isAdmin]);
 
   if (sessionState.status !== 'signed-in') return null;
   if (bounceToConsole) {
@@ -282,10 +262,18 @@ function DashboardLanding() {
   }
   const { email, role } = sessionState.session;
   const goHome = () => {
-    setHomeResetKey((key) => key + 1);
     setPick(null);
     setActiveTab('Home');
   };
+  const openRoom = (room: RoomRef) => {
+    setPick({ propertyId: room.propertyId, roomId: room.roomId });
+    setActiveTab('Live View');
+  };
+  const headerTitle = overviewShowing
+    ? 'My Properties'
+    : roomTab === 'Live View'
+      ? 'Live 3D Room View'
+      : roomTab;
 
   return (
     <div className="mx-auto flex h-dvh w-full bg-transparent overflow-hidden max-sm:flex-col">
@@ -339,7 +327,7 @@ function DashboardLanding() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-ink max-sm:text-lg">
-              {roomTab === 'Live View' ? 'Live 3D Room View' : roomTab}
+              {headerTitle}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -359,12 +347,11 @@ function DashboardLanding() {
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <RoomArea
-            key={homeResetKey}
-            activeTab={roomTab}
-            initialPick={pick}
-            onPickChange={(room) =>
-              setPick(room ? { propertyId: room.propertyId, roomId: room.roomId } : null)
-            }
+            activeTab={activeTab}
+            pick={pick}
+            onOpenRoom={openRoom}
+            onBackHome={goHome}
+            onOverviewChange={setOverviewShowing}
           />
         </div>
       </main>

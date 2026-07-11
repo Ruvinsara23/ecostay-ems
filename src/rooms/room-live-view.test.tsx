@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RoomDataSource, RoomLatest } from './room-data-source';
 import { FakeRoomDataSource } from './fake-room-data-source';
@@ -119,8 +119,11 @@ describe('RoomLiveView — full telemetry', () => {
     expect(screen.getByText('Open')).toBeInTheDocument(); // door
     expect(screen.getByText('Detected')).toBeInTheDocument(); // motion
     expect(screen.getByText('Present')).toBeInTheDocument(); // human presence
-    expect(screen.getByText('On')).toBeInTheDocument(); // presence relay
-    expect(screen.getByText('Off')).toBeInTheDocument(); // buzzer
+    // Presence-relay "On" / buzzer "Off" are scoped to the relays group: the
+    // device-control tiles now carry their own On/Off state pills too.
+    const relays = screen.getByText('Lighting & Relays').closest('section') as HTMLElement;
+    expect(within(relays).getByText('On')).toBeInTheDocument(); // presence relay
+    expect(within(relays).getByText('Off')).toBeInTheDocument(); // buzzer
   });
 
   it('labels the PZEM readings as simulated (ADR-0003)', () => {

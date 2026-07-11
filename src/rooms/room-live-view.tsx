@@ -1,5 +1,6 @@
 'use client';
 
+import { Droplets, Fan, Lightbulb, type LucideIcon, Radar } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import {
   DEVICE_COMMAND_KEYS,
@@ -65,9 +66,80 @@ function Value({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+const DEVICE_ICONS: Record<DeviceCommandKey, LucideIcon> = {
+  lights: Lightbulb,
+  exhaustFan: Fan,
+  waterPump: Droplets,
+  motionDetection: Radar,
+};
+
+/** One device as a tappable tile: icon, name, ON/OFF state, and the in-flight note. */
+function DeviceTile({
+  label,
+  Icon,
+  on,
+  pending,
+  disabled,
+  note,
+  onToggle,
+}: {
+  label: string;
+  Icon: LucideIcon;
+  on: boolean;
+  pending: boolean;
+  disabled: boolean;
+  note?: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onToggle}
+      className={`flex flex-col gap-2.5 rounded-2xl border p-3.5 text-left transition-colors disabled:opacity-50 ${
+        on ? 'border-brand/40 bg-brand-soft' : 'border-hairline bg-white/60 hover:bg-white'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={`grid h-9 w-9 flex-none place-items-center rounded-xl ${on ? 'bg-brand text-white' : 'bg-well text-ink-3'}`}
+        >
+          <Icon size={18} strokeWidth={2.2} aria-hidden />
+        </span>
+        {/* Visual switch — the whole tile is the control (bigger tap target). */}
+        <span
+          aria-hidden
+          className={`relative h-6 w-11 flex-none rounded-full transition-colors ${on ? 'bg-brand' : 'bg-ink-3/25'}`}
+        >
+          <span
+            className={`absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-[22px]' : 'translate-x-[2px]'}`}
+          />
+        </span>
+      </div>
+      <div className="min-w-0">
+        <span className="block truncate text-sm font-bold text-ink">{label}</span>
+        <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-wide">
+          {pending ? (
+            <span className="text-ink-3">Saving…</span>
+          ) : on ? (
+            <span className="text-brand-deep">On</span>
+          ) : (
+            <span className="text-ink-3">Off</span>
+          )}
+          {note && <span className="ml-1.5 font-semibold normal-case text-ink-3">{note}</span>}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 /**
  * Risk gate #3 (approved 2026-07-04): switches show the COMMANDED state from
  * devices/* — no invented acks. Disabled offline (no queued commands, ever).
+ * Tapping is optimistic (Saving…) and then follows the subscription echo.
  */
 export function DeviceControls({
   propertyId,
@@ -84,11 +156,28 @@ export function DeviceControls({
 }) {
   const source = useRoomDataSource();
   const [commands, setCommands] = useState<DeviceCommands | null>(null);
+  const [pending, setPending] = useState<Partial<Record<DeviceCommandKey, boolean>>>({});
   const [automationEnabled, setAutomationEnabledState] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return source.subscribeDeviceCommands(propertyId, roomId, setCommands);
+    return source.subscribeDeviceCommands(propertyId, roomId, (next) => {
+      setCommands(next);
+      // Clear each optimistic flag as the live state confirms its requested value.
+      setPending((prev) => {
+        const keys = Object.keys(prev) as DeviceCommandKey[];
+        if (keys.length === 0) return prev;
+        let changed = false;
+        const out = { ...prev };
+        for (const key of keys) {
+          if ((next[key] ?? false) === prev[key]) {
+            delete out[key];
+            changed = true;
+          }
+        }
+        return changed ? out : prev;
+      });
+    });
   }, [source, propertyId, roomId]);
 
   useEffect(() => {
@@ -99,10 +188,17 @@ export function DeviceControls({
 
   async function toggle(key: DeviceCommandKey) {
     setError(null);
+    const desired = !(commands?.[key] ?? false);
+    setPending((prev) => ({ ...prev, [key]: desired }));
     try {
-      await source.setDeviceCommand(propertyId, roomId, key, !(commands?.[key] ?? false));
+      await source.setDeviceCommand(propertyId, roomId, key, desired);
     } catch {
       setError('Command failed — the device state was not changed.');
+      setPending((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     }
   }
 
@@ -115,45 +211,40 @@ export function DeviceControls({
     }
   }
 
+  function noteFor(key: DeviceCommandKey): string | undefined {
+    if (key === 'motionDetection') {
+      return `Actual: ${relayActual === undefined ? '—' : relayActual ? 'On' : 'Off'}`;
+    }
+    if (key === 'exhaustFan' && gasAlarm) return 'Forced on';
+    return undefined;
+  }
+
   return (
     <section className="glass rounded-[1.25rem] p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-bold text-ink">
-        Device Controls
-      </h3>
+      <h3 className="mb-4 text-sm font-bold text-ink">Device Controls</h3>
       {!online && (
         <p className="mb-3 rounded-lg bg-ink-3/10 px-3 py-2 text-xs text-ink-2">
           Controls disabled while offline.
         </p>
       )}
-      <div className="grid gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         {DEVICE_COMMAND_KEYS.map((key) => (
-          <div key={key} className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-ink">
-              {DEVICE_COMMAND_LABELS[key]}
-              {key === 'motionDetection' && (
-                <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-3">
-                  Actual: {relayActual === undefined ? '—' : relayActual ? 'On' : 'Off'}
-                </span>
-              )}
-              {key === 'exhaustFan' && gasAlarm && (
-                <span className="ml-2 text-[10px] font-bold uppercase text-alarm">
-                  Forced on
-                </span>
-              )}
-            </div>
-            <Toggle
-              checked={!!commands?.[key]}
-              disabled={disabled}
-              label={DEVICE_COMMAND_LABELS[key]}
-              onToggle={() => toggle(key)}
-            />
-          </div>
+          <DeviceTile
+            key={key}
+            label={DEVICE_COMMAND_LABELS[key]}
+            Icon={DEVICE_ICONS[key]}
+            on={pending[key] ?? !!commands?.[key]}
+            pending={pending[key] !== undefined}
+            disabled={disabled}
+            note={noteFor(key)}
+            onToggle={() => toggle(key)}
+          />
         ))}
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-hairline pt-4">
         <div className="text-sm font-medium text-ink">
           Vacancy cutoff automation
-          <span className="block mt-0.5 text-xs font-normal text-ink-3">
+          <span className="mt-0.5 block text-xs font-normal text-ink-3">
             Turns off lights and fan when vacant.
           </span>
         </div>

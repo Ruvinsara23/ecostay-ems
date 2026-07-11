@@ -43,7 +43,15 @@ reuses the slice-08 path, no new writes) and **fleet Devices** (`/admin/devices`
 registry of every room's device account + last report, composed from existing port calls;
 credentials stay in property detail). Rail: Overview · Alerts · Properties · Devices · Owners.
 
-Latest verification: **324 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
+And 2026-07-12 (`.scratch/owner-dashboard-v2/`): **owner dashboard v2 slice 01** — the
+owner **Home** is now a property→room overview (fleet stat strip + per-property room cards
+with live status/occupancy/readings/alert badges, click-through to a room), replacing the
+flat "choose a room" picker; the tab model was reworked so Home is a real view and the
+header title stays truthful. **Device controls** rebuilt as an icon-tile grid (per-device
+icon, big tap target, On/Off state, optimistic "Saving…" following the echo) — gate-#3
+semantics unchanged.
+
+Latest verification: **328 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
 desktop + true-390px mobile screenshot-verified (CDP).
 
 ## What's built
