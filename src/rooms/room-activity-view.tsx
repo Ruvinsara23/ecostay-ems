@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 import { deviceFreshness } from '@/telemetry/device-freshness';
+import { SavingsValidation } from './savings-validation';
 
 type ViewState =
   | { status: 'loading' }
@@ -138,6 +139,10 @@ export function RoomActivityView({
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="mt-6">
+            <SavingsValidation propertyId={propertyId} roomId={roomId} />
           </div>
         </div>
       </div>

@@ -44,3 +44,21 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
 # or a bounded run:  node scripts/simulate-device.ts --ticks 20
 ```
 
+## validate-savings.ts — §10.2 pre/post energy report (capstone)
+
+Prints the baseline-vs-EcoStay comparison and the ≥20% success indicator for the thesis.
+The reduction is modelled from **measured occupancy + rated circuit wattage** (it does not
+need the power meter; the meter later upgrades rated → measured). The same figures render
+live in the dashboard's Activity tab (`SavingsValidation`); the kWh/reduction math mirrors
+the tested `src/tariff/validation.ts`.
+
+```bash
+# Real recorded occupancy (reads dailyAggregates + circuitWattages from RTDB):
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
+  node scripts/validate-savings.ts --property property_001 --room room_001
+
+# Reproducible scenario (no Firebase needed); --rate is a flat LKR/kWh estimate:
+node scripts/validate-savings.ts --window-hours 24 --occupied-hours 10.5 \
+  --lights 60 --fan 45 --rate 45
+```
+

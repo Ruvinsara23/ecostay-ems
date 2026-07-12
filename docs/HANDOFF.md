@@ -51,7 +51,15 @@ header title stays truthful. **Device controls** rebuilt as an icon-tile grid (p
 icon, big tap target, On/Off state, optimistic "Saving…" following the echo) — gate-#3
 semantics unchanged.
 
-Latest verification: **328 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
+And 2026-07-12: **§10.2 savings validation** — a pre/post baseline-vs-EcoStay comparison with
+the ≥20% success indicator, modelled from measured occupancy + rated circuit wattage (no meter
+required; upgrades to measured when the PZEM is wired). Pure engine `src/tariff/validation.ts`
+(reuses gate-#8 `savedLKR`), a live card in the owner Activity tab (`src/rooms/savings-validation.tsx`),
+and a thesis script `scripts/validate-savings.ts` (real-data or scenario). Owner header avatar
+also fixed to open an account menu instead of instant sign-out; secondary tabs (Devices/Routines/
+Activity) made readable + dead "coming soon" placeholders removed.
+
+Latest verification: **335 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
 desktop + true-390px mobile screenshot-verified (CDP).
 
 ## What's built
