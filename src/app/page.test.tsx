@@ -45,13 +45,32 @@ describe('dashboard landing', () => {
         },
       }),
     );
-    // Identity now lives on the sign-out control's accessible title.
-    expect(screen.getByRole('button', { name: /sign out/i }).getAttribute('title')).toMatch(
+    // Identity lives on the account-menu control's accessible title.
+    expect(screen.getByRole('button', { name: /account menu/i }).getAttribute('title')).toMatch(
       /owner@ecostay\.test/,
     );
   });
 
-  it('signs out and lands back on login', async () => {
+  it('the profile avatar opens a menu — it does NOT sign out on click', async () => {
+    const user = userEvent.setup();
+    const gateway = new FakeAuthGateway({
+      initialSession: {
+        uid: 'fake-uid-owner@ecostay.test',
+        email: 'owner@ecostay.test',
+        role: 'owner',
+      },
+    });
+    const signOut = vi.spyOn(gateway, 'signOut');
+    renderPage(gateway);
+
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    // Clicking the avatar reveals the account, not an immediate logout.
+    expect(await screen.findByText('owner@ecostay.test')).toBeInTheDocument();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(routerMock.replace).not.toHaveBeenCalledWith('/login?next=%2F');
+  });
+
+  it('signs out from the account menu and lands back on login', async () => {
     const user = userEvent.setup();
     renderPage(
       new FakeAuthGateway({
@@ -63,7 +82,8 @@ describe('dashboard landing', () => {
       }),
     );
 
-    await user.click(screen.getByRole('button', { name: /sign out/i }));
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /sign out/i }));
 
     await waitFor(() =>
       expect(routerMock.replace).toHaveBeenCalledWith('/login?next=%2F'),

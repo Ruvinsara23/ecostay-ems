@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { usePageTitle } from '@/ui/use-page-title';
 import { RailButton } from '@/ui/rail';
 import { useAuth } from '@/auth/auth-context';
@@ -334,15 +334,7 @@ function DashboardLanding() {
             {/* Notification Bell */}
             <NotificationBell />
 
-            <button
-              type="button"
-              onClick={() => gateway.signOut()}
-              aria-label="Sign out"
-              title={`Sign out ${email} (${role})`}
-              className="flex h-10 w-10 flex-none items-center justify-center overflow-hidden rounded-full bg-brand-soft ring-2 ring-white"
-            >
-              <img src="https://api.dicebear.com/7.x/notionists/svg?seed=ecostay" alt="" className="h-full w-full object-cover" />
-            </button>
+            <ProfileMenu email={email} role={role} onSignOut={() => gateway.signOut()} />
           </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -355,6 +347,95 @@ function DashboardLanding() {
           />
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * The top-right avatar opens an account menu — it does NOT sign out on click
+ * (owner-reported: a single click on the profile icon logged you straight out).
+ * Sign out is now an explicit item inside the menu.
+ */
+function ProfileMenu({
+  email,
+  role,
+  onSignOut,
+}: {
+  email: string | null;
+  role: string;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-label="Account menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={`${email ?? 'Account'} (${role})`}
+        className="flex h-10 w-10 flex-none items-center justify-center overflow-hidden rounded-full bg-brand-soft ring-2 ring-white"
+      >
+        <img
+          src="https://api.dicebear.com/7.x/notionists/svg?seed=ecostay"
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="glass absolute right-0 top-12 z-50 w-60 rounded-2xl bg-white/90 p-2 shadow-xl"
+        >
+          <div className="px-3 py-2">
+            <p className="truncate text-sm font-bold text-ink">{email ?? 'Signed in'}</p>
+            <p className="mt-0.5 text-xs font-medium capitalize text-ink-3">Signed in as {role}</p>
+          </div>
+          <div className="my-1 border-t border-hairline" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={onSignOut}
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-ink transition-colors hover:bg-brand-soft"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Sign out
+          </button>
+        </div>
+      )}
     </div>
   );
 }
