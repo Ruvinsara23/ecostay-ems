@@ -6,7 +6,6 @@ import { deviceFreshness } from '@/telemetry/device-freshness';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 import { DeviceControls } from './room-live-view';
-import { RoomScene } from './room-scene';
 
 type ViewState =
   | { status: 'loading' }
@@ -46,7 +45,11 @@ export function RoomDevicesView({
   }, []);
 
   if (state.status === 'loading') {
-    return <div className="flex h-full w-full items-center justify-center p-12"><p className="text-sm text-ink-2">Loading devices…</p></div>;
+    return (
+      <div className="flex h-full w-full items-center justify-center p-12">
+        <p className="text-sm text-ink-2">Loading devices…</p>
+      </div>
+    );
   }
 
   if (state.status === 'error') {
@@ -73,28 +76,38 @@ export function RoomDevicesView({
   const freshness = deviceFreshness(latest.updatedAt, localNowMs + offsetMs);
   const gasAlarm = latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD;
 
+  // A flat, readable surface — NOT the dimmed 3D scene the controls used to float
+  // over (owner-reported: unreadable). The 3D room belongs to Live View only.
   return (
-    <section aria-label={`Devices in ${roomName ?? roomId}`} className="relative h-full w-full overflow-hidden bg-transparent">
-      {/* Background 3D Scene (dimmed for focus on devices) */}
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none p-12 opacity-40">
-        <div className="w-full max-w-5xl">
-          <RoomScene latest={latest} online={freshness.online} />
-        </div>
-      </div>
+    <section
+      aria-label={`Devices in ${roomName ?? roomId}`}
+      className="relative h-full w-full overflow-y-auto bg-transparent"
+    >
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-brand/5 to-transparent opacity-50" />
 
-      <div className="absolute left-1/2 top-4 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
+      <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1">
         <span className="text-sm font-bold tracking-tight text-ink">{roomName ?? roomId}</span>
         <span className="text-[11px] font-medium text-ink-3">Devices View</span>
       </div>
 
-      {/* Overlay Content */}
-      <div
-        className={`absolute inset-0 z-10 flex flex-col p-6 overflow-y-auto transition-opacity ${!freshness.online ? 'opacity-70' : ''}`}
-      >
-        <div className="flex justify-center items-center mt-20 pointer-events-auto">
-          <div className="w-full max-w-md shadow-lg glass rounded-[1.25rem] bg-white/40">
-            <DeviceControls propertyId={propertyId} roomId={roomId} online={freshness.online} gasAlarm={gasAlarm} relayActual={latest.relayStatus} />
+      <div className="relative z-10 flex flex-col p-6 pt-24">
+        <div className="mx-auto w-full max-w-lg">
+          <div className="mb-4 flex items-center justify-end gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${freshness.online ? 'bg-success' : 'bg-alarm'}`}
+              aria-hidden
+            />
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-3">
+              {freshness.online ? 'Online' : 'Offline'}
+            </span>
           </div>
+          <DeviceControls
+            propertyId={propertyId}
+            roomId={roomId}
+            online={freshness.online}
+            gasAlarm={gasAlarm}
+            relayActual={latest.relayStatus}
+          />
         </div>
       </div>
     </section>

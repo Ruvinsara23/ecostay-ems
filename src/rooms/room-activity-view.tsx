@@ -139,12 +139,6 @@ export function RoomActivityView({
               </div>
             </div>
           </div>
-
-          <div className="mt-6 rounded-xl border border-dashed border-ink-3/20 p-6 text-center">
-            <p className="text-sm font-medium text-ink-2">Activity History Log</p>
-            <p className="mt-1 text-xs text-ink-3">A timeline of recent activities will appear here in future updates.</p>
-          </div>
-
         </div>
       </div>
     </section>

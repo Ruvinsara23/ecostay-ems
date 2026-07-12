@@ -77,15 +77,6 @@ export function RoomRoutinesView({
               </div>
             </div>
           </div>
-          
-          <div className="mt-6 rounded-xl border border-dashed border-ink-3/20 p-6 text-center">
-            <svg className="mx-auto mb-2 text-ink-3/40" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <p className="text-sm font-medium text-ink-2">Time-of-Use and Scheduled Automations</p>
-            <p className="mt-1 text-xs text-ink-3">Coming soon in future updates.</p>
-          </div>
         </div>
       </div>
     </section>
