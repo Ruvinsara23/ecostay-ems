@@ -142,6 +142,35 @@ export interface RoomDataSource {
    * acknowledgedBy (must equal the caller's uid) + acknowledgedAt.
    */
   acknowledgeAlert(propertyId: string, alertId: string, uid: string): Promise<void>;
+
+  /** The room's §10.2 evaluation runs (baseline vs EcoStay), live. */
+  subscribeEvaluationRuns(
+    propertyId: string,
+    roomId: string,
+    callback: (runs: EvaluationRun[]) => void,
+    onError?: () => void,
+  ): () => void;
+
+  /**
+   * Begin an evaluation run: records the run and sets the room's automation to
+   * the run's mode (baseline → off, ecostay → on). Returns the new run id.
+   */
+  startEvaluationRun(
+    propertyId: string,
+    roomId: string,
+    input: EvaluationRunInput,
+  ): Promise<string>;
+
+  /** End a run: stamp endedAt and the room's cumulative energy at stop. */
+  endEvaluationRun(
+    propertyId: string,
+    roomId: string,
+    runId: string,
+    endEnergyKWh: number,
+  ): Promise<void>;
+
+  /** Delete a run (owner/admin), e.g. to redo the experiment. */
+  deleteEvaluationRun(propertyId: string, roomId: string, runId: string): Promise<void>;
 }
 
 export type EnergyHistorySample = {
@@ -177,4 +206,26 @@ export type AlertView = {
   resolvedAt?: number;
   acknowledgedBy?: string;
   acknowledgedAt?: number;
+};
+
+/** Which phase of the §10.2 pre/post experiment a run captures. */
+export type EvaluationRunLabel = 'baseline' | 'ecostay';
+
+/** What the caller supplies to open a run. */
+export type EvaluationRunInput = {
+  label: EvaluationRunLabel;
+  /** The room's cumulative energy (kWh) at the moment the run starts. */
+  startEnergyKWh: number;
+};
+
+/** A recorded A/B evaluation run (`properties/{pid}/rooms/{rid}/evaluationRuns/{id}`). */
+export type EvaluationRun = {
+  id: string;
+  label: EvaluationRunLabel;
+  /** Automation state during the run: baseline = false, ecostay = true. */
+  automationEnabled: boolean;
+  startedAt: number;
+  endedAt?: number;
+  startEnergyKWh?: number;
+  endEnergyKWh?: number;
 };

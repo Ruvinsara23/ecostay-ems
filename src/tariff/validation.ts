@@ -43,6 +43,54 @@ export type ValidationResult = {
 
 const round = (value: number, dp = 3): number => Number(value.toFixed(dp));
 
+/** A recorded run reduced to its measured energy (end − start cumulative kWh). */
+export type RunEnergy = { startEnergyKWh?: number; endEnergyKWh?: number };
+
+export type RunComparison = {
+  baselineKWh: number;
+  ecostayKWh: number;
+  reductionPct: number;
+  savedLKR: number | null;
+  targetPct: number;
+  passed: boolean;
+};
+
+/** Measured energy of a completed run; null if unfinished or the meter rebooted mid-run. */
+export function runKWh(run: RunEnergy): number | null {
+  if (run.startEnergyKWh === undefined || run.endEnergyKWh === undefined) return null;
+  const delta = run.endEnergyKWh - run.startEnergyKWh;
+  return delta >= 0 ? round(delta) : null;
+}
+
+/**
+ * The §10.2 result from two MEASURED runs (baseline automation-off vs EcoStay
+ * automation-on). Returns null until both runs have usable measured energy.
+ */
+export function compareEvaluationRuns(
+  baseline: RunEnergy | null,
+  ecostay: RunEnergy | null,
+  tariff?: Tariff,
+  targetPct = 20,
+): RunComparison | null {
+  if (!baseline || !ecostay) return null;
+  const baselineKWh = runKWh(baseline);
+  const ecostayKWh = runKWh(ecostay);
+  if (baselineKWh === null || ecostayKWh === null) return null;
+
+  const reductionPct = baselineKWh > 0 ? round(((baselineKWh - ecostayKWh) / baselineKWh) * 100, 1) : 0;
+  const avoided = Math.max(0, round(baselineKWh - ecostayKWh));
+  const saved = tariff ? (avoided > 0 ? savedLKR(tariff, ecostayKWh, avoided) : 0) : null;
+
+  return {
+    baselineKWh,
+    ecostayKWh,
+    reductionPct,
+    savedLKR: saved,
+    targetPct,
+    passed: reductionPct >= targetPct,
+  };
+}
+
 export function computeValidation(input: ValidationInput): ValidationResult {
   const targetPct = input.targetPct ?? 20;
   const windowHours = Math.max(0, input.windowHours);

@@ -6,6 +6,8 @@ import type {
   CircuitWattages,
   DailyAggregateView,
   EnergyHistorySample,
+  EvaluationRun,
+  EvaluationRunInput,
   RoomDataSource,
   RoomLatest,
   RoomRef,
@@ -295,6 +297,78 @@ export class FakeRoomDataSource implements RoomDataSource {
         : alert,
     );
     this.emitAlerts(propertyId, updated);
+  }
+
+  private evaluationRuns = new Map<string, EvaluationRun[]>();
+  private evaluationListeners = new Map<string, Set<(runs: EvaluationRun[]) => void>>();
+  private nextRunId = 1;
+
+  emitEvaluationRuns(propertyId: string, roomId: string, runs: EvaluationRun[]): void {
+    const key = `${propertyId}/${roomId}`;
+    this.evaluationRuns.set(key, runs);
+    this.evaluationListeners.get(key)?.forEach((listener) => listener(runs));
+  }
+
+  subscribeEvaluationRuns(
+    propertyId: string,
+    roomId: string,
+    callback: (runs: EvaluationRun[]) => void,
+    onError?: () => void,
+  ): () => void {
+    if (this.subscriptionFailure) {
+      onError?.();
+      return () => {};
+    }
+    const key = `${propertyId}/${roomId}`;
+    const forKey = this.evaluationListeners.get(key) ?? new Set<typeof callback>();
+    forKey.add(callback);
+    this.evaluationListeners.set(key, forKey);
+    callback(this.evaluationRuns.get(key) ?? []);
+    return () => {
+      forKey.delete(callback);
+    };
+  }
+
+  async startEvaluationRun(
+    propertyId: string,
+    roomId: string,
+    input: EvaluationRunInput,
+  ): Promise<string> {
+    const key = `${propertyId}/${roomId}`;
+    const id = `run_${this.nextRunId++}`;
+    const run: EvaluationRun = {
+      id,
+      label: input.label,
+      automationEnabled: input.label === 'ecostay',
+      startedAt: Date.now(),
+      startEnergyKWh: input.startEnergyKWh,
+    };
+    // Baseline turns automation off, EcoStay turns it on — the experiment's control.
+    await this.setAutomationEnabled(propertyId, roomId, run.automationEnabled);
+    this.emitEvaluationRuns(propertyId, roomId, [
+      ...(this.evaluationRuns.get(key) ?? []),
+      run,
+    ]);
+    return id;
+  }
+
+  async endEvaluationRun(
+    propertyId: string,
+    roomId: string,
+    runId: string,
+    endEnergyKWh: number,
+  ): Promise<void> {
+    const key = `${propertyId}/${roomId}`;
+    const runs = (this.evaluationRuns.get(key) ?? []).map((run) =>
+      run.id === runId ? { ...run, endedAt: Date.now(), endEnergyKWh } : run,
+    );
+    this.emitEvaluationRuns(propertyId, roomId, runs);
+  }
+
+  async deleteEvaluationRun(propertyId: string, roomId: string, runId: string): Promise<void> {
+    const key = `${propertyId}/${roomId}`;
+    const runs = (this.evaluationRuns.get(key) ?? []).filter((run) => run.id !== runId);
+    this.emitEvaluationRuns(propertyId, roomId, runs);
   }
 
   async listAccessibleRooms(_session: Session): Promise<RoomRef[]> {

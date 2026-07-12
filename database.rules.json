@@ -20,6 +20,18 @@
                 ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
                 ".validate": "newData.isBoolean()"
               }
+            },
+            "evaluationRuns": {
+              "$runId": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
+                "label": { ".validate": "newData.val() === 'baseline' || newData.val() === 'ecostay'" },
+                "automationEnabled": { ".validate": "newData.isBoolean()" },
+                "startedAt": { ".validate": "newData.isNumber()" },
+                "endedAt": { ".validate": "newData.isNumber()" },
+                "startEnergyKWh": { ".validate": "newData.isNumber()" },
+                "endEnergyKWh": { ".validate": "newData.isNumber()" },
+                "$other": { ".validate": false }
+              }
             }
           },
           "$roomId": {
@@ -28,6 +40,18 @@
             },
             "devices": {
               ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId"
+            },
+            "evaluationRuns": {
+              "$runId": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
+                "label": { ".validate": "newData.val() === 'baseline' || newData.val() === 'ecostay'" },
+                "automationEnabled": { ".validate": "newData.isBoolean()" },
+                "startedAt": { ".validate": "newData.isNumber()" },
+                "endedAt": { ".validate": "newData.isNumber()" },
+                "startEnergyKWh": { ".validate": "newData.isNumber()" },
+                "endEnergyKWh": { ".validate": "newData.isNumber()" },
+                "$other": { ".validate": false }
+              }
             }
           }
         },
@@ -91,6 +115,18 @@
               "automationEnabled": {
                 ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
                 ".validate": "newData.isBoolean()"
+              }
+            },
+            "evaluationRuns": {
+              "$runId": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
+                "label": { ".validate": "newData.val() === 'baseline' || newData.val() === 'ecostay'" },
+                "automationEnabled": { ".validate": "newData.isBoolean()" },
+                "startedAt": { ".validate": "newData.isNumber()" },
+                "endedAt": { ".validate": "newData.isNumber()" },
+                "startEnergyKWh": { ".validate": "newData.isNumber()" },
+                "endEnergyKWh": { ".validate": "newData.isNumber()" },
+                "$other": { ".validate": false }
               }
             }
           }

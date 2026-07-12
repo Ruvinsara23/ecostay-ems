@@ -79,6 +79,18 @@ const prerenderRoomDataSource: RoomDataSource = {
   async acknowledgeAlert() {
     throw new Error('not available during prerender');
   },
+  subscribeEvaluationRuns() {
+    return () => {};
+  },
+  async startEvaluationRun() {
+    throw new Error('not available during prerender');
+  },
+  async endEvaluationRun() {
+    throw new Error('not available during prerender');
+  },
+  async deleteEvaluationRun() {
+    throw new Error('not available during prerender');
+  },
 };
 
 const prerenderAdminOperations: AdminOperations = {

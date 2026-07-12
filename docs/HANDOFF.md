@@ -59,8 +59,20 @@ and a thesis script `scripts/validate-savings.ts` (real-data or scenario). Owner
 also fixed to open an account menu instead of instant sign-out; secondary tabs (Devices/Routines/
 Activity) made readable + dead "coming soon" placeholders removed.
 
-Latest verification: **335 unit + 53 emulator tests green**, typecheck clean, 0 lint errors,
-desktop + true-390px mobile screenshot-verified (CDP).
+Then the **§10.2 A/B experiment runner** — a new owner **Evaluation** rail tab
+(`src/rooms/room-evaluation-view.tsx`): Start Baseline run (automation OFF) / Start EcoStay run
+(automation ON), each records its window + the room's MEASURED cumulative energy; the dashboard
+compares them (`compareEvaluationRuns` in `src/tariff/validation.ts`) and shows the ≥20% verdict.
+Runs persist at `properties/{pid}/rooms/{rid}/evaluationRuns` via new `RoomDataSource` methods.
+⚠ **NEEDS RULES REPUBLISH + gate #2 review**: `database.rules.json` gained owner/admin write +
+validation for `evaluationRuns` (all three room scopes); emulator test
+`src/server/evaluation-runs-rules.integration.test.ts` written but NOT run here (local Java is 17;
+firebase-tools needs 21 — run `npm run test:integration` where Java 21 is present, then republish
+the rules in the Firebase console). Measured reduction is real only once the PZEM is wired; until
+then both runs read the simulated signal.
+
+Latest verification: **344 unit tests green** (emulator suite unchanged; new rules test pending a
+Java-21 run), typecheck clean, 0 lint errors, desktop screenshot-verified (CDP).
 
 ## What's built
 

@@ -14,6 +14,7 @@ import { RoomLiveView } from '@/rooms/room-live-view';
 import { RoomDevicesView } from '@/rooms/room-devices-view';
 import { RoomRoutinesView } from '@/rooms/room-routines-view';
 import { RoomActivityView } from '@/rooms/room-activity-view';
+import { RoomEvaluationView } from '@/rooms/room-evaluation-view';
 import { useFcm } from '@/hooks/use-fcm';
 
 type RoomsState =
@@ -32,7 +33,7 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
-type RoomTabView = 'Live View' | 'Devices' | 'Routines' | 'Activity';
+type RoomTabView = 'Live View' | 'Devices' | 'Routines' | 'Activity' | 'Evaluation';
 type TabView = 'Home' | RoomTabView;
 
 /** ?tab= slugs so tabs and the picked room survive refresh and can be deep-linked. */
@@ -41,6 +42,7 @@ const TAB_SLUGS: Record<RoomTabView, string> = {
   Devices: 'devices',
   Routines: 'routines',
   Activity: 'activity',
+  Evaluation: 'evaluation',
 };
 const SLUG_TO_TAB: Record<string, RoomTabView> = Object.fromEntries(
   Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab as RoomTabView]),
@@ -188,6 +190,13 @@ function RoomArea({
           roomName={active.roomName}
         />
       )}
+      {view === 'Evaluation' && (
+        <RoomEvaluationView
+          propertyId={active.propertyId}
+          roomId={active.roomId}
+          roomName={active.roomName}
+        />
+      )}
       </div>
       <div className="px-6 pb-8 pt-2">
         <AlertCenter propertyId={active.propertyId} />
@@ -304,6 +313,11 @@ function DashboardLanding() {
           </svg>} />
         <RailButton label="Activity" active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>} />
+        <RailButton label="Evaluation" active={activeTab === 'Evaluation'} onClick={() => setActiveTab('Evaluation')} icon={<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+            <rect x="9" y="3" width="6" height="4" rx="1"></rect>
+            <path d="m9 14 2 2 4-4"></path>
           </svg>} />
         {role === 'admin' && (
         <div className="mt-auto w-full max-sm:mt-0 max-sm:w-auto">

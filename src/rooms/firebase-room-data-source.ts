@@ -3,6 +3,7 @@ import {
   get,
   onValue,
   orderByChild,
+  push,
   query,
   ref,
   serverTimestamp,
@@ -16,6 +17,7 @@ import type {
   AlertView,
   DailyAggregateView,
   EnergyHistorySample,
+  EvaluationRun,
   RoomDataSource,
   RoomLatest,
   RoomRef,
@@ -211,6 +213,48 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
         acknowledgedBy: uid,
         acknowledgedAt: serverTimestamp(),
       });
+    },
+
+    subscribeEvaluationRuns(propertyId, roomId, callback, onError) {
+      return onValue(
+        ref(db, `properties/${propertyId}/rooms/${roomId}/evaluationRuns`),
+        (snapshot) => {
+          const raw = (snapshot.val() ?? {}) as Record<string, Omit<EvaluationRun, 'id'>>;
+          callback(Object.entries(raw).map(([id, run]) => ({ ...run, id })));
+        },
+        (error) => {
+          console.error('[room-data-source] evaluation runs subscription failed', error);
+          onError?.();
+        },
+      );
+    },
+
+    async startEvaluationRun(propertyId, roomId, input) {
+      const automationEnabled = input.label === 'ecostay';
+      const runRef = push(ref(db, `properties/${propertyId}/rooms/${roomId}/evaluationRuns`));
+      await set(runRef, {
+        label: input.label,
+        automationEnabled,
+        startedAt: serverTimestamp(),
+        startEnergyKWh: input.startEnergyKWh,
+      });
+      // The experiment's control: baseline runs with automation off, EcoStay with it on.
+      await set(
+        ref(db, `properties/${propertyId}/rooms/${roomId}/settings/automationEnabled`),
+        automationEnabled,
+      );
+      return runRef.key as string;
+    },
+
+    async endEvaluationRun(propertyId, roomId, runId, endEnergyKWh) {
+      await update(ref(db, `properties/${propertyId}/rooms/${roomId}/evaluationRuns/${runId}`), {
+        endedAt: serverTimestamp(),
+        endEnergyKWh,
+      });
+    },
+
+    async deleteEvaluationRun(propertyId, roomId, runId) {
+      await set(ref(db, `properties/${propertyId}/rooms/${roomId}/evaluationRuns/${runId}`), null);
     },
   };
 }

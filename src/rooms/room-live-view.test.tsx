@@ -33,6 +33,10 @@ describe('RoomLiveView — states', () => {
       setAlertThresholds: async () => { },
       subscribeAlerts: () => () => { },
       acknowledgeAlert: async () => { },
+      subscribeEvaluationRuns: () => () => { },
+      startEvaluationRun: async () => 'run_0',
+      endEvaluationRun: async () => { },
+      deleteEvaluationRun: async () => { },
     };
     renderView(silentSource);
     expect(screen.getByText(/loading room/i)).toBeInTheDocument();
