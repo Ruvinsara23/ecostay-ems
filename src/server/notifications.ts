@@ -44,6 +44,17 @@ function formatMessageBody(alert: AlertRecord): string {
  * CONTEXT.md Auth & tenancy), so "notify the members" means "notify the
  * property's owners".
  */
+/**
+ * Only these FCM error codes mean the TOKEN itself is dead. Everything else
+ * (quota, internal, network, auth) is transient — pruning on those silently
+ * unsubscribes healthy browsers, so we never do it.
+ */
+const UNREGISTERED_TOKEN_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+  'messaging/invalid-argument',
+]);
+
 export type NotificationsDeps = {
   /** `properties/{pid}/members` — uid → role. */
   readMembers(propertyId: string): Promise<Record<string, string> | null>;
@@ -53,7 +64,12 @@ export type NotificationsDeps = {
   sendMulticast(
     tokens: string[],
     notification: { title: string; body: string },
-  ): Promise<{ successCount: number; failureCount: number; failedTokens: string[] }>;
+  ): Promise<{
+    successCount: number;
+    failureCount: number;
+    /** Tokens FCM says are dead — safe to delete. Transient failures are NOT here. */
+    invalidTokens: string[];
+  }>;
 };
 
 export function createNotificationsDeps(
@@ -78,14 +94,21 @@ export function createNotificationsDeps(
     },
     async sendMulticast(tokens, notification) {
       const response = await messaging.sendEachForMulticast({ tokens, notification });
-      const failedTokens: string[] = [];
+      const invalidTokens: string[] = [];
       response.responses.forEach((entry, index) => {
-        if (!entry.success) failedTokens.push(tokens[index]);
+        if (entry.success) return;
+        const code = (entry.error as { code?: string } | undefined)?.code;
+        // Keep the token unless FCM says it is dead; a transient failure retries next tick.
+        if (code && UNREGISTERED_TOKEN_CODES.has(code)) {
+          invalidTokens.push(tokens[index]);
+        } else {
+          console.warn(`[notifications] transient send failure (${code ?? 'unknown'}) — token kept`);
+        }
       });
       return {
         successCount: response.successCount,
         failureCount: response.failureCount,
-        failedTokens,
+        invalidTokens,
       };
     },
   };
@@ -93,8 +116,9 @@ export function createNotificationsDeps(
 
 /**
  * Send a push for every newly opened alert to the owning property's members.
- * Failed tokens are pruned from `users/{uid}/fcmTokens` and skipped for the
- * rest of the run. One property failing never blocks another.
+ * Only tokens FCM reports as dead are pruned from `users/{uid}/fcmTokens`;
+ * transient failures (quota/network/internal) keep their token and simply retry
+ * on the next tick. One property failing never blocks another.
  */
 export async function dispatchNotifications(
   deps: NotificationsDeps,
@@ -138,10 +162,10 @@ export async function dispatchNotifications(
           const chunk = tokens.slice(start, start + FCM_MULTICAST_LIMIT);
           const result = await deps.sendMulticast(chunk, notification);
           sent += result.successCount;
-          for (const failed of result.failedTokens) {
-            const entry = pool.get(failed);
+          for (const dead of result.invalidTokens) {
+            const entry = pool.get(dead);
             if (!entry) continue;
-            pool.delete(failed);
+            pool.delete(dead);
             await deps.removeFcmToken(entry.uid, entry.key);
             pruned += 1;
           }

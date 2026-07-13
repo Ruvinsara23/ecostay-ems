@@ -231,18 +231,19 @@ export function createFirebaseRoomDataSource(db: Database): RoomDataSource {
 
     async startEvaluationRun(propertyId, roomId, input) {
       const automationEnabled = input.label === 'ecostay';
-      const runRef = push(ref(db, `properties/${propertyId}/rooms/${roomId}/evaluationRuns`));
-      await set(runRef, {
-        label: input.label,
-        automationEnabled,
-        startedAt: serverTimestamp(),
-        startEnergyKWh: input.startEnergyKWh,
+      const base = `properties/${propertyId}/rooms/${roomId}`;
+      const runRef = push(ref(db, `${base}/evaluationRuns`));
+      // ATOMIC: one multi-path update, so a run can never be recorded without the
+      // automation mode it is supposed to be measuring actually being applied.
+      await update(ref(db), {
+        [`${base}/evaluationRuns/${runRef.key}`]: {
+          label: input.label,
+          automationEnabled,
+          startedAt: serverTimestamp(),
+          startEnergyKWh: input.startEnergyKWh,
+        },
+        [`${base}/settings/automationEnabled`]: automationEnabled,
       });
-      // The experiment's control: baseline runs with automation off, EcoStay with it on.
-      await set(
-        ref(db, `properties/${propertyId}/rooms/${roomId}/settings/automationEnabled`),
-        automationEnabled,
-      );
       return runRef.key as string;
     },
 

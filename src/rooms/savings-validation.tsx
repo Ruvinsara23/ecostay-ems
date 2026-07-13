@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CEB_TARIFFS } from '@/tariff/ceb-tariffs';
+import { monthToDateKWh } from '@/tariff/month-to-date';
 import { computeValidation } from '@/tariff/validation';
 import { Badge } from '@/ui/badge';
 import type { CircuitWattages, DailyAggregateView } from './room-data-source';
@@ -24,6 +25,13 @@ export function SavingsValidation({
   const [byDate, setByDate] = useState<Record<string, DailyAggregateView> | null>(null);
   const [wattages, setWattages] = useState<CircuitWattages | null>(null);
   const [category, setCategory] = useState<string | null>(null);
+  // Never call Date.now() during render (react-hooks/purity); tick it instead.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(
     () => source.subscribeDailyAggregates(propertyId, roomId, setByDate),
@@ -50,6 +58,8 @@ export function SavingsValidation({
         occupiedHours: occupiedMinutes / 60,
         controlledWatts,
         tariff,
+        // Gate #8: the CEB band comes from the month's total, not this window's kWh.
+        monthToDateKWh: monthToDateKWh(byDate ?? {}, nowMs).total,
       })
     : null;
 

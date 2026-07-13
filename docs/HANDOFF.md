@@ -64,15 +64,26 @@ Then the **§10.2 A/B experiment runner** — a new owner **Evaluation** rail ta
 (automation ON), each records its window + the room's MEASURED cumulative energy; the dashboard
 compares them (`compareEvaluationRuns` in `src/tariff/validation.ts`) and shows the ≥20% verdict.
 Runs persist at `properties/{pid}/rooms/{rid}/evaluationRuns` via new `RoomDataSource` methods.
-⚠ **NEEDS RULES REPUBLISH + gate #2 review**: `database.rules.json` gained owner/admin write +
-validation for `evaluationRuns` (all three room scopes); emulator test
-`src/server/evaluation-runs-rules.integration.test.ts` written but NOT run here (local Java is 17;
-firebase-tools needs 21 — run `npm run test:integration` where Java 21 is present, then republish
-the rules in the Firebase console). Measured reduction is real only once the PZEM is wired; until
-then both runs read the simulated signal.
+Then an **external audit (2026-07-12)** found real defects, all fixed in the follow-up commit:
+FCM token registration was **impossible** (no `.write` under `users/{uid}` — rules fix, gate #2
+approved); the A/B comparison could **fake a saving** from unequal run lengths (now compared on
+energy RATE, kWh/h, with a >20% duration-mismatch warning); evaluation money used the **wrong CEB
+band** (now priced by month-to-date consumption — gate #8 — and refuses to show rupees without it);
+run start is now an **atomic multi-path write** (a run can't be recorded without its automation mode
+applied); runs **refuse a stale reading** from an offline device; and FCM now prunes **only tokens
+FCM reports as dead** (transient quota/network failures no longer unsubscribe healthy browsers).
 
-Latest verification: **344 unit tests green** (emulator suite unchanged; new rules test pending a
-Java-21 run), typecheck clean, 0 lint errors, desktop screenshot-verified (CDP).
+⚠ **UNPUBLISHED RULES — do this before trusting push or the Evaluation tab in production:**
+`database.rules.json` gained `evaluationRuns` (owner/admin write + validation) and
+`users/{uid}/fcmTokens` (self-write, strings only). Republish in the Firebase console. Emulator
+tests: `evaluation-runs-rules.integration.test.ts`, `fcm-token-rules.integration.test.ts`
+(`npm run test:integration` — needs Java **21**; local Java here is 17).
+
+Known, accepted: `npm audit --omit=dev` reports 2 moderate advisories via Next's bundled
+`postcss@8.4.31` (GHSA-qx2v-qp2m-jg93) — no safe non-breaking fix offered upstream.
+
+Measured reduction on the Evaluation tab is real only once the PZEM is wired; until then both runs
+read the simulated signal.
 
 ## What's built
 
@@ -124,7 +135,10 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
   re-check CEB rates at the Q4 2026 PUCSL revision (the H-1/GP-1/D-1≤180 freeze rides on a subsidy
   ending Sep 2026).
 - **RTDB rules**: `database.rules.json` is the canonical copy — republish in the Firebase console after
-  any change. Latest local change is ADR-0007 slice 02 device-scoped rules; Codex did not publish it.
+  any change. Everything through the device-scoped rules (ADR-0007 slice 02) **was published
+  2026-07-11**. **UNPUBLISHED (do this):** the two rule changes from the 2026-07-12 audit fixes —
+  `evaluationRuns` (owner/admin write + validation) and `users/{uid}/fcmTokens` (self-write, string
+  values only). Until `fcmTokens` is published, **push notifications cannot register a token at all**.
 
 ## What to build next (candidate phases)
 
@@ -146,7 +160,7 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
 2. **Firmware workstream** (ADR-0007) — slices 00-03 are implemented locally. Slice 01 adds
    admin-only create/reset for Firebase Auth users with `role:'device'`, `propertyId`, and `roomId`
    claims; passwords are generated server-side, returned once, and never written to RTDB. Slice 02
-   adds the matching local RTDB rules draft and emulator tests, but those rules are **not published**.
+   adds the matching RTDB rules and emulator tests — **published 2026-07-11**.
    Slice 03 adds a Serial provisioning config block to the ESP32 to load `propertyId`, `roomId` and credentials dynamically from NVS instead of hardcoding.
    Slice 04 replaces anonymous Firebase sign-up with strict email/password auth for provisioned devices.
    UNBLOCKED 2026-07-11: key rotated, rules published, and a real device is live end-to-end

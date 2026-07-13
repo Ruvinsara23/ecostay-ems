@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EcoStay EMS
 
-## Getting Started
+Smart IoT energy-management system for Sri Lankan tourist accommodations. An ESP32 per room
+writes telemetry to Firebase RTDB; a Next.js dashboard gives owners live monitoring, device
+control, cost, savings, and safety alerts. Admins manage properties, rooms, owners, and device
+provisioning.
 
-First, run the development server:
+Live: <https://ecostay-ems.vercel.app> (auto-deploys from `main`).
+
+## Stack
+
+Next.js (App Router) · TypeScript · Tailwind v4 / shadcn · Firebase Realtime Database + Auth ·
+Vercel serverless + cron. **npm only** — no yarn/pnpm/bun.
+
+## Read these before changing anything
+
+1. **`AGENTS.md`** — stack, exact commands, risk gates, boundaries.
+2. **`CONTEXT.md`** — the ubiquitous language. Code may only use existing/derived/accepted terms.
+3. **`docs/firmware-contract.md`** — the immutable ESP32↔Firebase contract (ADR-0003). The
+   dashboard adapts to the firmware, never the reverse.
+4. **`docs/adr/`** — decisions already made; don't relitigate silently.
+5. **`docs/HANDOFF.md`** — what's built, what's pending, what's next. **Start here.**
+
+## Commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev              # dev server (http://localhost:3000)
+npm test                 # unit tests (fake-backed, fast)
+npm run typecheck
+npm run lint
+npm run build
+npm run test:integration # Firebase emulator tests — needs Java 21 on PATH
+npm run seed             # bootstrap accounts + property/room (Admin SDK, human-run)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm test` + `npm run typecheck` must be green before every commit.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Risk gates — stop and ask a human
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Auth/session, **RTDB security rules**, device command semantics, data deletion, secrets, deploys,
+firmware, and money-facing math. Passing tests never substitute for human review.
 
-## Learn More
+> **RTDB rules are not auto-deployed.** `database.rules.json` is the canonical copy; after any
+> change a human must republish it in the Firebase console. See `docs/HANDOFF.md` for the
+> currently-unpublished changes.
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Path | What |
+|---|---|
+| `src/app/` | Routes: owner dashboard (`/`), admin console (`/admin`), API routes, cron endpoints |
+| `src/rooms/` | Room views + the `RoomDataSource` port (Firebase adapter + in-memory fake) |
+| `src/admin/` | Admin console UI + the `AdminOperations` port |
+| `src/server/` | Server workloads (sampler, alert tick, rollup, notifications) as pure `(deps, now) → effect` |
+| `src/tariff/` | CEB tariff/bill engine, savings, §10.2 validation |
+| `src/telemetry/` | Firmware-contract types + derived terms (freshness, occupancy) |
+| `firmware/` | The ESP32 sketch (`complete.ino`) — **never commit real WiFi/device credentials** |
+| `scripts/` | Dev tools: `seed.ts`, `simulate-device.ts`, `validate-savings.ts` |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**The one seam:** UI depends only on the `AuthGateway`, `RoomDataSource`, and `AdminOperations`
+ports — never on the Firebase SDK directly. Each has a fake (fast unit tests) and a real adapter
+(emulator integration tests). Preserve this; it's why everything is testable.

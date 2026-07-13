@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { CEB_TARIFFS } from '@/tariff/ceb-tariffs';
+import { monthToDateKWh } from '@/tariff/month-to-date';
 import { compareEvaluationRuns, runKWh } from '@/tariff/validation';
+import { deviceFreshness } from '@/telemetry/device-freshness';
 import { Badge } from '@/ui/badge';
-import type { EvaluationRun, EvaluationRunLabel, RoomLatest } from './room-data-source';
+import type {
+  DailyAggregateView,
+  EvaluationRun,
+  EvaluationRunLabel,
+  RoomLatest,
+} from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 
 const LABELS: Record<EvaluationRunLabel, string> = {
@@ -39,6 +46,9 @@ export function RoomEvaluationView({
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
   const [latest, setLatest] = useState<RoomLatest | null>(null);
   const [category, setCategory] = useState<string | null>(null);
+  const [byDate, setByDate] = useState<Record<string, DailyAggregateView>>({});
+  const [offsetMs, setOffsetMs] = useState(0);
+  const [localNowMs, setLocalNowMs] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -51,15 +61,33 @@ export function RoomEvaluationView({
     [source, propertyId, roomId],
   );
   useEffect(() => source.subscribeTariffCategory(propertyId, setCategory), [source, propertyId]);
+  useEffect(
+    () => source.subscribeDailyAggregates(propertyId, roomId, setByDate),
+    [source, propertyId, roomId],
+  );
+  useEffect(() => source.subscribeServerTimeOffset(setOffsetMs), [source]);
+  useEffect(() => {
+    const timer = setInterval(() => setLocalNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
+  const nowMs = localNowMs + offsetMs;
+  const freshness = deviceFreshness(latest?.updatedAt, nowMs);
   const currentEnergyKWh = latest?.energy;
-  const canCapture = typeof currentEnergyKWh === 'number';
+  // A run may only start/stop against a LIVE meter reading — a stale cached value
+  // from an offline device would silently produce an invalid run (audit #5).
+  const canCapture = typeof currentEnergyKWh === 'number' && freshness.online;
+
   const inProgress = runs.find((run) => run.endedAt === undefined) ?? null;
   const completed = runs.filter((run) => run.endedAt !== undefined);
   const lastOf = (label: EvaluationRunLabel) =>
     completed.filter((run) => run.label === label).sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
   const tariff = category ? CEB_TARIFFS[category] : undefined;
-  const comparison = compareEvaluationRuns(lastOf('baseline'), lastOf('ecostay'), tariff);
+  // Gate #8: the CEB band is chosen by the month's total, never by a short run's kWh.
+  const comparison = compareEvaluationRuns(lastOf('baseline'), lastOf('ecostay'), {
+    tariff,
+    monthToDateKWh: monthToDateKWh(byDate, nowMs).total,
+  });
 
   async function start(label: EvaluationRunLabel) {
     if (!canCapture) return;
@@ -157,6 +185,17 @@ export function RoomEvaluationView({
                     </span>
                   )}
                 </div>
+                <p className="mt-2 text-[11px] text-ink-3">
+                  Compared on energy rate ({comparison.baselineKWhPerHour} vs{' '}
+                  {comparison.ecostayKWhPerHour} kWh/h) over {comparison.baselineHours} h and{' '}
+                  {comparison.ecostayHours} h.
+                </p>
+                {comparison.durationMismatch && (
+                  <p role="alert" className="mt-2 rounded-lg bg-warnbrand-soft px-3 py-2 text-xs font-semibold text-warnbrand">
+                    The two runs differ in length by more than 20% — not a valid §10.2 pair. Re-run
+                    both phases over matching windows under similar occupancy.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="mt-4 text-sm text-ink-2">
@@ -173,6 +212,7 @@ export function RoomEvaluationView({
               <h3 className="text-sm font-bold text-ink">Experiment control</h3>
               <span className="text-xs text-ink-3 [font-variant-numeric:tabular-nums]">
                 Meter: {canCapture ? `${currentEnergyKWh} kWh` : '—'}
+                {!freshness.online && <span className="ml-1 font-semibold text-alarm">offline</span>}
               </span>
             </div>
 
@@ -218,7 +258,9 @@ export function RoomEvaluationView({
 
             {!canCapture && (
               <p className="mt-3 text-xs text-ink-3">
-                Waiting for the device to report its energy reading before a run can start.
+                {currentEnergyKWh === undefined
+                  ? 'Waiting for the device to report its energy reading before a run can start.'
+                  : 'The device is offline — a run needs a live meter reading, not a stale one.'}
               </p>
             )}
             {error && (

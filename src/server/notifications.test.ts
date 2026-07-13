@@ -43,11 +43,12 @@ function makeDeps(config?: {
     },
     async sendMulticast(tokens, notification) {
       sends.push({ tokens: [...tokens], title: notification.title, body: notification.body });
-      const failedTokens = tokens.filter((t) => failTokens.has(t));
+      // config.failTokens models tokens FCM reports as DEAD (prunable).
+      const invalidTokens = tokens.filter((t) => failTokens.has(t));
       return {
-        successCount: tokens.length - failedTokens.length,
-        failureCount: failedTokens.length,
-        failedTokens,
+        successCount: tokens.length - invalidTokens.length,
+        failureCount: invalidTokens.length,
+        invalidTokens,
       };
     },
   };
@@ -172,5 +173,45 @@ describe('createNotificationsDeps (RTDB adapter paths)', () => {
 
     expect(requested).toContain('users/uid_a/fcmTokens');
     expect(tokens).toEqual({ k: 'token-1' });
+  });
+});
+
+describe('createNotificationsDeps.sendMulticast — token pruning safety', () => {
+  function messagingStub(responses: Array<{ success: boolean; code?: string }>) {
+    return {
+      async sendEachForMulticast() {
+        return {
+          successCount: responses.filter((r) => r.success).length,
+          failureCount: responses.filter((r) => !r.success).length,
+          responses: responses.map((r) =>
+            r.success ? { success: true } : { success: false, error: { code: r.code } },
+          ),
+        };
+      },
+    } as never;
+  }
+
+  it('reports ONLY dead tokens as invalid — transient failures keep their token', async () => {
+    const deps = createNotificationsDeps({} as never, messagingStub([
+      { success: true },
+      { success: false, code: 'messaging/registration-token-not-registered' }, // dead
+      { success: false, code: 'messaging/internal-error' }, // transient — must survive
+      { success: false, code: 'messaging/quota-exceeded' }, // transient — must survive
+    ]));
+
+    const result = await deps.sendMulticast(['good', 'dead', 'blip', 'quota'], {
+      title: 't',
+      body: 'b',
+    });
+
+    expect(result.invalidTokens).toEqual(['dead']);
+    expect(result.successCount).toBe(1);
+    expect(result.failureCount).toBe(3);
+  });
+
+  it('treats an unknown/absent error code as transient (never prunes on a guess)', async () => {
+    const deps = createNotificationsDeps({} as never, messagingStub([{ success: false }]));
+    const result = await deps.sendMulticast(['mystery'], { title: 't', body: 'b' });
+    expect(result.invalidTokens).toEqual([]);
   });
 });

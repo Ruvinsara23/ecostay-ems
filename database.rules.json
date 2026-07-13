@@ -178,7 +178,13 @@
     },
     "users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid"
+        ".read": "auth != null && auth.uid === $uid",
+        "fcmTokens": {
+          ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid",
+          "$tokenKey": {
+            ".validate": "newData.isString()"
+          }
+        }
       }
     }
   }

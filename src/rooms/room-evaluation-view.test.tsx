@@ -42,9 +42,11 @@ describe('RoomEvaluationView (A/B runner)', () => {
     const source = new FakeRoomDataSource();
     source.setTariffCategory('property_001', 'H-1');
     source.emitLatest('property_001', 'room_001', { energy: 5, updatedAt: Date.now() });
+    const HOUR = 3_600_000;
+    // Equal 24 h windows — a valid §10.2 pair.
     const runs: EvaluationRun[] = [
-      { id: 'r1', label: 'baseline', automationEnabled: false, startedAt: 1_000, endedAt: 2_000, startEnergyKWh: 100, endEnergyKWh: 103.1 },
-      { id: 'r2', label: 'ecostay', automationEnabled: true, startedAt: 3_000, endedAt: 4_000, startEnergyKWh: 200, endEnergyKWh: 201.35 },
+      { id: 'r1', label: 'baseline', automationEnabled: false, startedAt: 0, endedAt: 24 * HOUR, startEnergyKWh: 100, endEnergyKWh: 103.1 },
+      { id: 'r2', label: 'ecostay', automationEnabled: true, startedAt: 48 * HOUR, endedAt: 72 * HOUR, startEnergyKWh: 200, endEnergyKWh: 201.35 },
     ];
     source.emitEvaluationRuns('property_001', 'room_001', runs);
     renderView(source);
@@ -54,6 +56,33 @@ describe('RoomEvaluationView (A/B runner)', () => {
     // 3.1 / 1.35 kWh appear in both the comparison table and the runs list.
     expect(screen.getAllByText('3.1 kWh').length).toBeGreaterThan(0); // baseline
     expect(screen.getAllByText('1.35 kWh').length).toBeGreaterThan(0); // ecostay
+    expect(screen.queryByText(/differ in length/i)).not.toBeInTheDocument();
+  });
+
+  it('warns instead of faking a saving when the two windows differ in length (audit #2)', async () => {
+    const source = new FakeRoomDataSource();
+    source.emitLatest('property_001', 'room_001', { energy: 5, updatedAt: Date.now() });
+    const HOUR = 3_600_000;
+    // Same RATE (1 kWh/h) but a 2 h baseline vs a 1 h EcoStay run: 0%, not 50%.
+    source.emitEvaluationRuns('property_001', 'room_001', [
+      { id: 'r1', label: 'baseline', automationEnabled: false, startedAt: 0, endedAt: 2 * HOUR, startEnergyKWh: 0, endEnergyKWh: 2 },
+      { id: 'r2', label: 'ecostay', automationEnabled: true, startedAt: 10 * HOUR, endedAt: 11 * HOUR, startEnergyKWh: 0, endEnergyKWh: 1 },
+    ]);
+    renderView(source);
+
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+    expect(screen.getByText(/below target/i)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/differ in length by more than 20%/i);
+  });
+
+  it('refuses to start a run against a stale reading from an offline device (audit #5)', async () => {
+    const source = new FakeRoomDataSource();
+    // Energy is present but the device went silent 60 s ago.
+    source.emitLatest('property_001', 'room_001', { energy: 12, updatedAt: Date.now() - 60_000 });
+    renderView(source);
+
+    expect(await screen.findByRole('button', { name: /start baseline run/i })).toBeDisabled();
+    expect(screen.getByText(/device is offline/i)).toBeInTheDocument();
   });
 
   it('deletes a recorded run', async () => {
