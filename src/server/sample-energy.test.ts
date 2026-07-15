@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomLatest } from '@/rooms/room-data-source';
+import type { DeviceCommands } from '@/telemetry/contract';
 import { EnergySample, sampleEnergy, SamplerDeps } from './sample-energy';
 
 const NOW = 2_000_000_000_000;
 
-function makeDeps(rooms: Record<string, RoomLatest | null>): {
+function makeDeps(
+  rooms: Record<string, RoomLatest | null>,
+  commands: Record<string, DeviceCommands | null> = {},
+): {
   deps: SamplerDeps;
   written: Array<{ propertyId: string; roomId: string; sample: EnergySample }>;
 } {
@@ -18,6 +22,9 @@ function makeDeps(rooms: Record<string, RoomLatest | null>): {
     },
     async readLatest(propertyId, roomId) {
       return rooms[`${propertyId}/${roomId}`] ?? null;
+    },
+    async readDeviceCommands(propertyId, roomId) {
+      return commands[`${propertyId}/${roomId}`] ?? null;
     },
     async appendEnergySample(propertyId, roomId, sample) {
       written.push({ propertyId, roomId, sample });
@@ -104,5 +111,41 @@ describe('sampleEnergy', () => {
     });
     await sampleEnergy(deps, NOW);
     expect(written[0].sample).toEqual({ energy: 1.2, power: 4.7, sampledAt: NOW });
+  });
+
+  it('captures the cutoff circuits (commanded) + presence relay (actual) to make savings auditable', async () => {
+    const { deps, written } = makeDeps(
+      {
+        'property_001/room_001': {
+          energy: 2,
+          power: 5,
+          occupancyState: 'VACANT_CONFIRMED',
+          relayStatus: false, // presence relay ACTUAL, from latest
+          updatedAt: NOW - 3_000,
+        },
+      },
+      {
+        // devices/* commanded state; waterPump is not a savings circuit → not captured.
+        'property_001/room_001': { lights: false, exhaustFan: false, waterPump: true },
+      },
+    );
+
+    await sampleEnergy(deps, NOW);
+
+    expect(written[0].sample).toEqual({
+      energy: 2,
+      power: 5,
+      occupancyState: 'VACANT_CONFIRMED',
+      sampledAt: NOW,
+      relays: { lights: false, exhaustFan: false, presence: false },
+    });
+  });
+
+  it('omits relays entirely when neither the commands nor the presence relay are known', async () => {
+    const { deps, written } = makeDeps({
+      'property_001/room_001': { energy: 1.2, power: 4.7, occupancyState: 'VACANT', updatedAt: NOW - 3_000 },
+    });
+    await sampleEnergy(deps, NOW);
+    expect(written[0].sample).not.toHaveProperty('relays');
   });
 });

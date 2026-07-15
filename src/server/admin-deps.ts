@@ -1,5 +1,6 @@
 import type { Database } from 'firebase-admin/database';
 import type { RoomLatest } from '@/rooms/room-data-source';
+import type { DeviceCommands } from '@/telemetry/contract';
 import type { RegisterRoomInput } from './register-room';
 import type { AlertsDeps, AlertType } from './alerts';
 import type { AutomationDeps } from './automation';
@@ -36,6 +37,14 @@ export function createSamplerDeps(db: Database): SamplerDeps {
   return {
     listRooms: () => listIndexedRooms(db),
     readLatest: (propertyId, roomId) => readLatest(db, propertyId, roomId),
+
+    async readDeviceCommands(propertyId, roomId) {
+      return (
+        (await db.ref(`properties/${propertyId}/rooms/${roomId}/devices`).get()).val() as
+          | DeviceCommands
+          | null
+      ) ?? null;
+    },
 
     async appendEnergySample(propertyId, roomId, sample) {
       await db.ref(`properties/${propertyId}/energyHistory/${roomId}`).push(sample);
