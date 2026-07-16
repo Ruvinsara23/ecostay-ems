@@ -128,7 +128,7 @@ describe('dashboard tenancy', () => {
 
     expect(await screen.findByText('Room 1')).toBeInTheDocument();
     expect(screen.getByText('EcoStay Property')).toBeInTheDocument();
-    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '27.5 °C' })).toBeInTheDocument();
     expect(screen.getByText(/Status: Occupied/i)).toBeInTheDocument();
   });
 
@@ -176,7 +176,7 @@ describe('dashboard tenancy', () => {
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
 
     await user.click(await screen.findByRole('button', { name: /garden room/i }));
-    expect(screen.getByText('24.5 °C')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '24.5 °C' })).toBeInTheDocument();
     expect(screen.getByText(/Status: Vacant/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /home/i }));

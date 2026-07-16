@@ -59,7 +59,7 @@ describe('RoomLiveView — states', () => {
     renderView(source);
 
     expect(screen.getByText(/Occupied/i)).toBeInTheDocument();
-    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '27.5 °C' })).toBeInTheDocument();
   });
 
   it('summarizes VACANT_CONFIRMED as Vacant', () => {
@@ -106,19 +106,19 @@ describe('RoomLiveView — full telemetry', () => {
   it('renders every contract field with its unit', () => {
     renderFull();
     // climate
-    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
-    expect(screen.getByText('62 %')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '27.5 °C' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '62 %' })).toBeInTheDocument();
     // power (simulated)
     expect(screen.getByText('4.7 W')).toBeInTheDocument();
     expect(screen.getByText('1.234 kWh')).toBeInTheDocument();
     expect(screen.getByText('229.8 V')).toBeInTheDocument();
     expect(screen.getByText('0.02 A')).toBeInTheDocument();
     // safety
-    expect(screen.getByText('150 ppm')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '150 ppm' })).toBeInTheDocument();
     // water
-    expect(screen.getByText('76 %')).toBeInTheDocument();
-    expect(screen.getByText('2.5 L/min')).toBeInTheDocument();
-    expect(screen.getByText('12.4 L')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Tank level 76%' })).toBeInTheDocument();
+    expect(screen.getByText('2.5')).toBeInTheDocument();
+    expect(screen.getByText(/Usage since reboot: 12\.4 L/)).toBeInTheDocument();
     // activity & relays
     expect(screen.getByText('Open')).toBeInTheDocument(); // door
     expect(screen.getByText('Detected')).toBeInTheDocument(); // motion
@@ -156,7 +156,7 @@ describe('RoomLiveView — updates & resilience', () => {
     const source = new FakeRoomDataSource();
     source.emitLatest('property_001', 'room_001', FULL_SNAPSHOT);
     renderView(source);
-    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '27.5 °C' })).toBeInTheDocument();
 
     act(() =>
       source.emitLatest('property_001', 'room_001', {
@@ -166,8 +166,8 @@ describe('RoomLiveView — updates & resilience', () => {
       }),
     );
 
-    expect(screen.getByText('28.1 °C')).toBeInTheDocument();
-    expect(screen.queryByText('27.5 °C')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '28.1 °C' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: '27.5 °C' })).not.toBeInTheDocument();
   });
 
   it('renders a placeholder for a missing field without blanking the rest', () => {
@@ -177,7 +177,7 @@ describe('RoomLiveView — updates & resilience', () => {
     source.emitLatest('property_001', 'room_001', withoutTemperature);
     renderView(source);
     expect(screen.getByText('—')).toBeInTheDocument(); // temperature placeholder
-    expect(screen.getByText('62 %')).toBeInTheDocument(); // humidity unaffected
+    expect(screen.getByRole('img', { name: '62 %' })).toBeInTheDocument(); // humidity unaffected
   });
 
   it('shows — for an occupancy state outside the contract instead of guessing', () => {
@@ -191,7 +191,7 @@ describe('RoomLiveView — updates & resilience', () => {
     expect(screen.getByText(/Status: —/i)).toBeInTheDocument(); // summary refuses to guess
     expect(screen.queryByText('Occupied')).not.toBeInTheDocument();
     expect(screen.queryByText('Vacant')).not.toBeInTheDocument();
-    expect(screen.getByText('62 %')).toBeInTheDocument(); // rest of the view intact
+    expect(screen.getByRole('img', { name: '62 %' })).toBeInTheDocument(); // rest of the view intact
   });
 });
 
@@ -234,7 +234,7 @@ describe('RoomLiveView — freshness & offline honesty', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/offline — last seen 16s ago/i);
     expect(document.querySelector('[data-stale="true"]')).not.toBeNull();
     // readings remain visible (greyed, not blanked)
-    expect(screen.getByText('27.5 °C')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '27.5 °C' })).toBeInTheDocument();
   });
 
   it('keeps the last-seen age ticking while offline', () => {

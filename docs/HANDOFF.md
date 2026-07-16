@@ -1,6 +1,6 @@
 # HANDOFF — EcoStay EMS (state & where to continue)
 
-_Last updated 2026-07-11. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
+_Last updated 2026-07-16. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
 
 EcoStay EMS is a smart-IoT energy management system for Sri Lankan tourist accommodations:
 an ESP32 per room writes telemetry to Firebase RTDB; a Next.js dashboard (Firebase Auth + RTDB)
@@ -16,6 +16,13 @@ authenticated with its device account, and writing telemetry to production** —
 
 Ops items CLOSED 2026-07-11: `database.rules.json` republished (incl. `acPowerThresholdW`),
 the leaked service-account key rotated (old key deleted), FCM env vars set in Vercel.
+
+Production runtime fix 2026-07-16: Admin and cron API functions returned Vercel's static 500
+page before their handlers ran, while client-only owner pages remained healthy. The cold-start
+failure was the CommonJS/ESM chain in `firebase-admin@14.1.0 -> jwks-rsa@4 -> jose@6`.
+`firebase-admin` is now an exact production dependency at `13.10.0`, resolving through
+`jwks-rsa@3` / `jose@4`; Node remains pinned to 24.x. No route, claim, credential, RTDB path,
+rules, or device-command semantics changed. See `docs/runbook-free-runtime.md` for the diagnostic.
 
 Shipped since 2026-07-09 (all pushed): frontend audit + admin-console-v2 plan (`.scratch/`),
 admin console Properties/rooms browse layer + sign-out, owner dashboard tabs

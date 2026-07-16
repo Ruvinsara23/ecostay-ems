@@ -75,3 +75,25 @@ set `PRUNE_ENABLED=true` in Vercel env and change the rollup job URL to
   inside Vercel Hobby limits; cron-job.org free covers 3 jobs at these rates.
 - If Blaze ever becomes possible, the handlers in `src/server/` lift into Cloud Functions
   unchanged (ADR-0010) and the cron-job.org jobs are simply deleted.
+
+## Troubleshooting: static 500 before the handler
+
+An Admin or cron endpoint called without credentials should still reach its handler and return
+its JSON `401` response. If it returns Vercel's static HTML `/500` page instead, the serverless
+function failed during module loading; do not start by changing Firebase claims, RTDB rules, or
+service-account values.
+
+The 2026-07-16 incident was caused by `firebase-admin@14.1.0 -> jwks-rsa@4 -> jose@6`: a
+CommonJS dependency required an ESM-only package at cold start. The repo intentionally pins
+`firebase-admin` to the production dependency `13.10.0`, whose runtime chain uses
+`jwks-rsa@3` / `jose@4`. Preserve the exact pin until an upgraded chain is verified in a Vercel
+function, not only with local `next dev` or `next build`.
+
+Checks:
+
+1. `npm ls firebase-admin jwks-rsa jose --omit=dev --all` should show the pinned Admin SDK chain.
+2. `node -e "require('firebase-admin/app'); require('firebase-admin/auth'); require('firebase-admin/database')"`
+   must exit successfully.
+3. After deployment, call an Admin endpoint without a bearer token. A JSON `401` proves the
+   module loaded and the handler ran; a static HTML `500` means the cold start still failed.
+4. Then sign in as Admin and inspect Vercel function logs before changing any credential or role.
