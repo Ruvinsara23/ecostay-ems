@@ -1,6 +1,6 @@
 'use client';
 
-import { Droplets, Fan, Lightbulb, type LucideIcon, Radar } from 'lucide-react';
+import { Droplets, Fan, Flame, Lightbulb, type LucideIcon, Radar, Thermometer } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import {
   DEVICE_COMMAND_KEYS,
@@ -11,6 +11,7 @@ import {
   OCCUPANCY_STATES,
   OccupancyState,
 } from '@/telemetry/contract';
+import { DEFAULT_ALERT_THRESHOLDS } from '@/alerts/thresholds';
 import { deviceFreshness } from '@/telemetry/device-freshness';
 import { isOccupied } from '@/telemetry/is-occupied';
 import { EnergyHistorySection } from './energy-charts';
@@ -18,6 +19,7 @@ import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
 import { RoomScene } from './room-scene';
 import { Badge } from '@/ui/badge';
+import { ArcGauge, TankGauge } from '@/ui/gauge';
 import { Toggle } from '@/ui/toggle';
 
 type ViewState =
@@ -63,6 +65,137 @@ function Value({ label, children }: { label: string; children: ReactNode }) {
         {children}
       </dd>
     </div>
+  );
+}
+
+/** A glass card with an icon-chip header + subtitle — the richer sensor-gauge shell. */
+function SensorCard({
+  icon: Icon,
+  title,
+  subtitle,
+  badge,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  badge?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="glass rounded-[1.25rem] p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-brand-soft text-brand-deep">
+          <Icon size={18} strokeWidth={2.2} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-bold leading-tight text-ink">{title}</h3>
+          <p className="text-[11px] font-medium text-ink-3">{subtitle}</p>
+        </div>
+        {badge}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** A big centered number tile (the two readouts beside a gauge). */
+function BigTile({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-well/60 p-3 text-center">
+      <div className="text-2xl font-bold leading-tight text-ink [font-variant-numeric:tabular-nums]">
+        {children}
+      </div>
+      <div className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-ink-3">{label}</div>
+    </div>
+  );
+}
+
+type StateTone = 'brand' | 'success' | 'warn' | 'danger' | 'neutral';
+
+function waterState(level: number | undefined, low: number): { label: string; tone: StateTone } {
+  if (level === undefined) return { label: 'Unknown', tone: 'neutral' };
+  if (level <= 0) return { label: 'Empty', tone: 'danger' };
+  if (level < low) return { label: 'Low', tone: 'warn' };
+  if (level >= 80) return { label: 'Full', tone: 'success' };
+  return { label: 'OK', tone: 'success' };
+}
+
+/** Water Tank card — vertical fill gauge + level/flow readouts + tank-state pill. */
+function WaterCard({ latest }: { latest: RoomLatest }) {
+  const low = DEFAULT_ALERT_THRESHOLDS.waterLevelPct;
+  const level = latest.waterLevel;
+  const state = waterState(level, low);
+  return (
+    <SensorCard icon={Droplets} title="Water Tank" subtitle="Level & Flow Rate">
+      <div className="mx-auto w-28">
+        <TankGauge level={level} lowThreshold={low} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2.5">
+        <BigTile label="Tank Level">{level === undefined ? '—' : `${level}%`}</BigTile>
+        <BigTile label="L/min Flow">{latest.flowRate === undefined ? '—' : latest.flowRate}</BigTile>
+      </div>
+      <div className="mt-3 flex items-center justify-between rounded-full bg-well/70 px-4 py-2">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-3">Tank state</span>
+        <Badge tone={state.tone}>{state.label}</Badge>
+      </div>
+      <p className="mt-2 text-center text-[11px] text-ink-3">
+        Usage since reboot: {reading(latest.totalLiters, 'L')}
+      </p>
+    </SensorCard>
+  );
+}
+
+/** Air-safety card — a gas dial with the firmware's 300 ppm alarm line. */
+function SafetyCard({ latest }: { latest: RoomLatest }) {
+  const alarm = latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD;
+  return (
+    <SensorCard
+      icon={Flame}
+      title="Air Safety"
+      subtitle="Combustible Gas"
+      badge={alarm ? <Badge tone="danger">Alarm</Badge> : undefined}
+    >
+      <div className="mx-auto w-44">
+        <ArcGauge
+          value={latest.gas}
+          max={1000}
+          unit="ppm"
+          threshold={GAS_ALARM_THRESHOLD}
+          thresholdDirection="above"
+        />
+      </div>
+      <p className="mt-1 text-center text-[11px] text-ink-3">Alarm above {GAS_ALARM_THRESHOLD} ppm</p>
+    </SensorCard>
+  );
+}
+
+/** Climate card — temperature + humidity dials. */
+function ClimateCard({ latest }: { latest: RoomLatest }) {
+  return (
+    <SensorCard icon={Thermometer} title="Climate" subtitle="Temperature & Humidity">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <ArcGauge
+            value={latest.temperature}
+            min={0}
+            max={50}
+            unit="°C"
+            threshold={DEFAULT_ALERT_THRESHOLDS.temperatureC}
+            thresholdDirection="above"
+          />
+          <p className="mt-0.5 text-center text-[11px] font-medium uppercase tracking-wider text-ink-3">
+            Temp
+          </p>
+        </div>
+        <div>
+          <ArcGauge value={latest.humidity} min={0} max={100} unit="%" />
+          <p className="mt-0.5 text-center text-[11px] font-medium uppercase tracking-wider text-ink-3">
+            Humidity
+          </p>
+        </div>
+      </div>
+    </SensorCard>
   );
 }
 
@@ -115,7 +248,7 @@ function DeviceTile({
           className={`relative h-6 w-11 flex-none rounded-full transition-colors ${on ? 'bg-brand' : 'bg-ink-3/25'}`}
         >
           <span
-            className={`absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-[22px]' : 'translate-x-[2px]'}`}
+            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}`}
           />
         </span>
       </div>
@@ -377,14 +510,8 @@ export function RoomLiveView({
               <Value label="Motion">{flag(latest.motionDetected, 'Detected', 'None')}</Value>
               <Value label="Presence">{flag(latest.humanPresent, 'Present', 'Away')}</Value>
             </Group>
-            <Group title="Water">
-              <Value label="Tank level">{reading(latest.waterLevel, '%')}</Value>
-              <Value label="Flow">{reading(latest.flowRate, 'L/min')}</Value>
-              <Value label="Usage">{reading(latest.totalLiters, 'L')}</Value>
-            </Group>
-            <Group title="Safety">
-              <Value label="Gas Level">{reading(latest.gas, 'ppm')}</Value>
-            </Group>
+            <WaterCard latest={latest} />
+            <SafetyCard latest={latest} />
           </div>
 
           {/* Right Widgets */}
@@ -394,10 +521,7 @@ export function RoomLiveView({
               <Value label="Buzzer">{flag(latest.buzzerStatus, 'On', 'Off')}</Value>
               <Value label="Light level">No sensor</Value>
             </Group>
-            <Group title="Climate Control">
-              <Value label="Temperature">{reading(latest.temperature, '°C')}</Value>
-              <Value label="Humidity">{reading(latest.humidity, '%')}</Value>
-            </Group>
+            <ClimateCard latest={latest} />
             <Group title="Power Usage" badge="Simulated">
               <Value label="Power">{reading(latest.power, 'W')}</Value>
               <Value label="Energy">{reading(latest.energy, 'kWh')}</Value>
