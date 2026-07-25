@@ -37,6 +37,12 @@ function makeDeps(options: {
         commands: { lights: false, exhaustFan: false },
       });
     },
+    async writeRestoreCommands(propertyId, roomId) {
+      commandWrites.push({
+        key: `${propertyId}/${roomId}`,
+        commands: { lights: true, exhaustFan: true },
+      });
+    },
     async appendAutomationLog(propertyId, entry) {
       log.push(entry);
     },
@@ -153,5 +159,87 @@ describe('runAutomation', () => {
 
     expect(commandWrites).toEqual([]); // no known previous state — don't guess a transition
     expect(lastStates['property_001/room_001']).toBe('VACANT_CONFIRMED');
+  });
+
+  // FR-05: restore the cut circuits when occupancy returns (symmetric with the cutoff).
+  it('restores lights + fan once on the vacant→occupied transition (enabled room)', async () => {
+    const { deps, commandWrites, log, lastStates } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('ENTRY_DETECTED') },
+      lastStates: { 'property_001/room_001': 'VACANT_CONFIRMED' },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([
+      { key: 'property_001/room_001', commands: { lights: true, exhaustFan: true } },
+    ]);
+    expect(log).toEqual([
+      {
+        roomId: 'room_001',
+        action: 'occupancy-restore',
+        relays: ['lights', 'exhaustFan'],
+        fromState: 'VACANT_CONFIRMED',
+        toState: 'ENTRY_DETECTED',
+        at: NOW,
+      },
+    ]);
+    expect(lastStates['property_001/room_001']).toBe('ENTRY_DETECTED');
+    expect(report.restores).toBe(1);
+  });
+
+  it('restores on a late-observed return (VACANT_CONFIRMED → OCCUPIED_ACTIVE)', async () => {
+    const { deps, commandWrites } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('OCCUPIED_ACTIVE') },
+      lastStates: { 'property_001/room_001': 'VACANT_CONFIRMED' },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([
+      { key: 'property_001/room_001', commands: { lights: true, exhaustFan: true } },
+    ]);
+    expect(report.restores).toBe(1);
+  });
+
+  it('does not restore when automation is disabled', async () => {
+    const { deps, commandWrites, log, lastStates } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('ENTRY_DETECTED') },
+      lastStates: { 'property_001/room_001': 'VACANT_CONFIRMED' },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([]);
+    expect(log).toEqual([]);
+    expect(report.restores).toBe(0);
+    expect(lastStates['property_001/room_001']).toBe('ENTRY_DETECTED'); // transition still recorded
+  });
+
+  it('does not restore on an occupied→occupied transition (no return edge)', async () => {
+    const { deps, commandWrites } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('OCCUPIED_SLEEPING') },
+      lastStates: { 'property_001/room_001': 'OCCUPIED_ACTIVE' },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([]);
+    expect(report.restores).toBe(0);
+  });
+
+  it('does not restore on the first-ever observation of an occupied state', async () => {
+    const { deps, commandWrites, lastStates } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('OCCUPIED_ACTIVE') },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([]); // null previous state — no phantom transition
+    expect(report.restores).toBe(0);
+    expect(lastStates['property_001/room_001']).toBe('OCCUPIED_ACTIVE');
   });
 });

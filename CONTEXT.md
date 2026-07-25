@@ -121,11 +121,16 @@ No background logic ever runs in the browser client.
 - v1 rule: **Vacancy Cutoff** — on `VACANT_CONFIRMED`, write the room's configured subset of
   `devices/*` to false (default: `lights`, `exhaustFan`). Per-room master automation on/off
   toggle, visible to the Owner.
+- v1 rule: **Occupancy Restore (FR-05)** — on the transition back into occupancy
+  (vacant → occupied), write the same configured subset to `true`. Symmetric partner of the
+  cutoff: same `automationEnabled` toggle, same transition-epoch precedence. It restores the
+  configured cutoff circuits, **not** a remembered snapshot (no stored pre-cut state, no timers).
 - **Transition-epoch precedence**: automation acts only *at the moment* of an occupancy
   transition; any manual command issued after that moment stands until the next transition.
   No sticky override flags, no timers.
 - The firmware's local gas→exhaust-fan override always wins locally; cloud automation never fights it.
-- v1.1 queue: "welcome lights on entry", temperature-based fan rules.
+- v1.1 queue: temperature-based fan rules. ("Welcome lights on entry" is delivered by the FR-05
+  Occupancy Restore rule above.)
 
 ## Alerts (accepted)
 

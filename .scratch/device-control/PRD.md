@@ -98,3 +98,7 @@ the device" (the firmware's local override always wins).
   online. Verify with the simulator first (it ignores commands — safe), then live.
 - This PRD unlocks the automation executor later: automation writes the same `devices/*`
   leaves the UI does, with transition-epoch precedence arbitrating between them.
+- **FR-05 (restore appliances on occupancy return) is implemented** as the symmetric partner
+  of the vacancy cutoff — on the vacant→occupied transition the automation writes the configured
+  subset back on, gated by the same `automationEnabled` toggle. See `src/server/automation.ts`
+  and CONTEXT.md's Automation section.

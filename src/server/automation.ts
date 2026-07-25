@@ -1,9 +1,11 @@
 import type { RoomLatest } from '@/rooms/room-data-source';
+import type { OccupancyState } from '@/telemetry/contract';
+import { isOccupied } from '@/telemetry/is-occupied';
 import { OFFLINE_ALERT_MS } from './alerts';
 
 export type AutomationLogEntry = {
   roomId: string;
-  action: 'vacancy-cutoff';
+  action: 'vacancy-cutoff' | 'occupancy-restore';
   relays: string[];
   fromState: string | null;
   toState: string;
@@ -20,10 +22,12 @@ export type AutomationDeps = {
   isAutomationEnabled(propertyId: string, roomId: string): Promise<boolean>;
   /** Writes lights=false, exhaustFan=false. NEVER mainRelay (ADR-0003). */
   writeCutoffCommands(propertyId: string, roomId: string): Promise<void>;
+  /** Writes lights=true, exhaustFan=true — restores the cut circuits on return (FR-05). */
+  writeRestoreCommands(propertyId: string, roomId: string): Promise<void>;
   appendAutomationLog(propertyId: string, entry: AutomationLogEntry): Promise<void>;
 };
 
-export type AutomationReport = { cutoffs: number; transitions: number };
+export type AutomationReport = { cutoffs: number; restores: number; transitions: number };
 
 /**
  * Vacancy Cutoff with transition-epoch precedence (grilled decision, CONTEXT.md):
@@ -32,12 +36,18 @@ export type AutomationReport = { cutoffs: number; transitions: number };
  * Frozen (stale) data never advances the state machine: a dead device cannot
  * generate transitions. First-ever observation records state without guessing
  * a transition from null.
+ *
+ * FR-05 (symmetric restore): at the transition BACK into occupancy (vacant →
+ * occupied), the same circuits are restored to on. Both actions are gated by
+ * settings/automationEnabled and obey transition-epoch precedence — a later
+ * manual command stands until the next transition. No stored pre-cut state, no
+ * timers: it restores the configured cutoff subset, not a remembered snapshot.
  */
 export async function runAutomation(
   deps: AutomationDeps,
   nowMs: number,
 ): Promise<AutomationReport> {
-  const report: AutomationReport = { cutoffs: 0, transitions: 0 };
+  const report: AutomationReport = { cutoffs: 0, restores: 0, transitions: 0 };
 
   for (const { propertyId, roomId } of await deps.listRooms()) {
     const latest = await deps.readLatest(propertyId, roomId);
@@ -52,7 +62,9 @@ export async function runAutomation(
 
     if (lastState !== null) {
       report.transitions += 1;
-      if (state === 'VACANT_CONFIRMED' && (await deps.isAutomationEnabled(propertyId, roomId))) {
+      const enabled = await deps.isAutomationEnabled(propertyId, roomId);
+
+      if (enabled && state === 'VACANT_CONFIRMED') {
         await deps.writeCutoffCommands(propertyId, roomId);
         await deps.appendAutomationLog(propertyId, {
           roomId,
@@ -63,6 +75,18 @@ export async function runAutomation(
           at: nowMs,
         });
         report.cutoffs += 1;
+      } else if (enabled && isOccupied(state) && !isOccupied(lastState as OccupancyState)) {
+        // FR-05: occupancy returned — restore the circuits the cutoff controls.
+        await deps.writeRestoreCommands(propertyId, roomId);
+        await deps.appendAutomationLog(propertyId, {
+          roomId,
+          action: 'occupancy-restore',
+          relays: ['lights', 'exhaustFan'],
+          fromState: lastState,
+          toState: state,
+          at: nowMs,
+        });
+        report.restores += 1;
       }
     }
 

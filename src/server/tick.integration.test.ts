@@ -127,4 +127,36 @@ describe('tick against the RTDB emulator', () => {
     expect((await db.ref(`${ROOM}/devices/lights`).get()).val()).toBe(true);
     expect((await db.ref('properties/property_001/automationLog').get()).val()).toBeNull();
   });
+
+  it('occupancy restore: vacant→occupied transition switches the two commands back on + logs (FR-05)', async () => {
+    await seedRoom({ occupancyState: 'VACANT_CONFIRMED', updatedAt: NOW - 5_000 });
+    await db.ref().update({
+      [`${ROOM}/settings/automationEnabled`]: true,
+      [`${ROOM}/devices`]: { lights: false, exhaustFan: false, waterPump: false },
+    });
+    const deps = createAutomationDeps(db);
+
+    await runAutomation(deps, NOW); // records VACANT_CONFIRMED
+    await db
+      .ref(`${ROOM}/latest`)
+      .update({ occupancyState: 'ENTRY_DETECTED', updatedAt: NOW + 55_000 });
+    const report = await runAutomation(deps, NOW + 60_000);
+    expect(report.restores).toBe(1);
+
+    const devices = (await db.ref(`${ROOM}/devices`).get()).val();
+    expect(devices).toEqual({ lights: true, exhaustFan: true, waterPump: false }); // pump untouched
+
+    const log = Object.values(
+      ((await db.ref('properties/property_001/automationLog').get()).val() ?? {}) as Record<
+        string,
+        AutomationLogEntry
+      >,
+    );
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({
+      action: 'occupancy-restore',
+      fromState: 'VACANT_CONFIRMED',
+      toState: 'ENTRY_DETECTED',
+    });
+  });
 });

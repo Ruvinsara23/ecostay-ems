@@ -112,6 +112,14 @@ export function createAutomationDeps(db: Database): AutomationDeps {
       });
     },
 
+    async writeRestoreCommands(propertyId, roomId) {
+      // FR-05: restore the same cut circuits on occupancy return — mainRelay untouched (ADR-0003).
+      await db.ref(`properties/${propertyId}/rooms/${roomId}/devices`).update({
+        lights: true,
+        exhaustFan: true,
+      });
+    },
+
     async appendAutomationLog(propertyId, entry) {
       await db.ref(`properties/${propertyId}/automationLog`).push(entry);
     },
