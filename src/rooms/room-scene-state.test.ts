@@ -33,6 +33,18 @@ describe('deriveRoomSceneState', () => {
     });
   });
 
+  it('turns the visual TV on only while the firmware reports human presence', () => {
+    expect(
+      deriveRoomSceneState({ humanPresent: true }, {}, true).tvPresenceCueOn,
+    ).toBe(true);
+    expect(
+      deriveRoomSceneState({ humanPresent: false }, {}, true).tvPresenceCueOn,
+    ).toBe(false);
+    expect(
+      deriveRoomSceneState({ humanPresent: true }, {}, false).tvPresenceCueOn,
+    ).toBe(false);
+  });
+
   it('shows the firmware gas override even when the fan command is off', () => {
     expect(
       deriveRoomSceneState({ gas: 301 }, { exhaustFan: false }, true),
@@ -60,6 +72,7 @@ describe('deriveRoomSceneState', () => {
       doorOpen: false,
       occupantPose: 'absent',
       lightsOn: false,
+      tvPresenceCueOn: false,
       fanOn: false,
       fanForcedByGas: false,
       pumpOn: false,

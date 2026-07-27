@@ -13,7 +13,6 @@ import {
 } from '@/telemetry/contract';
 import { DEFAULT_ALERT_THRESHOLDS } from '@/alerts/thresholds';
 import { deviceFreshness } from '@/telemetry/device-freshness';
-import { isOccupied } from '@/telemetry/is-occupied';
 import { EnergyHistorySection } from './energy-charts';
 import type { RoomLatest } from './room-data-source';
 import { useRoomDataSource } from './room-data-source-context';
@@ -46,6 +45,16 @@ function flag(value: boolean | undefined, onLabel: string, offLabel: string): st
   if (value === undefined) return '—';
   return value ? onLabel : offLabel;
 }
+
+const OCCUPANCY_STATUS_LABELS: Record<OccupancyState, string> = {
+  VACANT: 'Vacant',
+  ENTRY_DETECTED: 'Entry detected',
+  OCCUPIED_ACTIVE: 'Occupied active',
+  OCCUPIED_IDLE: 'Occupied idle',
+  OCCUPIED_SLEEPING: 'Occupied sleeping',
+  EXIT_PENDING: 'Exit pending',
+  VACANT_CONFIRMED: 'Vacant confirmed',
+};
 
 function Group({ title, badge, children }: { title: string; badge?: string; children: ReactNode }) {
   return (
@@ -505,7 +514,7 @@ export function RoomLiveView({
     ? (latest.occupancyState as OccupancyState)
     : undefined;
   const occupancySummary =
-    knownState === undefined ? '—' : isOccupied(knownState) ? 'Occupied' : 'Vacant';
+    knownState === undefined ? '—' : OCCUPANCY_STATUS_LABELS[knownState];
 
   // Freshness on the SERVER-corrected clock — never raw Date.now() (issue 04 field evidence).
   const freshness = deviceFreshness(latest.updatedAt, localNowMs + offsetMs);

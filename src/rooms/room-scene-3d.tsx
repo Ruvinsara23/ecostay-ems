@@ -250,10 +250,20 @@ function Lamp({
       >
         <coneGeometry args={[0.3, 0.42, 24, 1, true]} />
         <meshStandardMaterial
-          color={on ? '#fff4c4' : '#d8cedd'}
+          color={on ? '#fff4c4' : '#69636f'}
           emissive={on ? '#ffd77c' : '#000000'}
           emissiveIntensity={on ? 2.2 : 0}
+          roughness={on ? 0.35 : 0.92}
           side={2}
+        />
+      </mesh>
+      <mesh position={[0, 0.84, 0]}>
+        <sphereGeometry args={[0.08, 16, 12]} />
+        <meshStandardMaterial
+          color={on ? '#fff8d8' : '#38343c'}
+          emissive={on ? '#ffd36a' : '#000000'}
+          emissiveIntensity={on ? 3.5 : 0}
+          roughness={on ? 0.2 : 0.95}
         />
       </mesh>
       {on && (
@@ -467,7 +477,59 @@ function Armchair({
   );
 }
 
-function Furniture() {
+function Television({ on }: { on: boolean }) {
+  return (
+    <group position={[-0.04, 1.32, 0.42]}>
+      <mesh castShadow>
+        <boxGeometry args={[0.075, 1.3, 1.7]} />
+        <meshPhysicalMaterial
+          color={on ? '#102735' : '#07070a'}
+          emissive={on ? '#174b67' : '#000000'}
+          emissiveIntensity={on ? 1.15 : 0}
+          roughness={on ? 0.28 : 0.58}
+          metalness={0.18}
+          clearcoat={on ? 0.22 : 0.08}
+          clearcoatRoughness={0.25}
+        />
+      </mesh>
+      {on && (
+        <>
+          <mesh position={[0.041, 0.1, 0]} rotation={[0, Math.PI / 2, 0]}>
+            <planeGeometry args={[1.5, 1.08]} />
+            <meshStandardMaterial
+              color="#2d6681"
+              emissive="#2a6f91"
+              emissiveIntensity={0.9}
+              roughness={0.42}
+            />
+          </mesh>
+          <mesh position={[0.044, -0.26, 0.25]} rotation={[0, Math.PI / 2, 0]}>
+            <planeGeometry args={[0.48, 0.24]} />
+            <meshStandardMaterial
+              color="#d7a85f"
+              emissive="#a86c2b"
+              emissiveIntensity={0.48}
+            />
+          </mesh>
+          <pointLight
+            position={[0.4, 0, 0]}
+            color="#7bc8ed"
+            intensity={0.7}
+            distance={2.4}
+            decay={2}
+          />
+        </>
+      )}
+      <Html position={[0.05, 0.86, 0]} center distanceFactor={10}>
+        <span className="pointer-events-none whitespace-nowrap rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold text-ink shadow">
+          TV presence cue {on ? 'on' : 'off'} · visual only
+        </span>
+      </Html>
+    </group>
+  );
+}
+
+function Furniture({ tvPresenceCueOn }: { tvPresenceCueOn: boolean }) {
   return (
     <>
       {/* Layered rugs soften the bedroom and lounge zones. */}
@@ -502,16 +564,7 @@ function Furniture() {
       <Box position={[-4.13, 1.22, 0.68]} scale={[1.08, 2.1, 0.04]} color="#9c8068" roughness={0.5} />
       <Box position={[-4.13, 1.22, 1.43]} scale={[1.08, 2.1, 0.04]} color="#a98b70" roughness={0.5} />
       <Box position={[-0.15, 1.32, 0.42]} scale={[0.16, 2.65, 2.4]} color="#eee9ef" />
-      <mesh position={[-0.04, 1.32, 0.42]} castShadow>
-        <boxGeometry args={[0.075, 1.3, 1.7]} />
-        <meshPhysicalMaterial
-          color="#111116"
-          roughness={0.14}
-          metalness={0.22}
-          clearcoat={0.45}
-          clearcoatRoughness={0.16}
-        />
-      </mesh>
+      <Television on={tvPresenceCueOn} />
       <Box position={[-0.02, 0.42, 0.42]} scale={[0.55, 0.55, 2.55]} color="#b79c83" />
 
       {/* Soft curtains framing the bedroom windows. */}
@@ -641,7 +694,7 @@ function Room({
       ))}
 
       <Door open={state.doorOpen} reducedMotion={reducedMotion} />
-      <Furniture />
+      <Furniture tvPresenceCueOn={state.tvPresenceCueOn} />
       <Bathroom />
       <Lamp
         position={[1.05, 0, -0.8]}

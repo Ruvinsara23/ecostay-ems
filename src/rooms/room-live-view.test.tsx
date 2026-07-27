@@ -48,7 +48,7 @@ describe('RoomLiveView — states', () => {
     expect(screen.queryByText(/loading room/i)).not.toBeInTheDocument();
   });
 
-  it('renders live telemetry with a plain-language occupancy summary', () => {
+  it('renders the exact plain-language occupancy phase', () => {
     const source = new FakeRoomDataSource();
     source.emitLatest('property_001', 'room_001', {
       occupancyState: 'OCCUPIED_ACTIVE',
@@ -58,18 +58,26 @@ describe('RoomLiveView — states', () => {
     });
     renderView(source);
 
-    expect(screen.getByText(/Occupied/i)).toBeInTheDocument();
+    expect(screen.getByText(/Status: Occupied active/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: '27.5 °C' })).toBeInTheDocument();
   });
 
-  it('summarizes VACANT_CONFIRMED as Vacant', () => {
+  it('distinguishes exit pending from confirmed vacancy for a guest-leaving demo', () => {
     const source = new FakeRoomDataSource();
     source.emitLatest('property_001', 'room_001', {
-      occupancyState: 'VACANT_CONFIRMED',
+      occupancyState: 'EXIT_PENDING',
       updatedAt: Date.now(), // fresh → online, so the occupancy status pill renders
     });
     renderView(source);
-    expect(screen.getByText(/Status: Vacant/i)).toBeInTheDocument();
+    expect(screen.getByText(/Status: Exit pending/i)).toBeInTheDocument();
+
+    act(() => {
+      source.emitLatest('property_001', 'room_001', {
+        occupancyState: 'VACANT_CONFIRMED',
+        updatedAt: Date.now(),
+      });
+    });
+    expect(screen.getByText(/Status: Vacant confirmed/i)).toBeInTheDocument();
   });
 });
 

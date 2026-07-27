@@ -14,6 +14,8 @@ export type RoomSceneState = {
   doorOpen: boolean;
   occupantPose: OccupantPose;
   lightsOn: boolean;
+  /** Presence visualization only; the firmware has no TV command/relay. */
+  tvPresenceCueOn: boolean;
   fanOn: boolean;
   fanForcedByGas: boolean;
   pumpOn: boolean;
@@ -59,6 +61,7 @@ export function deriveRoomSceneState(
     doorOpen: latest.doorOpen === true,
     occupantPose: occupantPose(latest.occupancyState),
     lightsOn: commands.lights === true,
+    tvPresenceCueOn: online && latest.humanPresent === true,
     fanOn: fanCommandedOn || gasAlarm,
     fanForcedByGas: gasAlarm,
     pumpOn: commands.waterPump === true,
