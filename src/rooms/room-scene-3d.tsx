@@ -1,19 +1,30 @@
 'use client';
 
-import { ContactShadows, Html, OrbitControls, useAnimations, useGLTF } from '@react-three/drei';
-import { Canvas, type ThreeEvent, useFrame } from '@react-three/fiber';
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import {
+  ContactShadows,
+  Html,
+  OrbitControls,
+  PerspectiveCamera as DreiPerspectiveCamera,
+  RoundedBox,
+  useAnimations,
+  useGLTF,
+} from '@react-three/drei';
+import { Canvas, type ThreeEvent, useFrame, useThree } from '@react-three/fiber';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   Box3,
+  CanvasTexture,
   Color,
   Group,
   MathUtils,
   Mesh,
+  SRGBColorSpace,
   Vector3,
 } from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { DeviceCommandKey } from '@/telemetry/contract';
 import type { OccupantPose, RoomSceneState } from './room-scene-state';
+import { OCCUPANT_PLACEMENTS } from './room-scene-layout';
 
 export type SceneDeviceKey = Extract<
   DeviceCommandKey,
@@ -43,24 +54,131 @@ function pointerHandlers(
 function Box({
   position,
   scale,
+  rotation = [0, 0, 0],
   color,
   roughness = 0.7,
   metalness = 0,
+  rounded = false,
   castShadow = true,
   receiveShadow = true,
 }: {
   position: [number, number, number];
   scale: [number, number, number];
+  rotation?: [number, number, number];
   color: string;
   roughness?: number;
   metalness?: number;
+  rounded?: boolean;
   castShadow?: boolean;
   receiveShadow?: boolean;
 }) {
+  const radius = Math.min(0.045, Math.min(...scale) * 0.22);
+  const material = (
+    <meshPhysicalMaterial
+      color={color}
+      roughness={roughness}
+      metalness={metalness}
+      clearcoat={metalness > 0.1 ? 0.16 : 0.04}
+      clearcoatRoughness={0.55}
+    />
+  );
+
+  if (!rounded) {
+    return (
+      <mesh
+        position={position}
+        rotation={rotation}
+        castShadow={castShadow}
+        receiveShadow={receiveShadow}
+      >
+        <boxGeometry args={scale} />
+        {material}
+      </mesh>
+    );
+  }
+
   return (
-    <mesh position={position} castShadow={castShadow} receiveShadow={receiveShadow}>
-      <boxGeometry args={scale} />
-      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+    <RoundedBox
+      args={scale}
+      radius={radius}
+      smoothness={3}
+      position={position}
+      rotation={rotation}
+      castShadow={castShadow}
+      receiveShadow={receiveShadow}
+    >
+      {material}
+    </RoundedBox>
+  );
+}
+
+function WoodFloor() {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 768;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    let seed = 41;
+    const random = () => {
+      seed = (seed * 16_807) % 2_147_483_647;
+      return (seed - 1) / 2_147_483_646;
+    };
+    const rows = 14;
+    const rowHeight = canvas.height / rows;
+    const boardWidth = canvas.width / 4;
+    context.fillStyle = '#9e7754';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let row = 0; row < rows; row += 1) {
+      const offset = row % 2 === 0 ? 0 : -boardWidth / 2;
+      for (let column = -1; column < 5; column += 1) {
+        const x = offset + column * boardWidth;
+        const lightness = 47 + Math.round(random() * 7);
+        context.fillStyle = `hsl(29 34% ${lightness}%)`;
+        context.fillRect(x + 2, row * rowHeight + 2, boardWidth - 4, rowHeight - 4);
+
+        context.strokeStyle = 'rgba(75, 47, 29, 0.16)';
+        context.lineWidth = 1;
+        for (let grain = 0; grain < 9; grain += 1) {
+          const grainY = row * rowHeight + 8 + random() * (rowHeight - 16);
+          context.beginPath();
+          context.moveTo(x + 10, grainY);
+          context.bezierCurveTo(
+            x + boardWidth * 0.32,
+            grainY + random() * 8 - 4,
+            x + boardWidth * 0.7,
+            grainY + random() * 8 - 4,
+            x + boardWidth - 10,
+            grainY,
+          );
+          context.stroke();
+        }
+      }
+    }
+
+    const floorTexture = new CanvasTexture(canvas);
+    floorTexture.colorSpace = SRGBColorSpace;
+    floorTexture.anisotropy = 8;
+    return floorTexture;
+  }, []);
+
+  useEffect(
+    () => () => {
+      texture?.dispose();
+    },
+    [texture],
+  );
+
+  return (
+    <mesh
+      position={[0, 0.021, 0]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
+    >
+      <planeGeometry args={[10, 8]} />
+      <meshStandardMaterial map={texture} color="#ffffff" roughness={0.78} />
     </mesh>
   );
 }
@@ -77,24 +195,33 @@ function Door({ open, reducedMotion }: { open: boolean; reducedMotion: boolean }
   });
 
   return (
-    <group ref={hinge} position={[-4.35, 0, -3.86]}>
-      <group position={[0.7, 1.15, 0]}>
-        <Box
-          position={[0, 0, 0]}
-          scale={[1.4, 2.3, 0.12]}
-          color="#8f789f"
-          roughness={0.55}
-        />
-        <mesh position={[0.47, 0, 0.08]} castShadow>
-          <sphereGeometry args={[0.07, 16, 16]} />
-          <meshStandardMaterial color="#d7b86b" metalness={0.8} roughness={0.25} />
-        </mesh>
+    <group position={[-4.78, 0, 2.85]} rotation={[0, Math.PI / 2, 0]}>
+      <group ref={hinge}>
+        <group position={[0.7, 1.15, 0]}>
+          <Box
+            position={[0, 0, 0]}
+            scale={[1.4, 2.3, 0.12]}
+            color="#765f4d"
+            roughness={0.42}
+            metalness={0.04}
+          />
+          <Box
+            position={[0, 0, 0.07]}
+            scale={[1.08, 1.96, 0.025]}
+            color="#9a7d64"
+            roughness={0.5}
+          />
+          <mesh position={[0.47, 0, 0.1]} castShadow>
+            <sphereGeometry args={[0.07, 16, 16]} />
+            <meshStandardMaterial color="#c8a45d" metalness={0.8} roughness={0.25} />
+          </mesh>
+        </group>
+        <Html position={[0.7, 2.65, 0]} center distanceFactor={9}>
+          <span className="pointer-events-none whitespace-nowrap rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-ink shadow">
+            Door {open ? 'open' : 'closed'}
+          </span>
+        </Html>
       </group>
-      <Html position={[0.7, 2.65, 0]} center distanceFactor={9}>
-        <span className="pointer-events-none whitespace-nowrap rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-ink shadow">
-          Door {open ? 'open' : 'closed'}
-        </span>
-      </Html>
     </group>
   );
 }
@@ -205,7 +332,12 @@ function WaterSystem({
 }) {
   const fillHeight = Math.max(0.03, (level / 100) * 1.5);
   return (
-    <group position={[-3.55, 0, -1.65]}>
+    <group position={[5.9, 0, -2.05]}>
+      <Box position={[0.35, 0.05, 0]} scale={[2.45, 0.1, 2.35]} color="#c7c1ca" />
+      <mesh position={[1.2, 0.32, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.06, 0.06, 2.9, 16]} />
+        <meshStandardMaterial color="#6b8f9b" metalness={0.5} roughness={0.35} />
+      </mesh>
       <mesh position={[0, 0.85, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.62, 0.62, 1.7, 32, 1, true]} />
         <meshPhysicalMaterial
@@ -244,42 +376,6 @@ function WaterSystem({
   );
 }
 
-const POSE_TARGETS: Record<
-  Exclude<OccupantPose, 'absent'>,
-  { position: Vector3; rotationY: number; rotationZ: number; scale: number }
-> = {
-  entering: {
-    position: new Vector3(-3.35, 0, -2.65),
-    rotationY: 0.75,
-    rotationZ: 0,
-    scale: 0.82,
-  },
-  active: {
-    position: new Vector3(-0.45, 0, 0.3),
-    rotationY: 0.35,
-    rotationZ: 0,
-    scale: 0.82,
-  },
-  idle: {
-    position: new Vector3(-1.85, 0.38, 2.2),
-    rotationY: -0.6,
-    rotationZ: 0,
-    scale: 0.72,
-  },
-  sleeping: {
-    position: new Vector3(2.35, 1.12, -0.25),
-    rotationY: -0.25,
-    rotationZ: -Math.PI / 2,
-    scale: 0.78,
-  },
-  exiting: {
-    position: new Vector3(-3.75, 0, -2.82),
-    rotationY: -2.15,
-    rotationZ: 0,
-    scale: 0.82,
-  },
-};
-
 function Occupant({
   pose,
   reducedMotion,
@@ -288,7 +384,7 @@ function Occupant({
   reducedMotion: boolean;
 }) {
   const root = useRef<Group>(null);
-  const gltf = useGLTF('/models/cesium-man.glb');
+  const gltf = useGLTF('/models/michelle.glb');
   const person = useMemo(() => {
     const cloned = cloneSkeleton(gltf.scene);
     cloned.traverse((node) => {
@@ -301,41 +397,43 @@ function Occupant({
     if (!bounds.isEmpty()) cloned.position.y -= bounds.min.y;
     return cloned;
   }, [gltf.scene]);
-  const { actions, names } = useAnimations(gltf.animations, root);
+  const { actions, names, mixer } = useAnimations(gltf.animations, root);
   const visible = pose !== 'absent';
-  const target = visible ? POSE_TARGETS[pose] : POSE_TARGETS.active;
+  const placement = visible ? OCCUPANT_PLACEMENTS[pose] : OCCUPANT_PLACEMENTS.active;
+  const target = useMemo(
+    () => ({
+      ...placement,
+      position: new Vector3(...placement.position),
+    }),
+    [placement],
+  );
+
+  useLayoutEffect(() => {
+    const group = root.current;
+    if (!group) return;
+    // Occupancy is discrete server truth, not a client-side path. Place the
+    // avatar directly at the matching safe anchor so it never sweeps through
+    // partitions while changing states.
+    group.position.copy(target.position);
+    group.rotation.set(0, target.rotationY, target.rotationZ);
+    group.scale.setScalar(target.scale);
+  }, [target]);
 
   useEffect(() => {
-    const action = names[0] ? actions[names[0]] : undefined;
+    const clipName = names.includes('SambaDance') ? 'SambaDance' : names[0];
+    const action = clipName ? actions[clipName] : undefined;
     if (!action) return;
-    const timeScale =
-      pose === 'idle' || pose === 'sleeping' || reducedMotion
-        ? 0
-        : pose === 'active'
-          ? 0.45
-          : 0.8;
+    const timeScale = pose === 'active' && !reducedMotion ? 0.18 : 0;
     action.reset().setEffectiveTimeScale(timeScale).fadeIn(0.2).play();
+    if (timeScale === 0) {
+      const phase =
+        pose === 'sleeping' ? 0.42 : pose === 'idle' ? 0.12 : 0.04;
+      mixer.setTime(action.getClip().duration * phase);
+    }
     return () => {
       action.fadeOut(0.15);
     };
-  }, [actions, names, pose, reducedMotion]);
-
-  useFrame((_, delta) => {
-    const group = root.current;
-    if (!group) return;
-    const factor = reducedMotion ? 1 : 1 - Math.exp(-delta * 3.5);
-    group.position.lerp(target.position, factor);
-    group.rotation.y = reducedMotion
-      ? target.rotationY
-      : MathUtils.damp(group.rotation.y, target.rotationY, 4, delta);
-    group.rotation.z = reducedMotion
-      ? target.rotationZ
-      : MathUtils.damp(group.rotation.z, target.rotationZ, 4, delta);
-    const nextScale = reducedMotion
-      ? target.scale
-      : MathUtils.damp(group.scale.x, target.scale, 4, delta);
-    group.scale.setScalar(nextScale);
-  });
+  }, [actions, mixer, names, pose, reducedMotion]);
 
   return (
     <group ref={root} visible={visible}>
@@ -351,29 +449,130 @@ function Occupant({
   );
 }
 
+function Armchair({
+  position,
+  rotationY,
+}: {
+  position: [number, number, number];
+  rotationY: number;
+}) {
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      <Box position={[0, 0.38, 0]} scale={[0.95, 0.34, 0.88]} color="#99859d" roughness={0.94} rounded />
+      <Box position={[0, 0.82, 0.34]} scale={[0.95, 0.72, 0.2]} color="#89778e" roughness={0.95} rounded />
+      <Box position={[-0.5, 0.55, 0]} scale={[0.16, 0.55, 0.92]} color="#89778e" roughness={0.95} rounded />
+      <Box position={[0.5, 0.55, 0]} scale={[0.16, 0.55, 0.92]} color="#89778e" roughness={0.95} rounded />
+      <Box position={[0, 0.6, -0.02]} scale={[0.78, 0.22, 0.66]} color="#ad9ab0" roughness={0.98} rounded />
+    </group>
+  );
+}
+
 function Furniture() {
   return (
     <>
+      {/* Layered rugs soften the bedroom and lounge zones. */}
+      <Box position={[2.65, 0.065, -1.02]} scale={[4.05, 0.045, 3.2]} color="#8d7697" roughness={0.95} rounded />
+      <Box position={[0.55, 0.065, 2.45]} scale={[4.7, 0.04, 2.25]} color="#c2b2c8" roughness={0.98} rounded />
+
       {/* Bed */}
-      <Box position={[2.35, 0.28, -0.15]} scale={[3.1, 0.45, 2.45]} color="#d7cedf" />
-      <Box position={[2.35, 0.62, -0.15]} scale={[2.95, 0.25, 2.3]} color="#f7f5f8" />
-      <Box position={[2.35, 0.93, -1.02]} scale={[2.85, 0.45, 0.45]} color="#aa94b5" />
-      <Box position={[1.75, 0.85, -0.55]} scale={[0.9, 0.18, 0.55]} color="#ffffff" />
-      <Box position={[2.88, 0.85, -0.55]} scale={[0.9, 0.18, 0.55]} color="#ffffff" />
+      <Box position={[2.65, 0.28, -1.05]} scale={[3.15, 0.45, 2.45]} color="#d7cedf" />
+      <Box position={[2.65, 0.62, -1.05]} scale={[3, 0.25, 2.3]} color="#f7f5f8" rounded />
+      <Box position={[2.65, 0.94, -1.94]} scale={[2.9, 0.48, 0.42]} color="#aa94b5" rounded />
+      <Box position={[2.05, 0.86, -1.45]} scale={[0.9, 0.18, 0.55]} color="#ffffff" rounded />
+      <Box position={[3.18, 0.86, -1.45]} scale={[0.9, 0.18, 0.55]} color="#ffffff" rounded />
+      <Box position={[2.65, 0.81, -0.62]} scale={[2.9, 0.16, 1.08]} color="#bca8c4" roughness={0.92} rounded />
+      <Box position={[0.82, 0.42, -1.55]} scale={[0.6, 0.82, 0.62]} color="#b79c83" />
+      <Box position={[4.48, 0.42, -1.55]} scale={[0.6, 0.82, 0.62]} color="#b79c83" />
 
-      {/* Sofa and coffee table */}
-      <Box position={[-1.85, 0.45, 2.45]} scale={[2.35, 0.7, 0.9]} color="#9f8cac" />
-      <Box position={[-2.75, 0.92, 2.7]} scale={[0.38, 1.1, 0.45]} color="#8c779c" />
-      <Box position={[-0.95, 0.92, 2.7]} scale={[0.38, 1.1, 0.45]} color="#8c779c" />
-      <Box position={[0.05, 0.3, 2.1]} scale={[1.1, 0.15, 0.75]} color="#b69370" />
-      <Box position={[-0.35, 0.14, 2.1]} scale={[0.1, 0.28, 0.1]} color="#6c5b50" />
-      <Box position={[0.45, 0.14, 2.1]} scale={[0.1, 0.28, 0.1]} color="#6c5b50" />
+      {/* Living room: sofa, two lounge chairs, coffee table and console */}
+      <Box position={[1.95, 0.42, 2.75]} scale={[2.55, 0.62, 0.9]} color="#8f7d91" roughness={0.95} rounded />
+      <Box position={[1.95, 0.9, 3.08]} scale={[2.52, 0.82, 0.18]} color="#7f6e82" roughness={0.96} rounded />
+      <Box position={[1.45, 0.7, 2.62]} scale={[0.9, 0.24, 0.7]} color="#aa96ad" roughness={0.98} rounded />
+      <Box position={[2.43, 0.7, 2.62]} scale={[0.9, 0.24, 0.7]} color="#a18da4" roughness={0.98} rounded />
+      <Box position={[0.95, 0.92, 3]} scale={[0.38, 1.1, 0.45]} color="#8c779c" rounded />
+      <Box position={[2.95, 0.92, 3]} scale={[0.38, 1.1, 0.45]} color="#8c779c" rounded />
+      <Armchair position={[-0.45, 0, 2.6]} rotationY={0.45} />
+      <Armchair position={[-1.65, 0, 3.15]} rotationY={-0.35} />
+      <Box position={[0.05, 0.3, 2.05]} scale={[1.35, 0.15, 0.8]} color="#b69370" />
+      <Box position={[-0.45, 0.14, 2.05]} scale={[0.1, 0.28, 0.1]} color="#6c5b50" />
+      <Box position={[0.55, 0.14, 2.05]} scale={[0.1, 0.28, 0.1]} color="#6c5b50" />
 
-      {/* Wardrobe and television */}
-      <Box position={[-4.25, 1.2, 1.4]} scale={[0.95, 2.4, 1.6]} color="#b79c83" />
-      <Box position={[0.1, 1.25, -3.72]} scale={[2.25, 1.25, 0.16]} color="#24202a" roughness={0.25} />
-      <Box position={[0.1, 0.45, -3.45]} scale={[2.7, 0.55, 0.65]} color="#b79c83" />
+      {/* Entry wardrobe and television divider, matching the former 2.5D suite */}
+      <Box position={[-4.15, 1.2, 1.05]} scale={[1.05, 2.4, 1.85]} color="#b79c83" />
+      <Box position={[-4.13, 1.22, 0.68]} scale={[1.08, 2.1, 0.04]} color="#9c8068" roughness={0.5} />
+      <Box position={[-4.13, 1.22, 1.43]} scale={[1.08, 2.1, 0.04]} color="#a98b70" roughness={0.5} />
+      <Box position={[-0.15, 1.32, 0.42]} scale={[0.16, 2.65, 2.4]} color="#eee9ef" />
+      <mesh position={[-0.04, 1.32, 0.42]} castShadow>
+        <boxGeometry args={[0.075, 1.3, 1.7]} />
+        <meshPhysicalMaterial
+          color="#111116"
+          roughness={0.14}
+          metalness={0.22}
+          clearcoat={0.45}
+          clearcoatRoughness={0.16}
+        />
+      </mesh>
+      <Box position={[-0.02, 0.42, 0.42]} scale={[0.55, 0.55, 2.55]} color="#b79c83" />
+
+      {/* Soft curtains framing the bedroom windows. */}
+      {[0.78, 1.08, 3.52, 3.82].map((x, index) => (
+        <Box
+          key={x}
+          position={[x, 1.55, -3.67]}
+          scale={[0.24, 2.55, 0.12]}
+          color={index % 2 === 0 ? '#8c7b91' : '#d8d1d9'}
+          roughness={0.98}
+        />
+      ))}
     </>
+  );
+}
+
+function Bathroom() {
+  return (
+    <group>
+      <Box position={[-2.55, 0.04, -2.7]} scale={[4.5, 0.08, 2.25]} color="#ded9d1" />
+      {/* Rear bathroom shell and partition */}
+      <Box position={[-2.55, 0.72, -1.55]} scale={[4.55, 1.44, 0.16]} color="#eee9ef" />
+      <Box position={[-0.22, 0.72, -2.72]} scale={[0.16, 1.44, 2.5]} color="#eee9ef" />
+
+      {/* Glass shower enclosure */}
+      <mesh position={[-3.75, 1.05, -2.7]} receiveShadow>
+        <boxGeometry args={[1.6, 2.1, 1.55]} />
+        <meshPhysicalMaterial
+          color="#d8edf2"
+          transparent
+          opacity={0.2}
+          roughness={0.08}
+          transmission={0.55}
+          side={2}
+        />
+      </mesh>
+      <mesh position={[-3.75, 1.7, -3.48]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.2, 0.025, 12, 28, Math.PI]} />
+        <meshStandardMaterial color="#8b9098" metalness={0.75} roughness={0.25} />
+      </mesh>
+
+      {/* Vanity, two basins, mirrors and toilet */}
+      <Box position={[-1.5, 0.62, -3.45]} scale={[2.1, 0.85, 0.65]} color="#b79c83" />
+      {[-2, -1].map((x) => (
+        <group key={x}>
+          <mesh position={[x, 1.08, -3.43]} castShadow>
+            <cylinderGeometry args={[0.28, 0.24, 0.14, 24]} />
+            <meshStandardMaterial color="#f7f6f4" roughness={0.25} />
+          </mesh>
+          <Box position={[x, 1.9, -3.72]} scale={[0.65, 0.9, 0.05]} color="#c7dce3" />
+        </group>
+      ))}
+      <mesh position={[-0.68, 0.45, -2.55]} castShadow>
+        <cylinderGeometry args={[0.34, 0.3, 0.65, 24]} />
+        <meshStandardMaterial color="#f5f3f1" roughness={0.3} />
+      </mesh>
+
+      {/* Bathtub beside the bedroom divider */}
+      <Box position={[-1.5, 0.42, -1.98]} scale={[2.1, 0.72, 0.82]} color="#f2f0f3" rounded />
+      <Box position={[-1.5, 0.67, -1.98]} scale={[1.72, 0.18, 0.55]} color="#c9e3eb" rounded />
+    </group>
   );
 }
 
@@ -396,28 +595,36 @@ function Room({
   return (
     <>
       <color attach="background" args={[state.online ? '#eeeaf3' : '#d9d7dc']} />
-      <ambientLight color={ambientColor} intensity={state.lightsOn ? 1.55 : 0.72} />
+      <hemisphereLight args={['#f9f5ef', '#756a64', state.lightsOn ? 0.72 : 0.42]} />
+      <ambientLight color={ambientColor} intensity={state.lightsOn ? 0.76 : 0.38} />
       <directionalLight
         position={[4, 9, 6]}
-        intensity={state.lightsOn ? 1.25 : 0.72}
+        intensity={state.lightsOn ? 1.05 : 0.62}
         color="#fff8ed"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
+        shadow-bias={-0.0004}
       />
       {state.gasAlarm && (
         <pointLight position={[-1.25, 2.3, -3]} color="#d6453d" intensity={3} distance={4} />
       )}
 
       {/* Floor and open dollhouse walls */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-0.75, -0.06, -0.25]} receiveShadow>
+        <planeGeometry args={[14.5, 10.5]} />
+        <meshStandardMaterial color="#ded9e1" roughness={0.95} />
+      </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[10, 8]} />
-        <meshStandardMaterial color="#cdbda9" roughness={0.82} />
+        <meshStandardMaterial color="#9b7c61" roughness={0.88} />
       </mesh>
+      <WoodFloor />
       <Box position={[-4.7, 1.5, -3.9]} scale={[0.6, 3, 0.18]} color="#eee9ef" />
       <Box position={[-1.1, 1.5, -3.9]} scale={[5.1, 3, 0.18]} color="#eee9ef" />
       <Box position={[3.85, 1.5, -3.9]} scale={[2.3, 3, 0.18]} color="#e7dfea" />
-      <Box position={[-4.9, 1.5, 0]} scale={[0.18, 3, 8]} color="#f1edf2" />
+      <Box position={[-4.9, 1.5, -1.3]} scale={[0.18, 3, 5.4]} color="#f1edf2" />
+      <Box position={[-4.9, 1.5, 3.45]} scale={[0.18, 3, 1.1]} color="#f1edf2" />
 
       {/* Windows */}
       {[1.4, 3.2].map((x) => (
@@ -435,6 +642,7 @@ function Room({
 
       <Door open={state.doorOpen} reducedMotion={reducedMotion} />
       <Furniture />
+      <Bathroom />
       <Lamp
         position={[1.05, 0, -0.8]}
         on={state.lightsOn}
@@ -474,6 +682,21 @@ function Room({
   );
 }
 
+function ResponsiveCamera() {
+  const { size } = useThree();
+  const aspect = size.width / Math.max(1, size.height);
+  const fov = aspect < 0.8 ? 52 : aspect < 1.25 ? 46 : 40;
+  return (
+    <DreiPerspectiveCamera
+      makeDefault
+      position={[11.5, 11.5, 13]}
+      fov={fov}
+      near={0.1}
+      far={100}
+    />
+  );
+}
+
 export function RoomScene3D({
   state,
   reducedMotion,
@@ -498,11 +721,11 @@ export function RoomScene3D({
     <Canvas
       shadows="basic"
       dpr={[1, 1.5]}
-      camera={{ position: [10.5, 9, 11.5], fov: 42, near: 0.1, far: 100 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       aria-label="Interactive 3D room digital twin"
       data-pending-device={pendingDevice}
     >
+      <ResponsiveCamera />
       <Room
         state={state}
         reducedMotion={reducedMotion}
@@ -511,7 +734,7 @@ export function RoomScene3D({
       />
       <OrbitControls
         makeDefault
-        target={[0, 0.75, 0]}
+        target={[0, 0.55, 0]}
         enablePan={false}
         enableDamping={!reducedMotion}
         minDistance={9}
@@ -525,4 +748,4 @@ export function RoomScene3D({
   );
 }
 
-useGLTF.preload('/models/cesium-man.glb');
+useGLTF.preload('/models/michelle.glb');
