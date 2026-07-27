@@ -1,7 +1,7 @@
 'use client';
 
 import { Droplets, Fan, Flame, Lightbulb, type LucideIcon, Radar, Thermometer } from 'lucide-react';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   DEVICE_COMMAND_KEYS,
   DEVICE_COMMAND_LABELS,
@@ -21,6 +21,8 @@ import { RoomScene } from './room-scene';
 import { Badge } from '@/ui/badge';
 import { ArcGauge, TankGauge } from '@/ui/gauge';
 import { Toggle } from '@/ui/toggle';
+import { ConfirmDialog } from '@/ui/confirm-dialog';
+import type { SceneDeviceKey } from './room-scene-3d';
 
 type ViewState =
   | { status: 'loading' }
@@ -412,6 +414,30 @@ export function RoomLiveView({
   const [state, setState] = useState<ViewState>({ status: 'loading' });
   const [offsetMs, setOffsetMs] = useState(0);
   const [localNowMs, setLocalNowMs] = useState(() => Date.now());
+  const roomSession = useMemo(
+    () => Symbol(`room-session:${propertyId}/${roomId}`),
+    [propertyId, roomId],
+  );
+  const [sceneCommandSnapshot, setSceneCommandSnapshot] = useState<{
+    propertyId: string;
+    roomId: string;
+    session: symbol;
+    commands: DeviceCommands;
+  } | null>(null);
+  const [sceneAction, setSceneAction] = useState<{
+    key: SceneDeviceKey;
+    on: boolean;
+    propertyId: string;
+    roomId: string;
+    session: symbol;
+  } | null>(null);
+  const [scenePending, setScenePending] = useState<{
+    key: SceneDeviceKey;
+    on: boolean;
+    propertyId: string;
+    roomId: string;
+  } | null>(null);
+  const [sceneCommandError, setSceneCommandError] = useState<string | null>(null);
 
   useEffect(() => {
     return source.subscribeLatest(
@@ -425,6 +451,27 @@ export function RoomLiveView({
   useEffect(() => {
     return source.subscribeServerTimeOffset(setOffsetMs);
   }, [source]);
+
+  useEffect(() => {
+    return source.subscribeDeviceCommands(propertyId, roomId, (next) => {
+      setSceneCommandSnapshot({ propertyId, roomId, session: roomSession, commands: next });
+      // Any subscription change invalidates an unconfirmed intent. This also
+      // prevents an old room's dialog from reopening after navigation.
+      setSceneAction(null);
+      setScenePending((pending) => {
+        if (!pending) return pending;
+        if (pending.propertyId !== propertyId || pending.roomId !== roomId) return null;
+        return (next[pending.key] ?? false) === pending.on ? null : pending;
+      });
+    });
+  }, [source, propertyId, roomId, roomSession]);
+
+  const sceneCommands =
+    sceneCommandSnapshot?.propertyId === propertyId &&
+    sceneCommandSnapshot.roomId === roomId &&
+    sceneCommandSnapshot.session === roomSession
+      ? sceneCommandSnapshot.commands
+      : null;
 
   // 1 s heartbeat so staleness advances (and flips to offline) without new writes.
   useEffect(() => {
@@ -464,15 +511,112 @@ export function RoomLiveView({
   const freshness = deviceFreshness(latest.updatedAt, localNowMs + offsetMs);
   const gasAlarm = latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD;
 
+  function requestSceneDevice(key: SceneDeviceKey) {
+    setSceneCommandError(null);
+    if (!freshness.online || sceneCommands === null) return;
+    if (key === 'exhaustFan' && gasAlarm) {
+      setSceneCommandError('The fan is forced on by the gas alarm and cannot be switched here.');
+      return;
+    }
+    setSceneAction({
+      key,
+      on: !(sceneCommands[key] ?? false),
+      propertyId,
+      roomId,
+      session: roomSession,
+    });
+  }
+
+  async function confirmSceneDevice() {
+    const action = sceneAction;
+    if (!action) return;
+    setSceneAction(null);
+    if (
+      !freshness.online ||
+      sceneCommands === null ||
+      action.propertyId !== propertyId ||
+      action.roomId !== roomId ||
+      action.session !== roomSession
+    ) {
+      setSceneCommandError('3D room command cancelled because the room is offline or changed.');
+      return;
+    }
+    if (sceneCommands?.[action.key] === action.on) return;
+    setScenePending(action);
+    setSceneCommandError(null);
+    try {
+      await source.setDeviceCommand(
+        action.propertyId,
+        action.roomId,
+        action.key,
+        action.on,
+      );
+    } catch {
+      setSceneCommandError('3D room command failed — the subscribed device state was kept.');
+      setScenePending((pending) =>
+        pending?.propertyId === action.propertyId &&
+        pending.roomId === action.roomId &&
+        pending.key === action.key &&
+        pending.on === action.on
+          ? null
+          : pending,
+      );
+    }
+  }
+
   return (
-    <section aria-label={`Live view of ${roomName ?? roomId}`} className="relative h-full w-full overflow-hidden bg-transparent">
+    <section
+      aria-label={`Live view of ${roomName ?? roomId}`}
+      className="relative min-h-full w-full overflow-y-auto bg-transparent lg:h-full lg:overflow-hidden"
+    >
 
       {/* Background 3D Scene */}
-      <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none p-12">
+      <div className="relative z-0 flex h-[70dvh] min-h-[520px] items-center justify-center p-3 pt-14 pointer-events-none lg:absolute lg:inset-0 lg:h-auto lg:min-h-0 lg:p-12">
         <div className="w-full max-w-5xl opacity-100 pointer-events-auto">
-          <RoomScene latest={latest} online={freshness.online} />
+          <RoomScene
+            latest={latest}
+            online={freshness.online}
+            commands={sceneCommands ?? {}}
+            controlsEnabled={sceneCommands !== null}
+            pendingDevice={
+              scenePending?.propertyId === propertyId && scenePending.roomId === roomId
+                ? scenePending.key
+                : undefined
+            }
+            onDeviceClick={requestSceneDevice}
+          />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={
+          sceneAction !== null &&
+          sceneAction.propertyId === propertyId &&
+          sceneAction.roomId === roomId &&
+          sceneAction.session === roomSession
+        }
+        title={
+          sceneAction
+            ? `${sceneAction.on ? 'Turn on' : 'Turn off'} ${DEVICE_COMMAND_LABELS[sceneAction.key]}?`
+            : 'Change device state?'
+        }
+        body="This 3D-room action writes the existing Firebase device command and can switch a real relay in the room."
+        confirmLabel={
+          sceneAction
+            ? `${sceneAction.on ? 'Turn on' : 'Turn off'} ${DEVICE_COMMAND_LABELS[sceneAction.key]}`
+            : 'Confirm'
+        }
+        onConfirm={() => void confirmSceneDevice()}
+        onCancel={() => setSceneAction(null)}
+      />
+      {sceneCommandError && (
+        <p
+          role="alert"
+          className="glass-strong absolute bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-xs font-bold text-alarm shadow-xl"
+        >
+          {sceneCommandError}
+        </p>
+      )}
 
       {/* Floating Status Header (Overrides page.tsx title somewhat, but nice for status) */}
       <div className="absolute left-1/2 top-4 -translate-x-1/2 z-10 pointer-events-none flex flex-col items-center gap-1">
@@ -497,14 +641,14 @@ export function RoomLiveView({
 
       {/* Overlay Content */}
       <div
-        className={`absolute inset-0 z-10 flex flex-col justify-between p-6 pointer-events-none overflow-y-auto transition-opacity ${!freshness.online ? 'opacity-70' : ''}`}
+        className={`relative z-10 flex flex-col justify-between p-4 pointer-events-none transition-opacity lg:absolute lg:inset-0 lg:overflow-y-auto lg:p-6 ${!freshness.online ? 'opacity-70' : ''}`}
         data-stale={freshness.online ? undefined : 'true'}
       >
 
         {/* Top layer widgets — stack full-width on phones (fixed w-72 columns clipped at 390px) */}
-        <div className="flex justify-between items-start pt-16 max-sm:flex-col max-sm:gap-5 max-sm:pt-14">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:items-start lg:justify-between lg:pt-16">
           {/* Left Widgets */}
-          <div className="flex flex-col gap-5 w-72 max-sm:w-full pointer-events-auto">
+          <div className="pointer-events-auto contents lg:flex lg:w-72 lg:flex-col lg:gap-5">
             <Group title="Activity">
               <Value label="Door">{flag(latest.doorOpen, 'Open', 'Closed')}</Value>
               <Value label="Motion">{flag(latest.motionDetected, 'Detected', 'None')}</Value>
@@ -515,7 +659,7 @@ export function RoomLiveView({
           </div>
 
           {/* Right Widgets */}
-          <div className="flex flex-col gap-5 w-72 max-sm:w-full pointer-events-auto">
+          <div className="pointer-events-auto contents lg:flex lg:w-72 lg:flex-col lg:gap-5">
             <Group title="Lighting & Relays">
               <Value label="Presence relay">{flag(latest.relayStatus, 'On', 'Off')}</Value>
               <Value label="Buzzer">{flag(latest.buzzerStatus, 'On', 'Off')}</Value>
@@ -532,11 +676,11 @@ export function RoomLiveView({
         </div>
 
         {/* Bottom layer widgets */}
-        <div className="flex justify-between items-end mt-auto pointer-events-auto gap-5 pt-8 pb-4 max-sm:flex-col max-sm:items-stretch">
-          <div className="w-80 max-sm:w-full">
+        <div className="pointer-events-auto mt-4 grid grid-cols-1 items-end gap-5 pb-4 lg:mt-auto lg:flex lg:justify-between lg:pt-8">
+          <div className="w-full lg:w-80">
             <DeviceControls propertyId={propertyId} roomId={roomId} online={freshness.online} gasAlarm={gasAlarm} relayActual={latest.relayStatus} />
           </div>
-          <div className="flex-1 max-w-2xl glass rounded-[1.25rem] shadow-sm overflow-hidden p-2">
+          <div className="glass w-full flex-1 overflow-hidden rounded-[1.25rem] p-2 shadow-sm lg:max-w-2xl">
             <EnergyHistorySection propertyId={propertyId} roomId={roomId} />
           </div>
         </div>

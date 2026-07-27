@@ -1,7 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { Component, type ReactNode, useEffect, useRef, useState } from 'react';
+import type { DeviceCommands } from '@/telemetry/contract';
 import type { RoomLatest } from './room-data-source';
+import { deriveRoomSceneState } from './room-scene-state';
+import type { SceneDeviceKey } from './room-scene-3d';
+
+const RoomScene3D = dynamic(
+  () => import('./room-scene-3d').then((module) => module.RoomScene3D),
+  { ssr: false },
+);
 
 type SensorKey = 'door' | 'pir' | 'dht' | 'gas' | 'water';
 
@@ -64,7 +73,7 @@ const SENSOR_TITLES: Record<SensorKey, string> = {
  * Interactive — pointer-tilt parallax (reduced-motion aware) and tappable
  * sensor markers with live-reading tooltips.
  */
-export function RoomScene({ latest, online }: { latest: RoomLatest; online: boolean }) {
+function RoomSceneFallback({ latest, online }: { latest: RoomLatest; online: boolean }) {
   const [openSensor, setOpenSensor] = useState<SensorKey | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -209,6 +218,186 @@ export function RoomScene({ latest, online }: { latest: RoomLatest; online: bool
             })()}
         </div>
       </div>
+    </div>
+  );
+}
+
+class SceneErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode; onError?: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    this.props.onError?.();
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function browserSupportsWebGL(): boolean {
+  if (
+    typeof window === 'undefined' ||
+    (typeof window.WebGLRenderingContext === 'undefined' &&
+      typeof window.WebGL2RenderingContext === 'undefined')
+  ) {
+    return false;
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
+const DEVICE_SCENE_LABELS: Record<SceneDeviceKey, string> = {
+  lights: 'Lights',
+  exhaustFan: 'Fan',
+  waterPump: 'Pump',
+};
+
+/**
+ * Full WebGL digital twin with a 2.5D fallback for browsers without WebGL.
+ * Device visuals are commanded state (the firmware has no lamp/fan/pump ack);
+ * clicking a 3D object delegates to the parent, which owns confirmation/writes.
+ */
+export function RoomScene({
+  latest,
+  online,
+  commands = {},
+  controlsEnabled = false,
+  pendingDevice,
+  onDeviceClick,
+}: {
+  latest: RoomLatest;
+  online: boolean;
+  commands?: DeviceCommands;
+  controlsEnabled?: boolean;
+  pendingDevice?: SceneDeviceKey;
+  onDeviceClick?: (key: SceneDeviceKey) => void;
+}) {
+  const [webglAvailable, setWebglAvailable] = useState(false);
+  const [rendererFailed, setRendererFailed] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const sceneState = deriveRoomSceneState(latest, commands, online);
+
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(query.matches);
+    const frame = window.requestAnimationFrame(() => {
+      setWebglAvailable(browserSupportsWebGL());
+      if (query) update();
+    });
+    query?.addEventListener?.('change', update);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      query?.removeEventListener?.('change', update);
+    };
+  }, []);
+
+  const disabled = !controlsEnabled || !online || pendingDevice !== undefined;
+  const webglActive = webglAvailable && !rendererFailed;
+
+  return (
+    <div
+      className={`relative aspect-[5/4] w-full max-w-[980px] overflow-hidden rounded-[2rem] shadow-2xl ${
+        online ? '' : 'grayscale'
+      }`}
+      data-renderer={webglActive ? 'webgl' : 'fallback'}
+      data-scene-stale={online ? undefined : 'true'}
+    >
+      <div
+        aria-hidden={webglActive || undefined}
+        className={`absolute inset-0 grid place-items-center bg-canvas ${
+          webglActive ? 'pointer-events-none' : ''
+        }`}
+      >
+        <RoomSceneFallback latest={latest} online={online} />
+      </div>
+
+      {webglActive && (
+        <div className={`absolute inset-0 ${online ? '' : 'opacity-55'}`}>
+          <SceneErrorBoundary fallback={null} onError={() => setRendererFailed(true)}>
+            <RoomScene3D
+              state={sceneState}
+              reducedMotion={reducedMotion}
+              controlsDisabled={disabled}
+              pendingDevice={pendingDevice}
+              onDeviceClick={(key) => onDeviceClick?.(key)}
+            />
+          </SceneErrorBoundary>
+        </div>
+      )}
+
+      <div className="pointer-events-none absolute left-4 top-4 z-20 flex flex-wrap gap-2">
+        <span className="rounded-full bg-ink/75 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white shadow">
+          Live sensors · commanded devices
+        </span>
+        {webglActive && (
+          <span className="rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-ink-2 shadow">
+            Drag to orbit · Scroll to zoom · Select a device
+          </span>
+        )}
+      </div>
+
+      {onDeviceClick && (
+        <div
+          aria-label="3D room device controls"
+          className="pointer-events-auto absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2 rounded-2xl bg-white/90 p-2 shadow-xl backdrop-blur"
+        >
+          {(Object.keys(DEVICE_SCENE_LABELS) as SceneDeviceKey[]).map((key) => {
+            const visualOn =
+              key === 'lights'
+                ? sceneState.lightsOn
+                : key === 'exhaustFan'
+                  ? sceneState.fanOn
+                  : sceneState.pumpOn;
+            const commandedOn = commands[key] === true;
+            const gasForced = key === 'exhaustFan' && sceneState.fanForcedByGas;
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={disabled || gasForced}
+                onClick={() => onDeviceClick(key)}
+                aria-label={
+                  gasForced
+                    ? 'Exhaust fan forced on by gas alarm'
+                    : `${commandedOn ? 'Turn off' : 'Turn on'} ${DEVICE_SCENE_LABELS[key]} from 3D room`
+                }
+                className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                  visualOn ? 'bg-brand text-white' : 'bg-well text-ink-2 hover:bg-brand-soft'
+                }`}
+              >
+                {DEVICE_SCENE_LABELS[key]}{' '}
+                <span className="font-semibold opacity-80">
+                  {pendingDevice === key
+                    ? 'Saving…'
+                    : gasForced
+                      ? 'Forced'
+                      : commandedOn
+                        ? 'Cmd On'
+                        : 'Cmd Off'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {!online && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 mx-auto w-fit rounded-full bg-ink/85 px-4 py-2 text-xs font-bold text-white shadow">
+          Scene frozen · device offline
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { RoomLatest } from './room-data-source';
 import { FakeRoomDataSource } from './fake-room-data-source';
 import { RoomDataSourceProvider } from './room-data-source-context';
@@ -67,6 +67,82 @@ describe('RoomLiveView — device controls', () => {
     expect(screen.getByRole('switch', { name: 'Exhaust fan' })).not.toBeChecked();
   });
 
+  it('confirms a 3D object action before writing the real device command', async () => {
+    setup({ commands: { lights: false } });
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole('button', { name: /turn on lights from 3d room/i }),
+    );
+
+    const dialog = screen.getByRole('dialog', { name: /turn on lights/i });
+    expect(dialog).toHaveTextContent(/can switch a real relay/i);
+    expect(screen.getByRole('switch', { name: 'Lights' })).not.toBeChecked();
+
+    await user.click(within(dialog).getByRole('button', { name: /turn on lights/i }));
+    expect(screen.getByRole('switch', { name: 'Lights' })).toBeChecked();
+  });
+
+  it('does not overwrite a newer command echo while confirmation is open', async () => {
+    const source = setup({ commands: { lights: false } });
+    const write = vi.spyOn(source, 'setDeviceCommand');
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole('button', { name: /turn on lights from 3d room/i }),
+    );
+    source.emitDeviceCommands('property_001', 'room_001', { lights: true });
+
+    const dialog = screen.getByRole('dialog', { name: /turn on lights/i });
+    await user.click(within(dialog).getByRole('button', { name: /turn on lights/i }));
+
+    expect(write).not.toHaveBeenCalled();
+    expect(screen.getByRole('switch', { name: 'Lights' })).toBeChecked();
+  });
+
+  it('invalidates an unconfirmed 3D action when the viewed room changes', async () => {
+    class DelayedCommandsSource extends FakeRoomDataSource {
+      delaySubscriptions = false;
+
+      override subscribeDeviceCommands(
+        propertyId: string,
+        roomId: string,
+        callback: (commands: Record<string, boolean>) => void,
+      ) {
+        if (this.delaySubscriptions) return () => {};
+        return super.subscribeDeviceCommands(propertyId, roomId, callback);
+      }
+    }
+
+    const source = new DelayedCommandsSource();
+    source.emitLatest('property_001', 'room_001', liveSnapshot());
+    source.emitLatest('property_001', 'room_002', liveSnapshot());
+    source.emitDeviceCommands('property_001', 'room_001', { lights: false });
+    source.emitDeviceCommands('property_001', 'room_002', { lights: true });
+    const view = (roomId: string) => (
+      <RoomDataSourceProvider source={source}>
+        <RoomLiveView propertyId="property_001" roomId={roomId} roomName={roomId} />
+      </RoomDataSourceProvider>
+    );
+    const { rerender } = render(view('room_001'));
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole('button', { name: /turn on lights from 3d room/i }),
+    );
+    expect(screen.getByRole('dialog', { name: /turn on lights/i })).toBeInTheDocument();
+
+    source.delaySubscriptions = true;
+    rerender(view('room_002'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    rerender(view('room_001'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /turn on lights from 3d room/i }),
+    ).toBeDisabled();
+  });
+
   it('shows the presence relay commanded and actual side by side', () => {
     setup({ commands: { motionDetection: false } });
     expect(screen.getByRole('switch', { name: 'Presence relay' })).not.toBeChecked();
@@ -79,11 +155,17 @@ describe('RoomLiveView — device controls', () => {
       expect(screen.getByRole('switch', { name })).toBeDisabled(),
     );
     expect(screen.getByText(/controls disabled while offline/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /turn off lights from 3d room/i }),
+    ).toBeDisabled();
   });
 
   it('marks the exhaust fan as forced on during a gas alarm', () => {
     setup({ snapshot: liveSnapshot({ gas: 452 }) });
     expect(screen.getByText(/forced on/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /exhaust fan forced on by gas alarm/i }),
+    ).toBeDisabled();
   });
 
   it('offers the vacancy-cutoff automation toggle, live and writable', async () => {
