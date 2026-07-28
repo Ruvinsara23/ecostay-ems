@@ -3,6 +3,13 @@
 Source: `complete.ino` (verified identical to `firmware/Final_code/complete.ino` @ `green-home-hub#Final`, commit `61668a1`).
 This contract is **fixed** — the hardware integration is kept as-is; the new dashboard must conform to it.
 
+Occupancy amendment (ADR-0011): the user-supplied sketch currently flashed to the
+bench ESP32 is captured, with the approved vacancy fix, at
+`firmware/current-upload-fixed/current-upload-fixed.ino`. This isolated flash candidate
+does not replace the repository's canonical `firmware/complete.ino`; reconciliation is a
+separate firmware task. It changes no RTDB path, telemetry field, type, cadence, or relay
+command semantics.
+
 ## Identity
 
 | Item | Value |
@@ -57,7 +64,11 @@ This contract is **fixed** — the hardware integration is kept as-is; the new d
 ## On-device occupancy state machine
 
 States: `VACANT → ENTRY_DETECTED → OCCUPIED_ACTIVE ⇄ OCCUPIED_IDLE → OCCUPIED_SLEEPING`, `EXIT_PENDING → VACANT_CONFIRMED`.
-Inputs: door reed, PIR, ultrasonic (≤ 50 cm). Timeouts: 10 s (active→idle, entry→vacant-confirmed), 30 s (idle→sleeping, exit→vacant-confirmed).
+Inputs: door reed, PIR, ultrasonic (≤ 50 cm). Timeouts: 10 s
+(active→idle) and 30 s (idle→sleeping). In the ADR-0011 flash candidate,
+`ENTRY_DETECTED` and `EXIT_PENDING` can transition to `VACANT_CONFIRMED` only
+after the door is closed and both presence sensors remain clear continuously
+for 30 s. Any PIR or ultrasonic detection resets that complete window.
 Runs **on the ESP32** — the dashboard should *display* this state, never re-derive it.
 
 ## Pin map (reference)

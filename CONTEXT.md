@@ -85,7 +85,10 @@ carries a "simulated" label per ADR-0003),
 
 `VACANT`, `ENTRY_DETECTED`, `OCCUPIED_ACTIVE`, `OCCUPIED_IDLE`, `OCCUPIED_SLEEPING`,
 `EXIT_PENDING`, `VACANT_CONFIRMED`.
-Timeouts on device: 10 s (active→idle; entry→vacant-confirmed), 30 s (idle→sleeping; exit→vacant-confirmed).
+Timeouts on device: 10 s (active→idle) and 30 s (idle→sleeping). Per ADR-0011,
+the current flash candidate may enter `VACANT_CONFIRMED` from `ENTRY_DETECTED` or
+`EXIT_PENDING` only after the door is closed and both PIR and ultrasonic presence
+remain clear continuously for 30 s. Any detection resets the complete vacancy window.
 
 ## Derived terms (computed by dashboard/Functions — never stored back into `latest`)
 
