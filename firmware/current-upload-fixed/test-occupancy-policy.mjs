@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
-const sketchPath = new URL("./current-upload-fixed.ino", import.meta.url);
+const flashCandidatePath = new URL("./current-upload-fixed.ino", import.meta.url);
+const sketchPath = existsSync(flashCandidatePath)
+  ? flashCandidatePath
+  : new URL("./sketch.ino", import.meta.url);
 const sketch = readFileSync(sketchPath, "utf8");
 
 assert.match(
