@@ -28,16 +28,19 @@ when it is absent. `GOOGLE_APPLICATION_CREDENTIALS` belongs in the first
 terminal because the Next.js API route performs the Admin SDK work; the local
 tick client never reads the service-account file.
 
-Automation is transition-based. If the room was already recorded as occupied,
-first complete a simulated exit to `VACANT_CONFIRMED`, then enter and obtain
-sensor-confirmed `OCCUPIED_ACTIVE`; the next local tick restores the comfort
-loads. This preserves manual overrides instead of continuously forcing relays.
+Automation is transition-based. `OCCUPIED_ACTIVE` and `OCCUPIED_IDLE` permit
+comfort loads; `OCCUPIED_SLEEPING`, `EXIT_PENDING`, and confirmed vacancy cut
+them off. If the room was already recorded as occupied, first complete a
+simulated exit to `VACANT_CONFIRMED`, then enter and obtain sensor-confirmed
+`OCCUPIED_ACTIVE`; the next local tick restores the comfort loads. Waking from
+sleep does not auto-restore them, which avoids surprising the guest by turning
+lights on.
 
 ## 0. Prerequisites (once)
 
 - [ ] `database.rules.json` published in the Firebase console (RTDB → Rules → paste from the
       repo → Publish). The current file includes: automation toggle, `.indexOn: sampledAt`,
-      alert-acknowledge rules.
+      alert-acknowledge rules, and device-account off-only writes for comfort commands.
 - [ ] Generate a cron secret (long random string), e.g. in PowerShell:
       `-join ((48..57)+(65..90)+(97..122) | Get-Random -Count 48 | % {[char]$_})`
       Keep it — you'll paste it into BOTH Vercel and cron-job.org.

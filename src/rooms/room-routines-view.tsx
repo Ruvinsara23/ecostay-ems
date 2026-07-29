@@ -57,9 +57,9 @@ export function RoomRoutinesView({
           <div className="glass rounded-[1.25rem] p-6 shadow-lg bg-white/60">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-base font-semibold text-ink">Vacancy Cutoff</h3>
+                <h3 className="text-base font-semibold text-ink">Comfort Load Automation</h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  Automatically turns off lights, fan, and AC when the room is confirmed vacant to save energy.
+                  Restores lights, fan, and AC after confirmed entry into active/idle occupancy and turns them off during sleep, exit, and vacancy.
                 </p>
                 {error && (
                   <p role="alert" className="mt-3 text-xs font-semibold text-alarm">
@@ -71,7 +71,7 @@ export function RoomRoutinesView({
                 <Toggle
                   checked={automationEnabled === true}
                   disabled={automationEnabled === null}
-                  label="Vacancy cutoff automation"
+                  label="Comfort load automation"
                   onToggle={toggleAutomation}
                 />
               </div>

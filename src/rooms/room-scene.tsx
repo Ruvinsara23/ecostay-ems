@@ -3,6 +3,11 @@
 import dynamic from 'next/dynamic';
 import { Component, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { DeviceCommands } from '@/telemetry/contract';
+import {
+  COMFORT_LOAD_COMMAND_KEYS,
+  comfortLoadCommandBlocked,
+  comfortLoadsAllowed,
+} from '@/telemetry/occupancy-policy';
 import type { RoomLatest } from './room-data-source';
 import { deriveRoomSceneState } from './room-scene-state';
 import type { SceneDeviceKey } from './room-scene-3d';
@@ -272,8 +277,9 @@ const DEVICE_SCENE_SHORT_LABELS: Record<SceneDeviceKey, string> = {
 
 /**
  * Full WebGL digital twin with a 2.5D fallback for browsers without WebGL.
- * Device visuals are commanded state (the firmware has no lamp/fan/AC/pump ack);
- * clicking a 3D object delegates to the parent, which owns confirmation/writes.
+ * Comfort-device visuals combine command state with the firmware occupancy
+ * gate; pump remains command-driven. Clicking a 3D object delegates to the
+ * parent, which owns confirmation/writes.
  */
 export function RoomScene({
   latest,
@@ -310,6 +316,7 @@ export function RoomScene({
   }, []);
 
   const disabled = !controlsEnabled || !online || pendingDevice !== undefined;
+  const comfortAllowed = comfortLoadsAllowed(latest.occupancyState);
   const webglActive = webglAvailable && !rendererFailed;
 
   return (
@@ -336,6 +343,7 @@ export function RoomScene({
               state={sceneState}
               reducedMotion={reducedMotion}
               controlsDisabled={disabled}
+              blockedDevices={comfortAllowed ? [] : COMFORT_LOAD_COMMAND_KEYS}
               pendingDevice={pendingDevice}
               onDeviceClick={(key) => onDeviceClick?.(key)}
             />
@@ -345,7 +353,7 @@ export function RoomScene({
 
       <div className="pointer-events-none absolute left-4 top-4 z-20 flex flex-wrap gap-2">
         <span className="rounded-full bg-ink/75 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white shadow">
-          Live sensors · commanded devices
+          Live sensors · occupancy-gated devices
         </span>
         {webglActive && (
           <span className="rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-ink-2 shadow">
@@ -368,15 +376,21 @@ export function RoomScene({
             }[key];
             const commandedOn = commands[key] === true;
             const gasForced = key === 'exhaustFan' && sceneState.fanForcedByGas;
+            const comfortBlocked =
+              comfortLoadCommandBlocked(latest.occupancyState, key) && !gasForced;
+            const occupancyLabel =
+              latest.occupancyState?.replaceAll('_', ' ').toLowerCase() ?? 'current room state';
             return (
               <button
                 key={key}
                 type="button"
-                disabled={disabled || gasForced}
+                disabled={disabled || gasForced || comfortBlocked}
                 onClick={() => onDeviceClick(key)}
                 aria-label={
                   gasForced
                     ? 'Exhaust fan forced on by gas alarm'
+                    : comfortBlocked
+                      ? `${DEVICE_SCENE_LABELS[key]} blocked while ${occupancyLabel}`
                     : `${commandedOn ? 'Turn off' : 'Turn on'} ${DEVICE_SCENE_LABELS[key]} from 3D room`
                 }
                 className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
@@ -385,10 +399,12 @@ export function RoomScene({
               >
                 {DEVICE_SCENE_SHORT_LABELS[key]}{' '}
                 <span className="font-semibold opacity-80">
-                  {pendingDevice === key
-                    ? 'Saving…'
-                    : gasForced
+                  {gasForced
                       ? 'Forced'
+                    : comfortBlocked
+                      ? 'Blocked'
+                      : pendingDevice === key
+                        ? 'Saving…'
                       : commandedOn
                         ? 'Cmd On'
                         : 'Cmd Off'}

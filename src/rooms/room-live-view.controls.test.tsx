@@ -43,7 +43,7 @@ describe('RoomLiveView — device controls', () => {
     expect(screen.getByRole('switch', { name: 'Water pump' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Presence relay' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Air conditioner' })).toBeInTheDocument();
-    // 5 device commands + the vacancy-cutoff automation toggle
+    // 5 device commands + the comfort-load automation toggle
     expect(screen.getAllByRole('switch')).toHaveLength(6);
     expect(screen.queryByText(/main relay/i)).not.toBeInTheDocument();
   });
@@ -161,6 +161,26 @@ describe('RoomLiveView — device controls', () => {
     ).toBeDisabled();
   });
 
+  it('blocks comfort commands while sleeping but keeps pump and presence controls available', () => {
+    setup({
+      snapshot: liveSnapshot({ occupancyState: 'OCCUPIED_SLEEPING' }),
+      commands: {
+        lights: true,
+        exhaustFan: true,
+        airConditioner: true,
+        waterPump: true,
+        motionDetection: true,
+      },
+    });
+
+    expect(screen.getByRole('switch', { name: 'Lights' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Exhaust fan' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Air conditioner' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Water pump' })).toBeEnabled();
+    expect(screen.getByRole('switch', { name: 'Presence relay' })).toBeEnabled();
+    expect(screen.getAllByText(/blocked while occupied sleeping/i)).toHaveLength(3);
+  });
+
   it('marks the exhaust fan as forced on during a gas alarm', () => {
     setup({ snapshot: liveSnapshot({ gas: 452 }) });
     expect(screen.getByText(/forced on/i)).toBeInTheDocument();
@@ -169,10 +189,10 @@ describe('RoomLiveView — device controls', () => {
     ).toBeDisabled();
   });
 
-  it('offers the vacancy-cutoff automation toggle, live and writable', async () => {
+  it('offers the comfort-load automation toggle, live and writable', async () => {
     setup();
     const user = userEvent.setup();
-    const toggle = screen.getByRole('switch', { name: /vacancy cutoff automation/i });
+    const toggle = screen.getByRole('switch', { name: /comfort load automation/i });
     expect(toggle).not.toBeChecked(); // default off
 
     await user.click(toggle);
@@ -182,7 +202,7 @@ describe('RoomLiveView — device controls', () => {
   it('keeps the automation toggle usable while the room is offline (it is a server setting, not a command)', () => {
     setup({ snapshot: liveSnapshot({ updatedAt: Date.now() - 20_000 }) });
     expect(
-      screen.getByRole('switch', { name: /vacancy cutoff automation/i }),
+      screen.getByRole('switch', { name: /comfort load automation/i }),
     ).toBeEnabled();
     // device command switches stay disabled
     expect(screen.getByRole('switch', { name: 'Lights' })).toBeDisabled();

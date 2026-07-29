@@ -13,7 +13,16 @@
             },
             "devices": {
               ".read": "auth != null && (auth.provider === 'anonymous' || (auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === 'room_001'))",
-              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())"
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties/property_001/members').child(auth.uid).exists())",
+              "lights": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === 'room_001' && newData.isBoolean() && newData.val() === false"
+              },
+              "exhaustFan": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === 'room_001' && newData.isBoolean() && newData.val() === false"
+              },
+              "airConditioner": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === 'room_001' && newData.isBoolean() && newData.val() === false"
+              }
             },
             "settings": {
               "automationEnabled": {
@@ -39,7 +48,16 @@
               ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId"
             },
             "devices": {
-              ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId"
+              ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId",
+              "lights": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId && newData.isBoolean() && newData.val() === false"
+              },
+              "exhaustFan": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId && newData.isBoolean() && newData.val() === false"
+              },
+              "airConditioner": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === 'property_001' && auth.token.roomId === $roomId && newData.isBoolean() && newData.val() === false"
+              }
             },
             "evaluationRuns": {
               "$runId": {
@@ -109,7 +127,16 @@
             },
             "devices": {
               ".read": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === $roomId",
-              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())"
+              ".write": "auth != null && auth.provider !== 'anonymous' && (auth.token.role === 'admin' || root.child('properties').child($propertyId).child('members').child(auth.uid).exists())",
+              "lights": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === $roomId && newData.isBoolean() && newData.val() === false"
+              },
+              "exhaustFan": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === $roomId && newData.isBoolean() && newData.val() === false"
+              },
+              "airConditioner": {
+                ".write": "auth != null && auth.provider !== 'anonymous' && auth.token.role === 'device' && auth.token.propertyId === $propertyId && auth.token.roomId === $roomId && newData.isBoolean() && newData.val() === false"
+              }
             },
             "settings": {
               "automationEnabled": {

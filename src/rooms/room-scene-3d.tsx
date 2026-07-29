@@ -764,11 +764,13 @@ function Room({
   state,
   reducedMotion,
   disabled,
+  blockedDevices,
   onDeviceClick,
 }: {
   state: RoomSceneState;
   reducedMotion: boolean;
   disabled: boolean;
+  blockedDevices: readonly SceneDeviceKey[];
   onDeviceClick: (key: SceneDeviceKey) => void;
 }) {
   const ambientColor = useMemo(
@@ -830,31 +832,31 @@ function Room({
       <Lamp
         position={[1.05, 0, -0.8]}
         on={state.lightsOn}
-        disabled={disabled}
+        disabled={disabled || blockedDevices.includes('lights')}
         onDeviceClick={onDeviceClick}
       />
       <Lamp
         position={[3.75, 0, -0.8]}
         on={state.lightsOn}
-        disabled={disabled}
+        disabled={disabled || blockedDevices.includes('lights')}
         onDeviceClick={onDeviceClick}
       />
       <ExhaustFan
         on={state.fanOn}
         forced={state.fanForcedByGas}
-        disabled={disabled}
+        disabled={disabled || blockedDevices.includes('exhaustFan')}
         reducedMotion={reducedMotion}
         onDeviceClick={onDeviceClick}
       />
       <AirConditioner
         on={state.acOn}
-        disabled={disabled}
+        disabled={disabled || blockedDevices.includes('airConditioner')}
         onDeviceClick={onDeviceClick}
       />
       <WaterSystem
         level={state.waterLevel}
         pumpOn={state.pumpOn}
-        disabled={disabled}
+        disabled={disabled || blockedDevices.includes('waterPump')}
         onDeviceClick={onDeviceClick}
       />
       <Suspense fallback={null}>
@@ -890,12 +892,14 @@ export function RoomScene3D({
   state,
   reducedMotion,
   controlsDisabled,
+  blockedDevices,
   pendingDevice,
   onDeviceClick,
 }: {
   state: RoomSceneState;
   reducedMotion: boolean;
   controlsDisabled: boolean;
+  blockedDevices: readonly SceneDeviceKey[];
   pendingDevice?: SceneDeviceKey;
   onDeviceClick: (key: SceneDeviceKey) => void;
 }) {
@@ -919,6 +923,7 @@ export function RoomScene3D({
         state={state}
         reducedMotion={reducedMotion}
         disabled={controlsDisabled || pendingDevice !== undefined}
+        blockedDevices={blockedDevices}
         onDeviceClick={onDeviceClick}
       />
       <OrbitControls

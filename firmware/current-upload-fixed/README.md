@@ -31,6 +31,12 @@ newer Arduino CLI ESP32 toolchain.
   fan, light, or AC loads.
 - PIR or ultrasonic presence advances the room to `OCCUPIED_ACTIVE`, where
   requested fan, light, and AC commands are allowed.
+- Requested fan, light, and AC commands remain allowed in `OCCUPIED_IDLE`.
+- `OCCUPIED_SLEEPING`, `EXIT_PENDING`, `VACANT`, and `VACANT_CONFIRMED`
+  block all three comfort loads. The gas alarm may still force the fan on.
+- When blocked, the device clears its own Firebase fan, light, and AC commands
+  to `false`. Production RTDB rules must include the ADR-0014 off-only,
+  room-scoped device permission.
 - During `ENTRY_DETECTED` or `EXIT_PENDING`, the door must be closed and both
   PIR and ultrasonic presence must remain clear continuously for 30 seconds.
 - Any PIR motion, ultrasonic presence at 50 cm or nearer, or reopened door

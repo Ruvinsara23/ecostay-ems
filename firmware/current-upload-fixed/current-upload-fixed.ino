@@ -433,6 +433,17 @@ float fbReadFloat(const char *path, float fallback) {
   return fallback;
 }
 
+void fbWriteBoolIfReady(const String &path, bool value) {
+  if (!Firebase.ready() || !signupOK || path.length() == 0) {
+    return;
+  }
+
+  if (!Firebase.RTDB.setBool(&fbdo, path.c_str(), value)) {
+    Serial.print("Firebase command cutoff failed: ");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
 void beep(int delayTime) {
   buzzerState = true;
   digitalWrite(BUZZER_PIN, HIGH);
@@ -464,7 +475,7 @@ bool isOccupiedState(const String &state) {
 }
 
 bool comfortLoadsAllowed(const String &state) {
-  return state == "OCCUPIED_ACTIVE" || state == "OCCUPIED_IDLE" || state == "OCCUPIED_SLEEPING" || state == "EXIT_PENDING";
+  return state == "OCCUPIED_ACTIVE" || state == "OCCUPIED_IDLE";
 }
 
 #if ECOSTAY_WOKWI_SIMULATION
@@ -1202,10 +1213,34 @@ void readDeviceCommands() {
   cmdMainRelay = fbReadBool(pathMainRelay.c_str(), true);
 }
 
+void clearComfortCommandsIfDisallowed(bool allowed) {
+  if (allowed) {
+    return;
+  }
+
+  if (cmdExhaust) {
+    cmdExhaust = false;
+    fbWriteBoolIfReady(pathExhaust, false);
+  }
+
+  if (cmdLights) {
+    cmdLights = false;
+    fbWriteBoolIfReady(pathLights, false);
+  }
+
+  if (cmdAirConditioner) {
+    cmdAirConditioner = false;
+    fbWriteBoolIfReady(pathAirConditioner, false);
+  }
+}
+
 // ======================
 // LOGIC ENGINE
 // ======================
 void updateLogic() {
+  bool occupancyAllowsComfortLoads = comfortLoadsAllowed(occupancyState);
+  clearComfortCommandsIfDisallowed(occupancyAllowsComfortLoads);
+
   bool requestedFan = cmdExhaust;
   bool requestedLight = cmdLights;
 
@@ -1215,8 +1250,6 @@ void updateLogic() {
     requestedLight = simLightRequest;
   }
 #endif
-
-  bool occupancyAllowsComfortLoads = comfortLoadsAllowed(occupancyState);
 
   // The gas-safety override retains priority over dashboard/simulation input.
   relayFan = gasAlarmActive ? true : (occupancyAllowsComfortLoads && requestedFan);

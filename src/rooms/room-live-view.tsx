@@ -31,6 +31,7 @@ import { ArcGauge, TankGauge } from '@/ui/gauge';
 import { Toggle } from '@/ui/toggle';
 import { ConfirmDialog } from '@/ui/confirm-dialog';
 import type { SceneDeviceKey } from './room-scene-3d';
+import { comfortLoadCommandBlocked } from '@/telemetry/occupancy-policy';
 
 type ViewState =
   | { status: 'loading' }
@@ -301,12 +302,14 @@ export function DeviceControls({
   online,
   gasAlarm,
   relayActual,
+  occupancyState,
 }: {
   propertyId: string;
   roomId: string;
   online: boolean;
   gasAlarm: boolean;
   relayActual: boolean | undefined;
+  occupancyState: RoomLatest['occupancyState'];
 }) {
   const source = useRoomDataSource();
   const [commands, setCommands] = useState<DeviceCommands | null>(null);
@@ -339,7 +342,6 @@ export function DeviceControls({
   }, [source, propertyId, roomId]);
 
   const disabled = !online || commands === null;
-
   async function toggle(key: DeviceCommandKey) {
     setError(null);
     const desired = !(commands?.[key] ?? false);
@@ -370,6 +372,9 @@ export function DeviceControls({
       return `Actual: ${relayActual === undefined ? '—' : relayActual ? 'On' : 'Off'}`;
     }
     if (key === 'exhaustFan' && gasAlarm) return 'Forced on';
+    if (comfortLoadCommandBlocked(occupancyState, key)) {
+      return `Blocked while ${occupancyState?.replaceAll('_', ' ').toLowerCase() ?? 'unconfirmed'}`;
+    }
     return undefined;
   }
 
@@ -389,7 +394,7 @@ export function DeviceControls({
             Icon={DEVICE_ICONS[key]}
             on={pending[key] ?? !!commands?.[key]}
             pending={pending[key] !== undefined}
-            disabled={disabled}
+            disabled={disabled || comfortLoadCommandBlocked(occupancyState, key)}
             note={noteFor(key)}
             onToggle={() => toggle(key)}
           />
@@ -397,15 +402,15 @@ export function DeviceControls({
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-hairline pt-4">
         <div className="text-sm font-medium text-ink">
-          Vacancy cutoff automation
+          Comfort load automation
           <span className="mt-0.5 block text-xs font-normal text-ink-3">
-            Turns off lights, fan, and AC when vacant.
+            Restores after confirmed entry into active/idle; turns off during sleep, exit, and vacancy.
           </span>
         </div>
         <Toggle
           checked={automationEnabled === true}
           disabled={automationEnabled === null}
-          label="Vacancy cutoff automation"
+          label="Comfort load automation"
           onToggle={toggleAutomation}
         />
       </div>
@@ -697,7 +702,14 @@ export function RoomLiveView({
         {/* Bottom layer widgets */}
         <div className="pointer-events-auto mt-4 grid grid-cols-1 items-end gap-5 pb-4 lg:mt-auto lg:flex lg:justify-between lg:pt-8">
           <div className="w-full lg:w-80">
-            <DeviceControls propertyId={propertyId} roomId={roomId} online={freshness.online} gasAlarm={gasAlarm} relayActual={latest.relayStatus} />
+            <DeviceControls
+              propertyId={propertyId}
+              roomId={roomId}
+              online={freshness.online}
+              gasAlarm={gasAlarm}
+              relayActual={latest.relayStatus}
+              occupancyState={latest.occupancyState}
+            />
           </div>
           <div className="glass w-full flex-1 overflow-hidden rounded-[1.25rem] p-2 shadow-sm lg:max-w-2xl">
             <EnergyHistorySection propertyId={propertyId} roomId={roomId} />

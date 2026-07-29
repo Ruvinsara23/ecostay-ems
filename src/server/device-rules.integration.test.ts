@@ -173,10 +173,16 @@ describe('device-scoped RTDB rules', () => {
     ).rejects.toThrow(/permission/i);
   });
 
-  it('allows a matching device account to read commands but not write them', async () => {
+  it('allows a matching device to clear only its own comfort-load commands', async () => {
     await adminDb
       .ref('properties/property_002/rooms/room_009/devices')
-      .set({ lights: true, exhaustFan: false });
+      .set({
+        lights: true,
+        exhaustFan: true,
+        airConditioner: true,
+        waterPump: true,
+        mainRelay: true,
+      });
     const db = await signedInDeviceDb({
       role: 'device',
       propertyId: 'property_002',
@@ -185,10 +191,37 @@ describe('device-scoped RTDB rules', () => {
 
     expect((await get(ref(db, 'properties/property_002/rooms/room_009/devices'))).val()).toEqual({
       lights: true,
-      exhaustFan: false,
+      exhaustFan: true,
+      airConditioner: true,
+      waterPump: true,
+      mainRelay: true,
     });
+
+    await set(ref(db, 'properties/property_002/rooms/room_009/devices/lights'), false);
+    await set(ref(db, 'properties/property_002/rooms/room_009/devices/exhaustFan'), false);
+    await set(ref(db, 'properties/property_002/rooms/room_009/devices/airConditioner'), false);
+
+    expect(
+      (await adminDb.ref('properties/property_002/rooms/room_009/devices').get()).val(),
+    ).toEqual({
+      lights: false,
+      exhaustFan: false,
+      airConditioner: false,
+      waterPump: true,
+      mainRelay: true,
+    });
+
     await expect(
-      set(ref(db, 'properties/property_002/rooms/room_009/devices/lights'), false),
+      set(ref(db, 'properties/property_002/rooms/room_009/devices/lights'), true),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      set(ref(db, 'properties/property_002/rooms/room_009/devices/waterPump'), false),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      set(ref(db, 'properties/property_002/rooms/room_009/devices/mainRelay'), false),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      set(ref(db, 'properties/property_002/rooms/room_010/devices/lights'), false),
     ).rejects.toThrow(/permission/i);
   });
 
@@ -224,7 +257,7 @@ describe('device-scoped RTDB rules', () => {
   it('supports device credentials for non-bench rooms under property_001', async () => {
     await adminDb
       .ref('properties/property_001/rooms/room_002/devices')
-      .set({ lights: false, waterPump: true });
+      .set({ lights: true, waterPump: true });
     const db = await signedInDeviceDb({
       role: 'device',
       propertyId: 'property_001',
@@ -232,6 +265,7 @@ describe('device-scoped RTDB rules', () => {
     });
 
     await set(ref(db, 'properties/property_001/rooms/room_002/latest'), LATEST);
+    await set(ref(db, 'properties/property_001/rooms/room_002/devices/lights'), false);
 
     expect(
       (await adminDb.ref('properties/property_001/rooms/room_002/latest/power').get()).val(),
@@ -240,6 +274,43 @@ describe('device-scoped RTDB rules', () => {
       lights: false,
       waterPump: true,
     });
+    await expect(
+      set(ref(db, 'properties/property_001/rooms/room_002/devices/waterPump'), false),
+    ).rejects.toThrow(/permission/i);
+  });
+
+  it('limits the literal production bench branch to credentialed off-only comfort writes', async () => {
+    await adminDb
+      .ref('properties/property_001/rooms/room_001/devices')
+      .set({
+        lights: true,
+        exhaustFan: true,
+        airConditioner: true,
+        waterPump: true,
+      });
+    const deviceDb = await signedInDeviceDb({
+      role: 'device',
+      propertyId: 'property_001',
+      roomId: 'room_001',
+    });
+
+    await set(ref(deviceDb, 'properties/property_001/rooms/room_001/devices/lights'), false);
+    await set(ref(deviceDb, 'properties/property_001/rooms/room_001/devices/exhaustFan'), false);
+    await set(
+      ref(deviceDb, 'properties/property_001/rooms/room_001/devices/airConditioner'),
+      false,
+    );
+    await expect(
+      set(ref(deviceDb, 'properties/property_001/rooms/room_001/devices/lights'), true),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      set(ref(deviceDb, 'properties/property_001/rooms/room_001/devices/waterPump'), false),
+    ).rejects.toThrow(/permission/i);
+
+    const anonymous = await anonymousDb();
+    await expect(
+      set(ref(anonymous, 'properties/property_001/rooms/room_001/devices/lights'), false),
+    ).rejects.toThrow(/permission/i);
   });
 
   it('preserves the transitional anonymous bench-room bridge until cutover', async () => {

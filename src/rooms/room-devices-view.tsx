@@ -107,6 +107,7 @@ export function RoomDevicesView({
             online={freshness.online}
             gasAlarm={gasAlarm}
             relayActual={latest.relayStatus}
+            occupancyState={latest.occupancyState}
           />
         </div>
       </div>

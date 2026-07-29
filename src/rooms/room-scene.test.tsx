@@ -73,4 +73,32 @@ describe('RoomScene', () => {
       screen.getByRole('button', { name: /turn on air conditioner from 3d room/i }),
     ).toBeInTheDocument();
   });
+
+  it('blocks comfort controls while sleeping but leaves the water pump independent', () => {
+    render(
+      <RoomScene
+        latest={{ ...LIVE, occupancyState: 'OCCUPIED_SLEEPING' }}
+        online
+        commands={{
+          lights: true,
+          exhaustFan: true,
+          airConditioner: true,
+          waterPump: true,
+        }}
+        controlsEnabled
+        onDeviceClick={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /lights blocked while occupied sleeping/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /fan blocked while occupied sleeping/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /air conditioner blocked while occupied sleeping/i }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: /turn off pump/i })).toBeEnabled();
+  });
 });

@@ -19,7 +19,7 @@ describe('deriveRoomSceneState', () => {
   it('maps the door, device commands, water level, and online state', () => {
     expect(
       deriveRoomSceneState(
-        { doorOpen: true, waterLevel: 64 },
+        { occupancyState: 'OCCUPIED_ACTIVE', doorOpen: true, waterLevel: 64 },
         { lights: true, exhaustFan: true, waterPump: true, airConditioner: true },
         true,
       ),
@@ -31,6 +31,27 @@ describe('deriveRoomSceneState', () => {
       acOn: true,
       waterLevel: 64,
       online: true,
+    });
+  });
+
+  it.each([
+    'VACANT',
+    'ENTRY_DETECTED',
+    'OCCUPIED_SLEEPING',
+    'EXIT_PENDING',
+    'VACANT_CONFIRMED',
+  ] as const)('blocks comfort-load visuals in %s while leaving the pump independent', (occupancyState) => {
+    expect(
+      deriveRoomSceneState(
+        { occupancyState, gas: 250 },
+        { lights: true, exhaustFan: true, waterPump: true, airConditioner: true },
+        true,
+      ),
+    ).toMatchObject({
+      lightsOn: false,
+      fanOn: false,
+      acOn: false,
+      pumpOn: true,
     });
   });
 

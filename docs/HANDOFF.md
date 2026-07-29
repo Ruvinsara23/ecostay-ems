@@ -16,6 +16,11 @@ gives owners live monitoring, control, cost, and savings. **The firmware is an i
   approved flash candidate drives an active-low GPIO21 output; Vacancy Cutoff
   and sensor-confirmed Occupancy Restore now control lights, exhaust fan, and
   AC together. `mainRelay` remains excluded.
+- ADR-0014 narrows comfort loads to `OCCUPIED_ACTIVE`/`OCCUPIED_IDLE`.
+  Sleeping, exit, and vacancy cut lights/fan/AC; the device may clear only
+  those three command leaves to `false` for its own room. The corresponding
+  `database.rules.json` change is implemented and emulator-tested but must be
+  published before production firmware command clearing can succeed.
 - `npm run tick:local:watch` explicitly drives the server tick during localhost
   testing. External cron-job.org cannot reach localhost; no automation logic
   has been moved into the browser.
@@ -118,14 +123,14 @@ read the simulated signal.
 |---|---|---|
 | **Auth & tenancy** | Email/password login, role from custom claims (owner/admin/device), route guard, per-property membership; owners see assigned rooms, admins see all | `src/auth/*`, `src/rooms/room-data-source.ts` (`listAccessibleRooms`) |
 | **Live telemetry** | Firmware-contract TS types, live `latest` view, occupancy/climate/power(simulated)/gas/water/activity/relays, offline honesty (15 s UI mark, server-corrected clock) | `src/telemetry/*`, `src/rooms/room-live-view.tsx`, `room-scene.tsx` |
-| **Device control** | Owner toggles `devices/*` relays (lights/exhaustFan/waterPump/motionDetection); `mainRelay` excluded at type level; disabled offline; gas-alarm note | `src/rooms/room-live-view.tsx` (DeviceControls) |
-| **Server workloads** (free runtime, ADR-0010) | 5-min energy **sampler**, 1-min **tick** (offline+gas/temp/water **alerts** lifecycle + **vacancy-cutoff automation**), nightly **rollup** (+ dry-run-gated prune) | `src/server/*`, `src/app/api/cron/{sample,tick,rollup}/route.ts` |
+| **Device control** | Owner toggles lights, exhaust fan, AC, water pump, and presence relay; `mainRelay` is excluded. Comfort controls are occupancy-blocked during entry, sleep, exit, and vacancy; pump stays independent and gas may force the fan. | `src/rooms/room-live-view.tsx` (DeviceControls) |
+| **Server workloads** (free runtime, ADR-0010/0014) | 5-min energy **sampler**, 1-min **tick** (offline+gas/temp/water **alerts** lifecycle + occupancy-gated **comfort-load automation**), nightly **rollup** (+ dry-run-gated prune) | `src/server/*`, `src/app/api/cron/{sample,tick,rollup}/route.ts` |
 | **Charts & alerts UI** | 24 h power line + 7-day kWh bars; alert center with acknowledge | `src/rooms/energy-charts.tsx`, `alert-center.tsx` |
 | **Cost (tariff)** (ADR-0008) | Regime/band CEB bill engine; "Estimated bill this month" from month-to-date kWh × tariff (property = **H-1**) | `src/tariff/*`, shown in `energy-charts.tsx` |
 | **Savings (OBJ-07)** | Nightly `avoidedKWh` = controlled-circuit wattage × confirmed-vacant time; "Saved this month" priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/rollup.ts`, `src/tariff/savings.ts` |
 | **UI** | Owner's redesign: purple/lavender glass, Inter font, 3D-room image (`public/3d-model.png`) with clickable sensor letters, icon rail | `src/app/{page,layout,login}.tsx`, `src/app/globals.css`, `room-scene.tsx` |
 | **Admin Console** | Admin-only `/admin`: fleet **Overview** landing (rooms reporting + open alerts per property), **Properties** registry/detail (rooms, device credential create/reset, owners assign/remove, settings, alert center, per-room live links), **Owners**. Admin API routes verify `role:'admin'`; UI stays behind `AdminOperations`. Device passwords are returned once and not written to RTDB. | `src/admin/*`, `src/app/api/admin/{owners,rooms,devices,properties}/route.ts`, `src/server/admin-*`, `src/server/manage-*` |
-| **Firmware rules draft** | Local ADR-0007 slice 02 rules allow `role:'device'` accounts with matching `propertyId`/`roomId` claims to write scoped `latest`, append own-room property-level `history`, and read scoped `devices` commands. Device command writes remain denied. Anonymous bench-room bridge is still present until cutover. | `database.rules.json`, `src/server/device-rules.integration.test.ts` |
+| **Firmware rules draft** | Local ADR-0007/0014 rules allow matching `role:'device'` accounts to write scoped `latest`, append own-room history, read scoped commands, and set only their own lights/fan/AC command leaves to `false`. Device-on, pump, mainRelay, and cross-room writes remain denied. Anonymous bench telemetry bridge remains until cutover and cannot clear commands. | `database.rules.json`, `src/server/device-rules.integration.test.ts` |
 
 **The one seam:** UI depends only on two ports — `AuthGateway` and `RoomDataSource` — never on the
 Firebase SDK. Each has an in-memory **fake** (fast unit tests) and a real Firebase **adapter**

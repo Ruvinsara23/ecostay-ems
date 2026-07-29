@@ -9,7 +9,7 @@ import { createNotificationsDeps, dispatchNotifications } from '@/server/notific
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** 1-minute tick (ADR-0010): offline + threshold alerts, then vacancy-cutoff automation. */
+/** 1-minute tick (ADR-0010/0014): alerts, then occupancy-gated comfort-load automation. */
 export async function GET(request: Request) {
   if (!isCronAuthorized(request.headers.get('authorization'), process.env.CRON_SECRET)) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });

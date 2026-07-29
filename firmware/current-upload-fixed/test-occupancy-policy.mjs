@@ -51,8 +51,6 @@ assert.doesNotMatch(
 for (const confirmedState of [
   "OCCUPIED_ACTIVE",
   "OCCUPIED_IDLE",
-  "OCCUPIED_SLEEPING",
-  "EXIT_PENDING",
 ]) {
   assert.match(
     comfortLoadFunction,
@@ -60,10 +58,28 @@ for (const confirmedState of [
     `${confirmedState} must continue to allow requested comfort loads.`,
   );
 }
+for (const cutoffState of [
+  "ENTRY_DETECTED",
+  "OCCUPIED_SLEEPING",
+  "EXIT_PENDING",
+  "VACANT",
+  "VACANT_CONFIRMED",
+]) {
+  assert.doesNotMatch(
+    comfortLoadFunction,
+    new RegExp(cutoffState),
+    `${cutoffState} must cut requested comfort loads off.`,
+  );
+}
 assert.match(
   sketch,
   /bool occupancyAllowsComfortLoads = comfortLoadsAllowed\(occupancyState\);/,
   "Relay gating must use the confirmed-presence comfort-load policy.",
+);
+assert.match(
+  sketch,
+  /clearComfortCommandsIfDisallowed\(occupancyAllowsComfortLoads\);/,
+  "The firmware must clear Firebase comfort-load commands when occupancy cuts them off.",
 );
 
 console.log("Occupancy vacancy policy regression checks passed.");

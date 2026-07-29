@@ -1,5 +1,6 @@
 import type { DeviceCommands, OccupancyState } from '@/telemetry/contract';
 import { GAS_ALARM_THRESHOLD, OCCUPANCY_STATES } from '@/telemetry/contract';
+import { comfortLoadsAllowed } from '@/telemetry/occupancy-policy';
 import type { RoomLatest } from './room-data-source';
 
 export type OccupantPose =
@@ -46,9 +47,9 @@ function boundedPercent(value: number | undefined): number {
 }
 
 /**
- * Converts contract-exact realtime values into renderer state. Lights, fan, and
- * pump are commanded states because the firmware does not report their actual
- * relay outputs. The gas alarm is the one exception: firmware forces the fan on.
+ * Converts contract-exact realtime values into renderer state. Comfort loads
+ * combine command values with the firmware occupancy gate; pump stays
+ * command-driven. The gas alarm remains the exception that forces the fan on.
  */
 export function deriveRoomSceneState(
   latest: RoomLatest,
@@ -56,16 +57,17 @@ export function deriveRoomSceneState(
   online: boolean,
 ): RoomSceneState {
   const gasAlarm = latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD;
+  const comfortAllowed = comfortLoadsAllowed(latest.occupancyState);
   const fanCommandedOn = commands.exhaustFan === true;
 
   return {
     doorOpen: latest.doorOpen === true,
     occupantPose: occupantPose(latest.occupancyState),
-    lightsOn: commands.lights === true,
+    lightsOn: comfortAllowed && commands.lights === true,
     tvPresenceCueOn: online && latest.humanPresent === true,
-    fanOn: fanCommandedOn || gasAlarm,
+    fanOn: gasAlarm || (comfortAllowed && fanCommandedOn),
     fanForcedByGas: gasAlarm,
-    acOn: commands.airConditioner === true,
+    acOn: comfortAllowed && commands.airConditioner === true,
     pumpOn: commands.waterPump === true,
     gasAlarm,
     waterLevel: boundedPercent(latest.waterLevel),

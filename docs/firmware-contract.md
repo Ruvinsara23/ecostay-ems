@@ -10,11 +10,11 @@ does not replace the repository's canonical `firmware/complete.ino`; reconciliat
 separate firmware task. It changes no RTDB path, telemetry field, type, cadence, or relay
 command semantics.
 
-Comfort-load amendment (ADR-0012): the current flash candidate allows requested fan/light
-commands only after sensor-confirmed occupancy, while preserving the gas override and
-allowing loads through `EXIT_PENDING`. `ENTRY_DETECTED` remains an occupied status but is
-not sufficient to energize comfort loads. No RTDB path, command field, telemetry field,
-type, cadence, or pin assignment changes.
+Comfort-load amendments (ADR-0012, ADR-0014): the current flash candidate allows
+requested lights, fan, and AC only in `OCCUPIED_ACTIVE` and `OCCUPIED_IDLE`.
+It blocks them during entry, sleep, exit, and vacancy while preserving the gas
+override. When blocked, the device clears its own three Firebase command leaves
+to `false` through an off-only, room-scoped RTDB permission.
 
 AC relay amendment (ADR-0013): the approved flash candidate adds the boolean
 `devices/airConditioner` command on a separate active-low GPIO21 output. It follows the
@@ -29,9 +29,10 @@ contactor/dry-contact/IR interface; GPIO21 never drives mains directly.
 | Property ID | `property_001` (hardcoded) |
 | Room ID | `room_001` (hardcoded) |
 | Base path | `properties/property_001/rooms/room_001` |
-| Firebase auth | **Anonymous** `Firebase.signUp(&config, &auth, "", "")` |
+| Canonical `complete.ino` auth | **Anonymous** `Firebase.signUp(&config, &auth, "", "")`; retained only by the transitional bench telemetry rule. It cannot clear command leaves. |
+| Approved `current-upload-fixed` auth | Provisioned device email/password with matching `role=device`, `propertyId`, and `roomId` claims. Missing or malformed credentials leave the node offline. This identity is required for ADR-0014 command clearing. |
 | WiFi | SSID `ESP32` / `12345678` (hardcoded) |
-| API key + DB URL | Hardcoded in firmware. ⚠️ **ADR-0009 (2026-07-04): project identity migrated to `ecostay-ems`** — these two constants change at the next human reflash (first step of the ADR-0007 workstream). Until that reflash, the deployed node still writes to the old `esp32led-b6105-c0b99` project. Path layout, field names, and cadence are unchanged. |
+| API key + DB URL | Hardcoded in both repository firmware artifacts and now target `ecostay-ems` (ADR-0009, hardware-verified 2026-07-04). Path layout, field names, and cadence are unchanged. |
 
 ## Telemetry — firmware WRITES `{base}/latest` every 3 s (`updateNode`)
 
@@ -65,12 +66,16 @@ contactor/dry-contact/IR interface; GPIO21 never drives mains directly.
 
 ## Commands — firmware READS every 500 ms (plain booleans)
 
+ADR-0014 also permits the authenticated device to write boolean `false` to its
+own lights, fan, and AC command leaves. It cannot write `true`, the pump,
+`mainRelay`, or any other room.
+
 | Path | Relay pin | Behavior |
 |---|---|---|
-| `{base}/devices/exhaustFan` | GPIO 26 | Gas alarm **overrides ON** locally |
-| `{base}/devices/airConditioner` | GPIO 21 (ADR-0013 candidate) | Allowed only after sensor-confirmed occupancy |
+| `{base}/devices/exhaustFan` | GPIO 26 | Allowed only in active/idle; gas alarm **overrides ON** locally |
+| `{base}/devices/airConditioner` | GPIO 21 (ADR-0013 candidate) | Allowed only in active/idle |
 | `{base}/devices/motionDetection` | GPIO 14 | Drives "presence" relay directly |
-| `{base}/devices/lights` | GPIO 13 | Direct |
+| `{base}/devices/lights` | GPIO 13 | Allowed only in active/idle |
 | `{base}/devices/waterPump` | GPIO 5 | Direct |
 | `{base}/devices/mainRelay` | — | **Read but never used** in relay logic |
 
@@ -101,6 +106,8 @@ Runs **on the ESP32** — the dashboard should *display* this state, never re-de
 
 1. **Single room reality**: `property_001/room_001` is hardcoded — multi-room/multi-hotel UI must be honest about being single-node for now, or the firmware gains a config step.
 2. **Energy data is simulated** until a real PZEM-004T read replaces `updatePzemDummyReading()` — label it in the UI.
-3. Commands are **plain bool leaf writes** — no ack, no command queue; UI state should reflect `{base}/latest` telemetry, not assume a write succeeded.
+3. Commands are **plain bool leaves** with no relay acknowledgement or queue.
+   The 3D UI combines command state with the occupancy gate; the device may
+   clear disallowed comfort commands to `false`.
 4. `latest` is a 3 s snapshot; **history for charts must be recorded by something other than the firmware** (scheduled function / client logger) or the firmware gains an energy-history push.
-5. Anonymous device auth means RTDB rules can't distinguish device from stranger — rules design is a risk gate for the rebuild.
+5. Canonical `complete.ino` anonymous auth remains a transitional bench-only limitation: it cannot distinguish the node from another anonymous client and cannot clear commands. The credentialed `current-upload-fixed` candidate resolves that identity problem with room-scoped claims.

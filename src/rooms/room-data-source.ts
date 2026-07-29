@@ -74,9 +74,10 @@ export interface RoomDataSource {
   ): Promise<void>;
 
   /**
-   * The room's vacancy-cutoff automation toggle (settings/automationEnabled).
+   * The room's comfort-load automation toggle (settings/automationEnabled).
    * A server setting, not a device command — usable regardless of freshness;
-   * absent means OFF.
+   * Active/idle transitions may restore loads; sleep, exit, and vacancy cut
+   * them off. Absent means OFF.
    */
   subscribeAutomationEnabled(
     propertyId: string,

@@ -26,7 +26,7 @@ fakes firmware writes exists for development and rehearsal only — it is a dev 
 | Owner | accepted | Accommodation owner/manager. Monitors, controls devices, views costs and alerts — for **their assigned properties only** (see Tenancy). |
 | Admin | accepted | Operator role. Everything Owner can do, plus: owner-account management (create/disable/reset/role), tariff settings, property/room metadata, room+device registration, alert thresholds, circuit wattages. Sees all properties. |
 | Guest | accepted | Room occupant. Never uses the dashboard; interacts only physically (door, motion, appliances). |
-| Device / Node | existing | The ESP32 in a room. Authenticates **anonymously today**; moves to per-device credentials via the firmware workstream (see Device identity). |
+| Device / Node | existing | The ESP32 in a room. Canonical `firmware/complete.ino` still uses anonymous auth; the approved `current-upload-fixed` candidate requires a room-scoped Device account. Production command clearing requires that credentialed candidate plus the ADR-0014 rules (see Device identity). |
 | Staff (third role) | rejected | No concrete capability separates it from Owner/Admin in v1. |
 
 ## Auth & tenancy (accepted)
@@ -60,6 +60,7 @@ fakes firmware writes exists for development and rehearsal only — it is a dev 
 | `devices/airConditioner` | accepted | Boolean AC command added by ADR-0013 to the approved flash candidate. It uses its own GPIO21 relay/contactor interface and never repurposes `mainRelay`. |
 | `history` | existing | Per-property append log — **written by firmware only when water flows**; carries NO energy fields. |
 | `devices/*` | existing | Per-room command booleans the firmware polls every 500 ms: `exhaustFan`, `motionDetection`, `lights`, `waterPump`, `mainRelay` (read but unused by firmware — no rule or UI may target it until the firmware workstream wires it). |
+| Device comfort-command clear | accepted | ADR-0014 off-only exception: a scoped Device account may set only its own `lights`, `exhaustFan`, and `airConditioner` command leaves to boolean `false` when occupancy blocks comfort loads. It cannot write `true`, pump, `mainRelay`, or another room. |
 
 ### Dashboard-owned paths (accepted — never written by firmware)
 
@@ -96,6 +97,7 @@ remain clear continuously for 30 s. Any detection resets the complete vacancy wi
 | Term | Status | Meaning |
 |---|---|---|
 | Occupied (boolean) | derived | `occupancyState ∈ {ENTRY_DETECTED, OCCUPIED_ACTIVE, OCCUPIED_IDLE, OCCUPIED_SLEEPING, EXIT_PENDING}` — same predicate as firmware's `isOccupiedState()`. |
+| Comfort loads allowed | derived | `occupancyState ∈ {OCCUPIED_ACTIVE, OCCUPIED_IDLE}` (ADR-0014). Lights, exhaust fan, and AC are blocked in every other occupancy state; gas may still force the fan. |
 | Energy cost | derived | **Regime/band tariff engine** over kWh (see Tariff): the month's total selects a regime; within it `method:"flat"` applies the band rate to all units (CEB GP-1/H-1), `method:"slab"` sums incremental blocks (CEB Domestic); fixed charge is per-block; an `sscl` factor grosses up the total. Currency: LKR. Seed rates + full derivation of the model gaps: [ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md) (PUCSL, effective 11 May 2026). |
 | Savings | derived | **Headline: counterfactual avoided energy** — Σ(rated wattage of each cut circuit × time it stayed cut), from `automationLog` × Admin-configured circuit wattages, priced via the tariff engine. **Secondary: kWh per occupied-hour** trend from daily aggregates. |
 | Device online | derived | UI: offline when `now − updatedAt > 15 s` (5 missed write cycles), computed against `.info/serverTimeOffset`. Offline **alert** raised at ~90 s staleness by the 1-min scheduled Function. Offline UI: values grey out with "last seen", **device controls disabled** (no queued commands). |
@@ -122,18 +124,19 @@ No background logic ever runs in the browser client.
 
 ## Automation (accepted)
 
-- v1 rule: **Vacancy Cutoff** — on `VACANT_CONFIRMED`, write the room's configured subset of
-  `devices/*` to false (default: `lights`, `exhaustFan`, `airConditioner`). Per-room master automation on/off
-  toggle, visible to the Owner.
+- v1 rule: **Comfort Load Cutoff** (ADR-0014) — on `OCCUPIED_SLEEPING` or
+  `EXIT_PENDING`, write `lights`, `exhaustFan`, and `airConditioner` to false.
+  `VACANT_CONFIRMED` remains a server fallback. Firmware gates the physical outputs
+  immediately and clears the same command leaves through its off-only rule.
 - v1 rule: **Occupancy Restore (FR-05)** — after a vacancy/entry candidate advances to
-  sensor-confirmed occupancy (`OCCUPIED_ACTIVE`, `OCCUPIED_IDLE`, or `OCCUPIED_SLEEPING`),
-  write the same configured subset to `true`. `ENTRY_DETECTED` alone never restores loads
-  because a door opening does not prove that a person entered. Symmetric partner of the cutoff:
-  same `automationEnabled` toggle, same transition-epoch precedence. It restores the configured
-  cutoff circuits, **not** a remembered snapshot (no stored pre-cut state, no timers).
+  `OCCUPIED_ACTIVE` or `OCCUPIED_IDLE`, write the same subset to `true`.
+  `ENTRY_DETECTED` and `OCCUPIED_SLEEPING` never restore loads. The shared
+  `automationEnabled` toggle controls server cutoff/restore; the firmware safety gate
+  remains authoritative locally.
 - **Transition-epoch precedence**: automation acts only *at the moment* of an occupancy
   transition; any manual command issued after that moment stands until the next transition.
-  No sticky override flags, no timers.
+  ADR-0014 intentionally excepts blocked occupancy states: firmware may clear a later
+  comfort command back to false because the output is not allowed in that state.
 - The firmware's local gas→exhaust-fan override always wins locally; cloud automation never fights it.
 - v1.1 queue: temperature-based fan rules. ("Welcome lights after confirmed entry" is delivered
   by the FR-05 Occupancy Restore rule above.)
@@ -233,4 +236,4 @@ All eight open questions answered; decisions recorded in the sections above:
 4. **Circuit rated wattages** — Admin enters per controlled circuit per room at setup (needed for savings).
 5. ~~ADRs to draft~~ — done 2026-07-04: ADR-0005 (auth & tenancy), ADR-0006 (Cloud Functions/Blaze), ADR-0007 (firmware workstream, amends ADR-0003), ADR-0008 (tariff engine).
 6. ~~AGENTS.md missing~~ — recreated 2026-07-04 with commands verified against the running app.
-7. **v1.1 queue**: FCM web push, TOU tariffs, entry-restore automation rule.
+7. **v1.1 queue**: FCM web push and TOU tariffs. Entry restore shipped in FR-05.

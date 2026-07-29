@@ -99,6 +99,64 @@ describe('runAutomation', () => {
     expect(report.cutoffs).toBe(0);
   });
 
+  it('cuts lights + fan + AC as soon as an occupied room enters EXIT_PENDING', async () => {
+    const { deps, commandWrites, log, lastStates } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('EXIT_PENDING') },
+      lastStates: { 'property_001/room_001': 'OCCUPIED_ACTIVE' },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([
+      {
+        key: 'property_001/room_001',
+        commands: { lights: false, exhaustFan: false, airConditioner: false },
+      },
+    ]);
+    expect(log).toEqual([
+      {
+        roomId: 'room_001',
+        action: 'comfort-load-cutoff',
+        relays: ['lights', 'exhaustFan', 'airConditioner'],
+        fromState: 'OCCUPIED_ACTIVE',
+        toState: 'EXIT_PENDING',
+        at: NOW,
+      },
+    ]);
+    expect(lastStates['property_001/room_001']).toBe('EXIT_PENDING');
+    expect(report.cutoffs).toBe(1);
+  });
+
+  it('cuts lights + fan + AC when an idle guest enters OCCUPIED_SLEEPING', async () => {
+    const { deps, commandWrites, log, lastStates } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('OCCUPIED_SLEEPING') },
+      lastStates: { 'property_001/room_001': 'OCCUPIED_IDLE' },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([
+      {
+        key: 'property_001/room_001',
+        commands: { lights: false, exhaustFan: false, airConditioner: false },
+      },
+    ]);
+    expect(log).toEqual([
+      {
+        roomId: 'room_001',
+        action: 'comfort-load-cutoff',
+        relays: ['lights', 'exhaustFan', 'airConditioner'],
+        fromState: 'OCCUPIED_IDLE',
+        toState: 'OCCUPIED_SLEEPING',
+        at: NOW,
+      },
+    ]);
+    expect(lastStates['property_001/room_001']).toBe('OCCUPIED_SLEEPING');
+    expect(report.cutoffs).toBe(1);
+  });
+
   it('records the transition but acts on nothing when automation is disabled or unset', async () => {
     const { deps, commandWrites, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('VACANT_CONFIRMED') },
@@ -229,10 +287,10 @@ describe('runAutomation', () => {
     expect(lastStates['property_001/room_001']).toBe('ENTRY_DETECTED'); // transition still recorded
   });
 
-  it('does not restore on an occupied→occupied transition (no return edge)', async () => {
+  it('does not restore lights when a sleeping guest becomes active again', async () => {
     const { deps, commandWrites } = makeDeps({
-      rooms: { 'property_001/room_001': fresh('OCCUPIED_SLEEPING') },
-      lastStates: { 'property_001/room_001': 'OCCUPIED_ACTIVE' },
+      rooms: { 'property_001/room_001': fresh('OCCUPIED_ACTIVE') },
+      lastStates: { 'property_001/room_001': 'OCCUPIED_SLEEPING' },
       enabled: { 'property_001/room_001': true },
     });
 

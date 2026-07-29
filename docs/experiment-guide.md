@@ -141,9 +141,10 @@ property → scroll to the settings form at the bottom (`src/admin/admin-propert
 
 ### 1.5 Verify the cron jobs are alive
 
-The vacancy cutoff runs **on the server**, once a minute, triggered by cron-job.org
-(`docs/adr/0010`). If the cron job is paused, **the EcoStay window silently behaves like a
-baseline** — no cutoffs ever fire.
+The comfort-load automation runs **on the server**, once a minute, triggered by cron-job.org
+(`docs/adr/0010` and `0014`). It restores loads on active/idle entry transitions and cuts them
+during sleep, exit, and confirmed vacancy. If the cron job is paused, **the EcoStay window
+silently behaves like a baseline** — no server-side transitions fire.
 
 1. Log in to your cron-job.org account → check all three jobs are enabled and their execution
    history is green: `tick` (every 1 min), `sample` (every 5 min), `rollup` (daily 00:05
@@ -308,7 +309,7 @@ live; if one happens, **re-run that window.**
   `properties/property_001/rooms/room_001/evaluationRuns/<id>`.
 - **Stop does not restore automation.** After your last run the room stays in that run's mode
   (a baseline last leaves automation **OFF**). For the ongoing deployment / viva demo, go to
-  **Routines → Vacancy cutoff automation** and set the toggle back to your intended state.
+  **Routines → Comfort load automation** and set the toggle back to your intended state.
 
 ---
 

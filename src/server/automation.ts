@@ -1,10 +1,14 @@
 import type { RoomLatest } from '@/rooms/room-data-source';
 import type { OccupancyState } from '@/telemetry/contract';
+import {
+  COMFORT_LOAD_COMMAND_KEYS,
+  comfortLoadsAllowed,
+} from '@/telemetry/occupancy-policy';
 import { OFFLINE_ALERT_MS } from './alerts';
 
 export type AutomationLogEntry = {
   roomId: string;
-  action: 'vacancy-cutoff' | 'occupancy-restore';
+  action: 'vacancy-cutoff' | 'comfort-load-cutoff' | 'occupancy-restore';
   relays: string[];
   fromState: string | null;
   toState: string;
@@ -29,30 +33,22 @@ export type AutomationDeps = {
 export type AutomationReport = { cutoffs: number; restores: number; transitions: number };
 
 const RESTORE_SOURCE_STATES = new Set(['VACANT', 'VACANT_CONFIRMED', 'ENTRY_DETECTED']);
-const CONFIRMED_OCCUPANCY_STATES = new Set<OccupancyState>([
-  'OCCUPIED_ACTIVE',
-  'OCCUPIED_IDLE',
-  'OCCUPIED_SLEEPING',
-]);
-
 function shouldRestoreComfortLoads(fromState: string, toState: OccupancyState): boolean {
-  return RESTORE_SOURCE_STATES.has(fromState) && CONFIRMED_OCCUPANCY_STATES.has(toState);
+  return RESTORE_SOURCE_STATES.has(fromState) && comfortLoadsAllowed(toState);
 }
 
 /**
- * Vacancy Cutoff with transition-epoch precedence (grilled decision, CONTEXT.md):
- * the cutoff fires only AT an observed transition into VACANT_CONFIRMED — any
- * manual command issued afterwards stands untouched until the next transition.
- * Frozen (stale) data never advances the state machine: a dead device cannot
- * generate transitions. First-ever observation records state without guessing
- * a transition from null.
+ * Comfort Load Automation restores circuits only when a vacancy/entry
+ * candidate advances to OCCUPIED_ACTIVE or OCCUPIED_IDLE. It cuts them when
+ * the firmware reports OCCUPIED_SLEEPING or EXIT_PENDING, and retains the
+ * VACANT_CONFIRMED cutoff as a fallback. Door-open ENTRY_DETECTED alone never
+ * restores comfort loads.
  *
- * FR-05 (symmetric restore): after a vacancy/entry candidate advances to
- * sensor-confirmed occupancy, the same circuits are restored to on. Door-open
- * ENTRY_DETECTED alone never restores comfort loads. Both actions are gated by
- * settings/automationEnabled and obey transition-epoch precedence — a later
- * manual command stands until the next transition. No stored pre-cut state or
- * timers: it restores the configured cutoff subset, not a remembered snapshot.
+ * Server actions require settings/automationEnabled and use transition-epoch
+ * precedence. Frozen telemetry cannot generate transitions, and a first-ever
+ * observation records state without inventing one. The firmware independently
+ * blocks disallowed physical outputs and may clear its own command leaves to
+ * false under the scoped RTDB rule.
  */
 export async function runAutomation(
   deps: AutomationDeps,
@@ -80,7 +76,21 @@ export async function runAutomation(
         await deps.appendAutomationLog(propertyId, {
           roomId,
           action: 'vacancy-cutoff',
-          relays: ['lights', 'exhaustFan', 'airConditioner'],
+          relays: [...COMFORT_LOAD_COMMAND_KEYS],
+          fromState: lastState,
+          toState: state,
+          at: nowMs,
+        });
+        report.cutoffs += 1;
+      } else if (
+        enabled &&
+        (state === 'OCCUPIED_SLEEPING' || state === 'EXIT_PENDING')
+      ) {
+        await deps.writeCutoffCommands(propertyId, roomId);
+        await deps.appendAutomationLog(propertyId, {
+          roomId,
+          action: 'comfort-load-cutoff',
+          relays: [...COMFORT_LOAD_COMMAND_KEYS],
           fromState: lastState,
           toState: state,
           at: nowMs,
@@ -93,7 +103,7 @@ export async function runAutomation(
         await deps.appendAutomationLog(propertyId, {
           roomId,
           action: 'occupancy-restore',
-          relays: ['lights', 'exhaustFan', 'airConditioner'],
+          relays: [...COMFORT_LOAD_COMMAND_KEYS],
           fromState: lastState,
           toState: state,
           at: nowMs,
