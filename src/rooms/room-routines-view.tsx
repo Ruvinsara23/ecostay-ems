@@ -59,7 +59,7 @@ export function RoomRoutinesView({
               <div>
                 <h3 className="text-base font-semibold text-ink">Vacancy Cutoff</h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  Automatically turns off lights and fan when the room is confirmed vacant to save energy.
+                  Automatically turns off lights, fan, and AC when the room is confirmed vacant to save energy.
                 </p>
                 {error && (
                   <p role="alert" className="mt-3 text-xs font-semibold text-alarm">

@@ -1,11 +1,31 @@
 # HANDOFF — EcoStay EMS (state & where to continue)
 
-_Last updated 2026-07-16. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
+_Last updated 2026-07-29. Read `AGENTS.md` for the operating rules; this file is "where are we, what's next"._
 
 EcoStay EMS is a smart-IoT energy management system for Sri Lankan tourist accommodations:
 an ESP32 per room writes telemetry to Firebase RTDB; a Next.js dashboard (Firebase Auth + RTDB)
 gives owners live monitoring, control, cost, and savings. **The firmware is an immutable contract
 (`docs/firmware-contract.md`); the dashboard adapts to it, never the reverse.**
+
+## Current 2026-07-29 work
+
+- The WebGL room, corrected PIR/ultrasonic occupancy policy, confirmed-occupancy
+  comfort-load restore, and realistic doorway avatar work live on
+  `feat/fr-05-occupancy-restore`.
+- ADR-0013 adds `devices/airConditioner` as a fifth, separate command. The
+  approved flash candidate drives an active-low GPIO21 output; Vacancy Cutoff
+  and sensor-confirmed Occupancy Restore now control lights, exhaust fan, and
+  AC together. `mainRelay` remains excluded.
+- `npm run tick:local:watch` explicitly drives the server tick during localhost
+  testing. External cron-job.org cannot reach localhost; no automation logic
+  has been moved into the browser.
+- The pre-AC state is preserved at branch
+  `backup/pre-ac-relay-2026-07-29`, Downloads ZIP
+  `ecostay-pre-ac-96dd5b4.zip`, and Wokwi folder
+  `EcoStay_Wokwi_Complete_Pre_AC_96dd5b4`.
+- The external Wokwi project has the GPIO21 AC relay and a compiled custom PZEM
+  model (1,000 W simulated AC). PlatformIO build passes. Wokwi cloud execution
+  needs `WOKWI_CLI_TOKEN`.
 
 ## Status: v1 deployed AND a live device is reporting (2026-07-11)
 

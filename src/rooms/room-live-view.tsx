@@ -1,6 +1,15 @@
 'use client';
 
-import { Droplets, Fan, Flame, Lightbulb, type LucideIcon, Radar, Thermometer } from 'lucide-react';
+import {
+  Droplets,
+  Fan,
+  Flame,
+  Lightbulb,
+  type LucideIcon,
+  Radar,
+  Snowflake,
+  Thermometer,
+} from 'lucide-react';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   DEVICE_COMMAND_KEYS,
@@ -213,6 +222,7 @@ function ClimateCard({ latest }: { latest: RoomLatest }) {
 const DEVICE_ICONS: Record<DeviceCommandKey, LucideIcon> = {
   lights: Lightbulb,
   exhaustFan: Fan,
+  airConditioner: Snowflake,
   waterPump: Droplets,
   motionDetection: Radar,
 };
@@ -389,7 +399,7 @@ export function DeviceControls({
         <div className="text-sm font-medium text-ink">
           Vacancy cutoff automation
           <span className="mt-0.5 block text-xs font-normal text-ink-3">
-            Turns off lights and fan when vacant.
+            Turns off lights, fan, and AC when vacant.
           </span>
         </div>
         <Toggle

@@ -48,6 +48,7 @@ export const GAS_ALARM_THRESHOLD = 300;
 export const DEVICE_COMMAND_KEYS = [
   'lights',
   'exhaustFan',
+  'airConditioner',
   'waterPump',
   'motionDetection',
 ] as const;
@@ -61,6 +62,7 @@ export type DeviceCommands = Partial<Record<DeviceCommandKey, boolean>>;
 export const DEVICE_COMMAND_LABELS: Record<DeviceCommandKey, string> = {
   lights: 'Lights',
   exhaustFan: 'Exhaust fan',
+  airConditioner: 'Air conditioner',
   waterPump: 'Water pump',
   motionDetection: 'Presence relay',
 };

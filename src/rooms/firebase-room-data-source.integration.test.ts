@@ -511,7 +511,7 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     await seedTwoProperties();
     await adminDb
       .ref('properties/property_001/rooms/room_001/devices')
-      .set({ lights: true, mainRelay: true });
+      .set({ lights: true, airConditioner: true, mainRelay: true });
     const owner = await signedInDb('owner');
     const source = createFirebaseRoomDataSource(owner.db);
 
@@ -521,7 +521,7 @@ describe('device commands through the ruleset (risk gate #3)', () => {
     );
     await waitUntil(() => emissions.length >= 1);
 
-    expect(emissions[0]).toEqual({ lights: true }); // mainRelay filtered
+    expect(emissions[0]).toEqual({ lights: true, airConditioner: true }); // mainRelay filtered
     unsubscribe();
   });
 });

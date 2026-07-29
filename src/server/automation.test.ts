@@ -34,13 +34,13 @@ function makeDeps(options: {
     async writeCutoffCommands(propertyId, roomId) {
       commandWrites.push({
         key: `${propertyId}/${roomId}`,
-        commands: { lights: false, exhaustFan: false },
+        commands: { lights: false, exhaustFan: false, airConditioner: false },
       });
     },
     async writeRestoreCommands(propertyId, roomId) {
       commandWrites.push({
         key: `${propertyId}/${roomId}`,
-        commands: { lights: true, exhaustFan: true },
+        commands: { lights: true, exhaustFan: true, airConditioner: true },
       });
     },
     async appendAutomationLog(propertyId, entry) {
@@ -56,7 +56,7 @@ const fresh = (state: string): RoomLatest => ({
 });
 
 describe('runAutomation', () => {
-  it('cuts lights + fan once on the transition into VACANT_CONFIRMED (enabled room)', async () => {
+  it('cuts lights + fan + AC once on the transition into VACANT_CONFIRMED (enabled room)', async () => {
     const { deps, commandWrites, log, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('VACANT_CONFIRMED') },
       lastStates: { 'property_001/room_001': 'EXIT_PENDING' },
@@ -66,13 +66,16 @@ describe('runAutomation', () => {
     const report = await runAutomation(deps, NOW);
 
     expect(commandWrites).toEqual([
-      { key: 'property_001/room_001', commands: { lights: false, exhaustFan: false } },
+      {
+        key: 'property_001/room_001',
+        commands: { lights: false, exhaustFan: false, airConditioner: false },
+      },
     ]);
     expect(log).toEqual([
       {
         roomId: 'room_001',
         action: 'vacancy-cutoff',
-        relays: ['lights', 'exhaustFan'],
+        relays: ['lights', 'exhaustFan', 'airConditioner'],
         fromState: 'EXIT_PENDING',
         toState: 'VACANT_CONFIRMED',
         at: NOW,
@@ -108,7 +111,7 @@ describe('runAutomation', () => {
     expect(lastStates['property_001/room_001']).toBe('VACANT_CONFIRMED');
   });
 
-  it('restores lights + fan when entry becomes sensor-confirmed occupancy', async () => {
+  it('restores lights + fan + AC when entry becomes sensor-confirmed occupancy', async () => {
     const { deps, commandWrites, log, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('OCCUPIED_ACTIVE') },
       lastStates: { 'property_001/room_001': 'ENTRY_DETECTED' },
@@ -118,13 +121,16 @@ describe('runAutomation', () => {
     const report = await runAutomation(deps, NOW);
 
     expect(commandWrites).toEqual([
-      { key: 'property_001/room_001', commands: { lights: true, exhaustFan: true } },
+      {
+        key: 'property_001/room_001',
+        commands: { lights: true, exhaustFan: true, airConditioner: true },
+      },
     ]);
     expect(log).toEqual([
       {
         roomId: 'room_001',
         action: 'occupancy-restore',
-        relays: ['lights', 'exhaustFan'],
+        relays: ['lights', 'exhaustFan', 'airConditioner'],
         fromState: 'ENTRY_DETECTED',
         toState: 'OCCUPIED_ACTIVE',
         at: NOW,
@@ -201,7 +207,10 @@ describe('runAutomation', () => {
     const report = await runAutomation(deps, NOW);
 
     expect(commandWrites).toEqual([
-      { key: 'property_001/room_001', commands: { lights: true, exhaustFan: true } },
+      {
+        key: 'property_001/room_001',
+        commands: { lights: true, exhaustFan: true, airConditioner: true },
+      },
     ]);
     expect(report.restores).toBe(1);
   });

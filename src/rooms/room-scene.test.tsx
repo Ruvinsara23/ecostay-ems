@@ -66,4 +66,11 @@ describe('RoomScene', () => {
     render(<RoomScene latest={{ ...LIVE, gas: 452 }} online />);
     expect(document.querySelector('[data-gas-alarm]')).not.toBeNull();
   });
+
+  it('offers the AC as a separate commanded device in the room controls', () => {
+    render(<RoomScene latest={LIVE} online controlsEnabled onDeviceClick={() => {}} />);
+    expect(
+      screen.getByRole('button', { name: /turn on air conditioner from 3d room/i }),
+    ).toBeInTheDocument();
+  });
 });

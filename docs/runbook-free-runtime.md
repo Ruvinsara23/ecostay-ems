@@ -4,6 +4,33 @@ Human-run deployment of the server workloads. Every step here is deliberately yo
 secrets (risk gate #5) and deploys (risk gate #6) never run agent-side.
 Both services are free; neither needs a card.
 
+## Localhost automation testing
+
+An external scheduler cannot reach `http://localhost:3000`. For a local
+occupancy/relay test, run the app and the explicit server tick in separate
+PowerShell terminals:
+
+```powershell
+npm run dev
+```
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\your\service-account.json"
+npm run tick:local:watch
+```
+
+The second command reads `CRON_SECRET` from `.env.local`, calls only the
+loopback `/api/cron/tick` URL, and runs sequentially every five seconds. It
+refuses production/remote URLs. Use `npm run tick:local` for one tick. Stop the
+watcher with Ctrl+C. Add the same non-empty `CRON_SECRET` value to `.env.local`
+before starting both terminals; the endpoint intentionally rejects every call
+when it is absent.
+
+Automation is transition-based. If the room was already recorded as occupied,
+first complete a simulated exit to `VACANT_CONFIRMED`, then enter and obtain
+sensor-confirmed `OCCUPIED_ACTIVE`; the next local tick restores the comfort
+loads. This preserves manual overrides instead of continuously forcing relays.
+
 ## 0. Prerequisites (once)
 
 - [ ] `database.rules.json` published in the Firebase console (RTDB → Rules → paste from the

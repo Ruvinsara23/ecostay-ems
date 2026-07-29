@@ -81,6 +81,7 @@ const int extLedPin = 23;  // External status LED in diagram.json
 #define RELAY_PRESENCE 14     // Gray = IN 4  ok
 #define RELAY_LIGHTS 13       // green wire = IN 1  ok
 #define RELAY_PUMP 5          // Yellow wire = IN 2   ok
+#define RELAY_AIR_CONDITIONER 21  // Separate fifth relay / rated AC contactor input
 
 // ======================
 // SENSOR PINS
@@ -112,6 +113,7 @@ String pathExhaust;
 String pathMotion;
 String pathLights;
 String pathPump;
+String pathAirConditioner;
 String pathMainRelay;
 
 const float GAS_DETECTED_THRESHOLD = 500.0;
@@ -214,12 +216,14 @@ bool cmdExhaust = false;
 bool cmdMotionEnable = false;
 bool cmdLights = false;
 bool cmdPump = false;
+bool cmdAirConditioner = false;
 bool cmdMainRelay = false;
 
 bool relayFan = false;
 bool relayPresence = false;
 bool relayLight = false;
 bool relayPump = false;
+bool relayAirConditioner = false;
 bool buzzerState = false;
 
 #if ECOSTAY_WOKWI_SIMULATION
@@ -412,6 +416,7 @@ void applyRelays() {
   writeRelay(RELAY_PRESENCE, relayPresence);
   writeRelay(RELAY_LIGHTS, relayLight);
   writeRelay(RELAY_PUMP, relayPump);
+  writeRelay(RELAY_AIR_CONDITIONER, relayAirConditioner);
 }
 
 bool fbReadBool(const char *path, bool fallback) {
@@ -1193,6 +1198,7 @@ void readDeviceCommands() {
   cmdMotionEnable = fbReadBool(pathMotion.c_str(), cmdMotionEnable);
   cmdLights = fbReadBool(pathLights.c_str(), cmdLights);
   cmdPump = fbReadBool(pathPump.c_str(), cmdPump);
+  cmdAirConditioner = fbReadBool(pathAirConditioner.c_str(), cmdAirConditioner);
   cmdMainRelay = fbReadBool(pathMainRelay.c_str(), true);
 }
 
@@ -1215,6 +1221,7 @@ void updateLogic() {
   // The gas-safety override retains priority over dashboard/simulation input.
   relayFan = gasAlarmActive ? true : (occupancyAllowsComfortLoads && requestedFan);
   relayLight = occupancyAllowsComfortLoads && requestedLight;
+  relayAirConditioner = occupancyAllowsComfortLoads && cmdAirConditioner;
 
   if (waterPercent < WATER_PUMP_ON_THRESHOLD_PERCENT) {
     pumpAutoState = true;
@@ -1405,6 +1412,7 @@ void printProvisioningStatus() {
   Serial.println("Wokwi load-test commands:");
   Serial.println("  SIM_LOAD OFF | LAMP | FAN | BOTH");
   Serial.println("  SIM_CMD_LOAD OFF | LAMP | FAN | BOTH  (simulate Firebase commands)");
+  Serial.println("  SIM_CMD_AC 0|1  (simulate Firebase airConditioner command)");
   Serial.println("  SIM_PZEM STATUS  (read-only power/energy diagnostic)");
   Serial.println("  SIM_AUTO  (return control to Firebase)");
   Serial.println("Wokwi occupancy-test commands:");
@@ -1664,6 +1672,27 @@ void handleSerialCommand(const String &cmd) {
     return;
   }
 
+  if (cmd.startsWith("SIM_CMD_AC ")) {
+    String value = cmd.substring(11);
+    value.trim();
+
+    if (value != "0" && value != "1") {
+      Serial.println("Usage: SIM_CMD_AC 0|1");
+      return;
+    }
+
+    cmdAirConditioner = (value == "1");
+    updateLogic();
+    lastPzemRead = millis() - PZEM_INTERVAL;
+    Serial.printf(
+      "SIM_CMD input=airConditioner value=%u occupancy=%s ac=%s\n",
+      cmdAirConditioner ? 1 : 0,
+      occupancyState.c_str(),
+      relayAirConditioner ? "ON" : "OFF"
+    );
+    return;
+  }
+
   if (cmd.startsWith("SIM_CMD_LOAD ")) {
     String load = cmd.substring(13);
     load.trim();
@@ -1815,6 +1844,7 @@ void setup() {
   pathMotion = basePath + "/devices/motionDetection";
   pathLights = basePath + "/devices/lights";
   pathPump = basePath + "/devices/waterPump";
+  pathAirConditioner = basePath + "/devices/airConditioner";
   pathMainRelay = basePath + "/devices/mainRelay";
 
   printProvisioningStatus();
@@ -1837,6 +1867,7 @@ void setup() {
   pinMode(RELAY_PRESENCE, OUTPUT);
   pinMode(RELAY_LIGHTS, OUTPUT);
   pinMode(RELAY_PUMP, OUTPUT);
+  pinMode(RELAY_AIR_CONDITIONER, OUTPUT);
   applyRelays();
 
   pinMode(DOOR_SWITCH_PIN, INPUT_PULLUP);  // GPIO33 floats without this -> reed chatters, vacancy never confirms
@@ -1851,9 +1882,10 @@ void setup() {
   Serial.println(" Sensor Started");
 
 #if ECOSTAY_WOKWI_SIMULATION
-  Serial.println("Wokwi mode enabled: PZEM UART GPIO18/19; fan GPIO26; lamp GPIO13.");
+  Serial.println("Wokwi mode enabled: PZEM UART GPIO18/19; fan GPIO26; lamp GPIO13; AC GPIO21.");
   Serial.println("Use SIM_LOAD OFF/LAMP/FAN/BOTH, or SIM_AUTO for Firebase control.");
   Serial.println("Use SIM_CMD_LOAD OFF/LAMP/FAN/BOTH to test Firebase load policy.");
+  Serial.println("Use SIM_CMD_AC 0|1 to test the separate AC command and relay.");
   Serial.println(
     "Use SIM_SCENARIO LIST, then START [name|index], for an occupancy timeline."
   );

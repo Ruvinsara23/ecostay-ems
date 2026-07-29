@@ -36,14 +36,15 @@ function setup({
 }
 
 describe('RoomLiveView — device controls', () => {
-  it('renders exactly the four approved switches — mainRelay cannot appear', () => {
+  it('renders exactly the five approved switches — mainRelay cannot appear', () => {
     setup();
     expect(screen.getByRole('switch', { name: 'Lights' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Exhaust fan' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Water pump' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Presence relay' })).toBeInTheDocument();
-    // 4 device commands + the vacancy-cutoff automation toggle
-    expect(screen.getAllByRole('switch')).toHaveLength(5);
+    expect(screen.getByRole('switch', { name: 'Air conditioner' })).toBeInTheDocument();
+    // 5 device commands + the vacancy-cutoff automation toggle
+    expect(screen.getAllByRole('switch')).toHaveLength(6);
     expect(screen.queryByText(/main relay/i)).not.toBeInTheDocument();
   });
 
@@ -151,7 +152,7 @@ describe('RoomLiveView — device controls', () => {
 
   it('disables every device command while the room is offline, with an explanation', () => {
     setup({ snapshot: liveSnapshot({ updatedAt: Date.now() - 20_000 }) });
-    ['Lights', 'Exhaust fan', 'Water pump', 'Presence relay'].forEach((name) =>
+    ['Lights', 'Exhaust fan', 'Water pump', 'Presence relay', 'Air conditioner'].forEach((name) =>
       expect(screen.getByRole('switch', { name })).toBeDisabled(),
     );
     expect(screen.getByText(/controls disabled while offline/i)).toBeInTheDocument();

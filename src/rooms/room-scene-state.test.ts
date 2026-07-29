@@ -20,7 +20,7 @@ describe('deriveRoomSceneState', () => {
     expect(
       deriveRoomSceneState(
         { doorOpen: true, waterLevel: 64 },
-        { lights: true, exhaustFan: true, waterPump: true },
+        { lights: true, exhaustFan: true, waterPump: true, airConditioner: true },
         true,
       ),
     ).toMatchObject({
@@ -28,6 +28,7 @@ describe('deriveRoomSceneState', () => {
       lightsOn: true,
       fanOn: true,
       pumpOn: true,
+      acOn: true,
       waterLevel: 64,
       online: true,
     });
@@ -76,6 +77,7 @@ describe('deriveRoomSceneState', () => {
       fanOn: false,
       fanForcedByGas: false,
       pumpOn: false,
+      acOn: false,
       gasAlarm: false,
       waterLevel: 100,
       online: false,

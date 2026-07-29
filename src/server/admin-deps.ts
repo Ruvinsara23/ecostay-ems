@@ -105,18 +105,20 @@ export function createAutomationDeps(db: Database): AutomationDeps {
     },
 
     async writeCutoffCommands(propertyId, roomId) {
-      // lights + exhaustFan only — mainRelay is untouchable (ADR-0003).
+      // Comfort-load subset only — mainRelay is untouchable (ADR-0003).
       await db.ref(`properties/${propertyId}/rooms/${roomId}/devices`).update({
         lights: false,
         exhaustFan: false,
+        airConditioner: false,
       });
     },
 
     async writeRestoreCommands(propertyId, roomId) {
-      // FR-05: restore the same cut circuits on occupancy return — mainRelay untouched (ADR-0003).
+      // Restore the same cut circuits on occupancy return — mainRelay stays untouched.
       await db.ref(`properties/${propertyId}/rooms/${roomId}/devices`).update({
         lights: true,
         exhaustFan: true,
+        airConditioner: true,
       });
     },
 

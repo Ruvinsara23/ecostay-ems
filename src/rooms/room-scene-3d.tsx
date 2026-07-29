@@ -33,7 +33,7 @@ import {
 
 export type SceneDeviceKey = Extract<
   DeviceCommandKey,
-  'lights' | 'exhaustFan' | 'waterPump'
+  'lights' | 'exhaustFan' | 'airConditioner' | 'waterPump'
 >;
 
 function pointerHandlers(
@@ -328,6 +328,79 @@ function ExhaustFan({
           }`}
         >
           Fan {forced ? 'gas override' : on ? 'commanded on' : 'commanded off'}
+        </span>
+      </Html>
+    </group>
+  );
+}
+
+function AirConditioner({
+  on,
+  disabled,
+  onDeviceClick,
+}: {
+  on: boolean;
+  disabled: boolean;
+  onDeviceClick: (key: SceneDeviceKey) => void;
+}) {
+  return (
+    <group position={[2.85, 2.45, -3.56]}>
+      <RoundedBox
+        args={[1.85, 0.55, 0.34]}
+        radius={0.12}
+        smoothness={4}
+        castShadow
+        {...pointerHandlers('airConditioner', disabled, onDeviceClick)}
+      >
+        <meshPhysicalMaterial
+          color={on ? '#f8fbfc' : '#e2e3e5'}
+          roughness={0.28}
+          metalness={0.04}
+          clearcoat={0.45}
+          clearcoatRoughness={0.3}
+        />
+      </RoundedBox>
+      <mesh position={[0, -0.18, 0.18]} rotation={[0.18, 0, 0]} castShadow>
+        <boxGeometry args={[1.55, 0.08, 0.08]} />
+        <meshStandardMaterial color={on ? '#263947' : '#696e73'} roughness={0.5} />
+      </mesh>
+      {[-0.52, -0.26, 0, 0.26, 0.52].map((x) => (
+        <mesh key={x} position={[x, -0.22, 0.22]} rotation={[0.18, 0, 0]}>
+          <boxGeometry args={[0.025, 0.12, 0.05]} />
+          <meshStandardMaterial color="#aeb8bd" roughness={0.55} />
+        </mesh>
+      ))}
+      <mesh position={[0.63, 0.08, 0.18]}>
+        <circleGeometry args={[0.035, 16]} />
+        <meshStandardMaterial
+          color={on ? '#6be6d2' : '#8d9296'}
+          emissive={on ? '#2bbfa8' : '#000000'}
+          emissiveIntensity={on ? 1.4 : 0}
+        />
+      </mesh>
+      {on && (
+        <group position={[0, -0.5, 0.32]} rotation={[-0.2, 0, 0]}>
+          {[-0.52, 0, 0.52].map((x) => (
+            <mesh key={x} position={[x, 0, 0]}>
+              <planeGeometry args={[0.28, 0.7]} />
+              <meshBasicMaterial
+                color="#b9e7f2"
+                transparent
+                opacity={0.14}
+                depthWrite={false}
+                side={2}
+              />
+            </mesh>
+          ))}
+        </group>
+      )}
+      <Html position={[0, 0.62, 0]} center distanceFactor={9}>
+        <span
+          className={`pointer-events-none whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold text-white shadow ${
+            on ? 'bg-brand' : 'bg-ink-3'
+          }`}
+        >
+          AC commanded {on ? 'on' : 'off'}
         </span>
       </Html>
     </group>
@@ -771,6 +844,11 @@ function Room({
         forced={state.fanForcedByGas}
         disabled={disabled}
         reducedMotion={reducedMotion}
+        onDeviceClick={onDeviceClick}
+      />
+      <AirConditioner
+        on={state.acOn}
+        disabled={disabled}
         onDeviceClick={onDeviceClick}
       />
       <WaterSystem

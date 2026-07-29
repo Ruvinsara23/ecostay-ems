@@ -18,6 +18,7 @@ export type RoomSceneState = {
   tvPresenceCueOn: boolean;
   fanOn: boolean;
   fanForcedByGas: boolean;
+  acOn: boolean;
   pumpOn: boolean;
   gasAlarm: boolean;
   waterLevel: number;
@@ -64,6 +65,7 @@ export function deriveRoomSceneState(
     tvPresenceCueOn: online && latest.humanPresent === true,
     fanOn: fanCommandedOn || gasAlarm,
     fanForcedByGas: gasAlarm,
+    acOn: commands.airConditioner === true,
     pumpOn: commands.waterPump === true,
     gasAlarm,
     waterLevel: boundedPercent(latest.waterLevel),

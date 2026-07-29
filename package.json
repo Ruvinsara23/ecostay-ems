@@ -14,6 +14,8 @@
     "test:watch": "vitest",
     "test:integration": "firebase emulators:exec --only auth,database --project demo-ecostay \"vitest run --config vitest.integration.config.ts\"",
     "seed": "node scripts/seed.ts",
+    "tick:local": "node --env-file=.env.local scripts/local-automation-tick.mjs",
+    "tick:local:watch": "node --env-file=.env.local scripts/local-automation-tick.mjs --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

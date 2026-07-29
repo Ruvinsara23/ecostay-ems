@@ -16,6 +16,12 @@ allowing loads through `EXIT_PENDING`. `ENTRY_DETECTED` remains an occupied stat
 not sufficient to energize comfort loads. No RTDB path, command field, telemetry field,
 type, cadence, or pin assignment changes.
 
+AC relay amendment (ADR-0013): the approved flash candidate adds the boolean
+`devices/airConditioner` command on a separate active-low GPIO21 output. It follows the
+same sensor-confirmed occupancy gate as the other comfort loads. `mainRelay` remains
+unused and excluded. Physical AC switching requires an isolated, correctly rated
+contactor/dry-contact/IR interface; GPIO21 never drives mains directly.
+
 ## Identity
 
 | Item | Value |
@@ -62,6 +68,7 @@ type, cadence, or pin assignment changes.
 | Path | Relay pin | Behavior |
 |---|---|---|
 | `{base}/devices/exhaustFan` | GPIO 26 | Gas alarm **overrides ON** locally |
+| `{base}/devices/airConditioner` | GPIO 21 (ADR-0013 candidate) | Allowed only after sensor-confirmed occupancy |
 | `{base}/devices/motionDetection` | GPIO 14 | Drives "presence" relay directly |
 | `{base}/devices/lights` | GPIO 13 | Direct |
 | `{base}/devices/waterPump` | GPIO 5 | Direct |
@@ -85,6 +92,7 @@ Runs **on the ESP32** — the dashboard should *display* this state, never re-de
 | Relay: presence | 14 | | DHT11 | 4 |
 | Relay: lights | 13 | | Gas (analog) | 32 |
 | Relay: pump | 5 | | Water level (analog) | 34 |
+| Relay: AC (ADR-0013 candidate) | 21 | | AC interface | Isolated/rated external stage |
 | PIR | 27 | | Flow (pulse) | 35 |
 | Door reed | 33 | | Buzzer | 25 |
 | Onboard/ext LED | 2 / 23 | | Relays are **active-LOW** | |

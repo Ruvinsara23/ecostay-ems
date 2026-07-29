@@ -57,6 +57,7 @@ fakes firmware writes exists for development and rehearsal only — it is a dev 
 | Property | existing | Top-level unit: `properties/{propertyId}`. Firmware hardcodes `property_001` **today**; the provisioning workstream makes device IDs configurable. Dashboard is multi-property from day one. |
 | Room | existing | `properties/{propertyId}/rooms/{roomId}`. Firmware hardcodes `room_001` **today**. Rooms are created/named via the Admin UI; the bench node registers as the first room until PCB units arrive. |
 | `latest` | existing | Per-room telemetry snapshot, overwritten every 3 s by firmware. Not a history. |
+| `devices/airConditioner` | accepted | Boolean AC command added by ADR-0013 to the approved flash candidate. It uses its own GPIO21 relay/contactor interface and never repurposes `mainRelay`. |
 | `history` | existing | Per-property append log — **written by firmware only when water flows**; carries NO energy fields. |
 | `devices/*` | existing | Per-room command booleans the firmware polls every 500 ms: `exhaustFan`, `motionDetection`, `lights`, `waterPump`, `mainRelay` (read but unused by firmware — no rule or UI may target it until the firmware workstream wires it). |
 
@@ -122,7 +123,7 @@ No background logic ever runs in the browser client.
 ## Automation (accepted)
 
 - v1 rule: **Vacancy Cutoff** — on `VACANT_CONFIRMED`, write the room's configured subset of
-  `devices/*` to false (default: `lights`, `exhaustFan`). Per-room master automation on/off
+  `devices/*` to false (default: `lights`, `exhaustFan`, `airConditioner`). Per-room master automation on/off
   toggle, visible to the Owner.
 - v1 rule: **Occupancy Restore (FR-05)** — after a vacancy/entry candidate advances to
   sensor-confirmed occupancy (`OCCUPIED_ACTIVE`, `OCCUPIED_IDLE`, or `OCCUPIED_SLEEPING`),

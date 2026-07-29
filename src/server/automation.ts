@@ -19,9 +19,9 @@ export type AutomationDeps = {
   setLastOccupancyState(propertyId: string, roomId: string, state: string): Promise<void>;
   /** properties/{pid}/rooms/{rid}/settings/automationEnabled === true; absent = OFF. */
   isAutomationEnabled(propertyId: string, roomId: string): Promise<boolean>;
-  /** Writes lights=false, exhaustFan=false. NEVER mainRelay (ADR-0003). */
+  /** Writes lights, exhaust fan, and AC false. NEVER mainRelay (ADR-0003). */
   writeCutoffCommands(propertyId: string, roomId: string): Promise<void>;
-  /** Writes lights=true, exhaustFan=true — restores the cut circuits on return (FR-05). */
+  /** Writes lights, exhaust fan, and AC true after sensor-confirmed return. */
   writeRestoreCommands(propertyId: string, roomId: string): Promise<void>;
   appendAutomationLog(propertyId: string, entry: AutomationLogEntry): Promise<void>;
 };
@@ -80,7 +80,7 @@ export async function runAutomation(
         await deps.appendAutomationLog(propertyId, {
           roomId,
           action: 'vacancy-cutoff',
-          relays: ['lights', 'exhaustFan'],
+          relays: ['lights', 'exhaustFan', 'airConditioner'],
           fromState: lastState,
           toState: state,
           at: nowMs,
@@ -93,7 +93,7 @@ export async function runAutomation(
         await deps.appendAutomationLog(propertyId, {
           roomId,
           action: 'occupancy-restore',
-          relays: ['lights', 'exhaustFan'],
+          relays: ['lights', 'exhaustFan', 'airConditioner'],
           fromState: lastState,
           toState: state,
           at: nowMs,

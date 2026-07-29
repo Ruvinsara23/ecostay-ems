@@ -261,12 +261,18 @@ function browserSupportsWebGL(): boolean {
 const DEVICE_SCENE_LABELS: Record<SceneDeviceKey, string> = {
   lights: 'Lights',
   exhaustFan: 'Fan',
+  airConditioner: 'Air conditioner',
   waterPump: 'Pump',
+};
+
+const DEVICE_SCENE_SHORT_LABELS: Record<SceneDeviceKey, string> = {
+  ...DEVICE_SCENE_LABELS,
+  airConditioner: 'AC',
 };
 
 /**
  * Full WebGL digital twin with a 2.5D fallback for browsers without WebGL.
- * Device visuals are commanded state (the firmware has no lamp/fan/pump ack);
+ * Device visuals are commanded state (the firmware has no lamp/fan/AC/pump ack);
  * clicking a 3D object delegates to the parent, which owns confirmation/writes.
  */
 export function RoomScene({
@@ -351,15 +357,15 @@ export function RoomScene({
       {onDeviceClick && (
         <div
           aria-label="3D room device controls"
-          className="pointer-events-auto absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2 rounded-2xl bg-white/90 p-2 shadow-xl backdrop-blur"
+          className="pointer-events-auto absolute bottom-4 left-1/2 z-20 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 flex-wrap justify-center gap-2 rounded-2xl bg-white/90 p-2 shadow-xl backdrop-blur"
         >
           {(Object.keys(DEVICE_SCENE_LABELS) as SceneDeviceKey[]).map((key) => {
-            const visualOn =
-              key === 'lights'
-                ? sceneState.lightsOn
-                : key === 'exhaustFan'
-                  ? sceneState.fanOn
-                  : sceneState.pumpOn;
+            const visualOn = {
+              lights: sceneState.lightsOn,
+              exhaustFan: sceneState.fanOn,
+              airConditioner: sceneState.acOn,
+              waterPump: sceneState.pumpOn,
+            }[key];
             const commandedOn = commands[key] === true;
             const gasForced = key === 'exhaustFan' && sceneState.fanForcedByGas;
             return (
@@ -373,11 +379,11 @@ export function RoomScene({
                     ? 'Exhaust fan forced on by gas alarm'
                     : `${commandedOn ? 'Turn off' : 'Turn on'} ${DEVICE_SCENE_LABELS[key]} from 3D room`
                 }
-                className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                   visualOn ? 'bg-brand text-white' : 'bg-well text-ink-2 hover:bg-brand-soft'
                 }`}
               >
-                {DEVICE_SCENE_LABELS[key]}{' '}
+                {DEVICE_SCENE_SHORT_LABELS[key]}{' '}
                 <span className="font-semibold opacity-80">
                   {pendingDevice === key
                     ? 'Saving…'
@@ -394,7 +400,7 @@ export function RoomScene({
       )}
 
       {!online && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 mx-auto w-fit rounded-full bg-ink/85 px-4 py-2 text-xs font-bold text-white shadow">
+        <div className="pointer-events-none absolute inset-x-0 bottom-20 z-30 mx-auto w-fit rounded-full bg-ink/85 px-4 py-2 text-xs font-bold text-white shadow">
           Scene frozen · device offline
         </div>
       )}
