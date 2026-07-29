@@ -7,6 +7,22 @@ This folder is an isolated **flash candidate**. The repository's canonical
 firmware remains `firmware/complete.ino`; this copy does not silently replace it
 or merge that file's unrelated local edits.
 
+## Required source files
+
+The sketch and occupancy header are one build unit. Do not copy the `.ino`
+without its companion header.
+
+For a PlatformIO/Wokwi project, use this layout:
+
+```text
+src/
+  sketch.ino              # copy/rename current-upload-fixed.ino
+  occupancy-policy.h      # copy without renaming
+```
+
+The header is compatible with PlatformIO's C++11 ESP32 toolchain as well as the
+newer Arduino CLI ESP32 toolchain.
+
 ## Occupancy behavior
 
 - A closed door alone never proves vacancy.
@@ -14,6 +30,9 @@ or merge that file's unrelated local edits.
   PIR and ultrasonic presence must remain clear continuously for 30 seconds.
 - Any PIR motion, ultrasonic presence at 50 cm or nearer, or reopened door
   resets the complete 30-second window.
+
+The 30-second entry timeout is intentional; it replaces the old approximately
+10-second door-age decision so a closed door alone cannot prove vacancy.
 
 ## Verification
 

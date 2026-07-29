@@ -20,15 +20,16 @@ constexpr VacancyClearEvaluation evaluateVacancyClearWindow(
   uint32_t now,
   uint32_t timeoutMs
 ) {
-  if (!vacancyPhase || doorOpen || humanDetected) {
-    return {{false, 0}, false};
-  }
-
-  if (!timer.active) {
-    return {{true, now}, false};
-  }
-
-  return {timer, static_cast<uint32_t>(now - timer.startedAt) >= timeoutMs};
+  // PlatformIO's ESP32 Arduino toolchain compiles as C++11, where a constexpr
+  // function body must be a single return statement.
+  return !vacancyPhase || doorOpen || humanDetected
+    ? VacancyClearEvaluation{{false, 0}, false}
+    : !timer.active
+      ? VacancyClearEvaluation{{true, now}, false}
+      : VacancyClearEvaluation{
+          timer,
+          static_cast<uint32_t>(now - timer.startedAt) >= timeoutMs
+        };
 }
 
 // Compile-time regression scenarios exercise the exact helper used by the
