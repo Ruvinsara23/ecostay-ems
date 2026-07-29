@@ -12,6 +12,7 @@ import {
 import { Canvas, type ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
+  type AnimationAction,
   Box3,
   CanvasTexture,
   Color,
@@ -24,7 +25,11 @@ import {
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { DeviceCommandKey } from '@/telemetry/contract';
 import type { OccupantPose, RoomSceneState } from './room-scene-state';
-import { OCCUPANT_PLACEMENTS } from './room-scene-layout';
+import {
+  entryRoutePosition,
+  OCCUPANT_PLACEMENTS,
+  shouldAnimateEntry,
+} from './room-scene-layout';
 
 export type SceneDeviceKey = Extract<
   DeviceCommandKey,
@@ -394,6 +399,11 @@ function Occupant({
   reducedMotion: boolean;
 }) {
   const root = useRef<Group>(null);
+  const previousPose = useRef<OccupantPose>('absent');
+  const hasPlacedInitialPose = useRef(false);
+  const entryProgress = useRef(1);
+  const walkingIn = useRef(false);
+  const walkAction = useRef<AnimationAction | null>(null);
   const gltf = useGLTF('/models/michelle.glb');
   const person = useMemo(() => {
     const cloned = cloneSkeleton(gltf.scene);
@@ -421,19 +431,66 @@ function Occupant({
   useLayoutEffect(() => {
     const group = root.current;
     if (!group) return;
-    // Occupancy is discrete server truth, not a client-side path. Place the
-    // avatar directly at the matching safe anchor so it never sweeps through
-    // partitions while changing states.
-    group.position.copy(target.position);
+    const shouldWalkIn = shouldAnimateEntry(
+      previousPose.current,
+      pose,
+      hasPlacedInitialPose.current,
+      reducedMotion,
+    );
+
+    walkingIn.current = shouldWalkIn;
+    entryProgress.current = shouldWalkIn ? 0 : 1;
+    group.position.copy(
+      shouldWalkIn
+        ? new Vector3(...OCCUPANT_PLACEMENTS.entering.position)
+        : target.position,
+    );
     group.rotation.set(0, target.rotationY, target.rotationZ);
     group.scale.setScalar(target.scale);
-  }, [target]);
+    previousPose.current = pose;
+    hasPlacedInitialPose.current = true;
+  }, [pose, reducedMotion, target]);
+
+  useFrame((_, delta) => {
+    const group = root.current;
+    if (!group || !walkingIn.current) return;
+
+    entryProgress.current = Math.min(1, entryProgress.current + delta / 3.1);
+    const progress = entryProgress.current;
+    const easedProgress =
+      progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    const [x, y, z] = entryRoutePosition(easedProgress);
+    const step = Math.sin(progress * Math.PI * 10);
+
+    group.position.set(x, y + Math.abs(step) * 0.025, z);
+    group.rotation.y = MathUtils.lerp(
+      OCCUPANT_PLACEMENTS.entering.rotationY,
+      OCCUPANT_PLACEMENTS.active.rotationY,
+      easedProgress,
+    );
+    group.rotation.z = step * 0.012;
+
+    if (progress === 1) {
+      const active = OCCUPANT_PLACEMENTS.active;
+      group.position.set(...active.position);
+      group.rotation.set(0, active.rotationY, active.rotationZ);
+      walkingIn.current = false;
+      const action = walkAction.current;
+      if (action) {
+        action.setEffectiveTimeScale(0);
+        mixer.setTime(action.getClip().duration * 0.04);
+      }
+    }
+  });
 
   useEffect(() => {
     const clipName = names.includes('SambaDance') ? 'SambaDance' : names[0];
     const action = clipName ? actions[clipName] : undefined;
     if (!action) return;
-    const timeScale = pose === 'active' && !reducedMotion ? 0.18 : 0;
+    const timeScale = walkingIn.current && !reducedMotion ? 0.55 : 0;
+    walkAction.current = action;
     action.reset().setEffectiveTimeScale(timeScale).fadeIn(0.2).play();
     if (timeScale === 0) {
       const phase =
@@ -441,6 +498,7 @@ function Occupant({
       mixer.setTime(action.getClip().duration * phase);
     }
     return () => {
+      if (walkAction.current === action) walkAction.current = null;
       action.fadeOut(0.15);
     };
   }, [actions, mixer, names, pose, reducedMotion]);
@@ -451,7 +509,7 @@ function Occupant({
       {visible && (
         <Html position={[0, 2.25, 0]} center distanceFactor={10}>
           <span className="pointer-events-none whitespace-nowrap rounded-full bg-brand/90 px-2 py-1 text-[10px] font-bold capitalize text-white shadow">
-            {pose}
+            {pose === 'entering' ? 'outside · awaiting presence' : pose}
           </span>
         </Html>
       )}

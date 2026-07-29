@@ -12,8 +12,8 @@ export const OCCUPANT_PLACEMENTS: Record<
   OccupantPlacement
 > = {
   entering: {
-    position: [-3.05, 0, 2.45],
-    rotationY: -0.35,
+    position: [-5.2, 0, 4.25],
+    rotationY: -0.2,
     rotationZ: 0,
     scale: 0.82,
   },
@@ -68,10 +68,73 @@ const WALKING_ROUTE_SOLIDS: SolidFootprint[] = [
 
 const OCCUPANT_RADIUS = 0.34;
 
-export function collidingSolidForWalkingPose(
-  pose: 'entering' | 'active' | 'idle' | 'exiting',
+type OccupantPosition = readonly [number, number, number];
+
+const OCCUPANT_ENTRY_ROUTE: readonly OccupantPosition[] = [
+  OCCUPANT_PLACEMENTS.entering.position,
+  [-5.2, 0, 2.45],
+  [-4.55, 0, 2.45],
+  [-3.15, 0, 2.45],
+  [-2.85, 0, 1.55],
+  OCCUPANT_PLACEMENTS.active.position,
+];
+
+const ENTRY_ROUTE_SEGMENT_LENGTHS = OCCUPANT_ENTRY_ROUTE.slice(1).map(
+  (point, index) => {
+    const previous = OCCUPANT_ENTRY_ROUTE[index];
+    return Math.hypot(
+      point[0] - previous[0],
+      point[1] - previous[1],
+      point[2] - previous[2],
+    );
+  },
+);
+const ENTRY_ROUTE_LENGTH = ENTRY_ROUTE_SEGMENT_LENGTHS.reduce(
+  (total, length) => total + length,
+  0,
+);
+
+export function entryRoutePosition(progress: number): OccupantPosition {
+  const boundedProgress = Math.min(1, Math.max(0, progress));
+  if (boundedProgress === 0) return OCCUPANT_ENTRY_ROUTE[0];
+  if (boundedProgress === 1) return OCCUPANT_ENTRY_ROUTE.at(-1)!;
+
+  let remainingDistance = boundedProgress * ENTRY_ROUTE_LENGTH;
+  for (let index = 0; index < ENTRY_ROUTE_SEGMENT_LENGTHS.length; index += 1) {
+    const segmentLength = ENTRY_ROUTE_SEGMENT_LENGTHS[index];
+    if (remainingDistance <= segmentLength) {
+      const start = OCCUPANT_ENTRY_ROUTE[index];
+      const end = OCCUPANT_ENTRY_ROUTE[index + 1];
+      const segmentProgress = remainingDistance / segmentLength;
+      return [
+        start[0] + (end[0] - start[0]) * segmentProgress,
+        start[1] + (end[1] - start[1]) * segmentProgress,
+        start[2] + (end[2] - start[2]) * segmentProgress,
+      ];
+    }
+    remainingDistance -= segmentLength;
+  }
+
+  return OCCUPANT_ENTRY_ROUTE.at(-1)!;
+}
+
+export function shouldAnimateEntry(
+  previousPose: OccupantPose,
+  nextPose: OccupantPose,
+  initialized: boolean,
+  reducedMotion: boolean,
+): boolean {
+  return (
+    initialized &&
+    !reducedMotion &&
+    nextPose === 'active' &&
+    (previousPose === 'absent' || previousPose === 'entering')
+  );
+}
+
+export function collidingSolidAtPosition(
+  [x, , z]: OccupantPosition,
 ): string | null {
-  const [x, , z] = OCCUPANT_PLACEMENTS[pose].position;
   const solid = WALKING_ROUTE_SOLIDS.find(
     ({ minX, maxX, minZ, maxZ }) =>
       x + OCCUPANT_RADIUS > minX &&
@@ -80,4 +143,10 @@ export function collidingSolidForWalkingPose(
       z - OCCUPANT_RADIUS < maxZ,
   );
   return solid?.id ?? null;
+}
+
+export function collidingSolidForWalkingPose(
+  pose: 'entering' | 'active' | 'idle' | 'exiting',
+): string | null {
+  return collidingSolidAtPosition(OCCUPANT_PLACEMENTS[pose].position);
 }
