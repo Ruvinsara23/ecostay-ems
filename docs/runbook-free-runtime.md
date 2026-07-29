@@ -11,11 +11,11 @@ occupancy/relay test, run the app and the explicit server tick in separate
 PowerShell terminals:
 
 ```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\your\service-account.json"
 npm run dev
 ```
 
 ```powershell
-$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\your\service-account.json"
 npm run tick:local:watch
 ```
 
@@ -24,7 +24,9 @@ loopback `/api/cron/tick` URL, and runs sequentially every five seconds. It
 refuses production/remote URLs. Use `npm run tick:local` for one tick. Stop the
 watcher with Ctrl+C. Add the same non-empty `CRON_SECRET` value to `.env.local`
 before starting both terminals; the endpoint intentionally rejects every call
-when it is absent.
+when it is absent. `GOOGLE_APPLICATION_CREDENTIALS` belongs in the first
+terminal because the Next.js API route performs the Admin SDK work; the local
+tick client never reads the service-account file.
 
 Automation is transition-based. If the room was already recorded as occupied,
 first complete a simulated exit to `VACANT_CONFIRMED`, then enter and obtain
