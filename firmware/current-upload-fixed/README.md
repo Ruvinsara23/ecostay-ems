@@ -26,6 +26,10 @@ newer Arduino CLI ESP32 toolchain.
 ## Occupancy behavior
 
 - A closed door alone never proves vacancy.
+- `ENTRY_DETECTED` records a door-open candidate but does not energize requested
+  fan or light loads.
+- PIR or ultrasonic presence advances the room to `OCCUPIED_ACTIVE`, where
+  requested fan and light commands are allowed.
 - During `ENTRY_DETECTED` or `EXIT_PENDING`, the door must be closed and both
   PIR and ultrasonic presence must remain clear continuously for 30 seconds.
 - Any PIR motion, ultrasonic presence at 50 cm or nearer, or reopened door

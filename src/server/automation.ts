@@ -1,6 +1,5 @@
 import type { RoomLatest } from '@/rooms/room-data-source';
 import type { OccupancyState } from '@/telemetry/contract';
-import { isOccupied } from '@/telemetry/is-occupied';
 import { OFFLINE_ALERT_MS } from './alerts';
 
 export type AutomationLogEntry = {
@@ -29,6 +28,17 @@ export type AutomationDeps = {
 
 export type AutomationReport = { cutoffs: number; restores: number; transitions: number };
 
+const RESTORE_SOURCE_STATES = new Set(['VACANT', 'VACANT_CONFIRMED', 'ENTRY_DETECTED']);
+const CONFIRMED_OCCUPANCY_STATES = new Set<OccupancyState>([
+  'OCCUPIED_ACTIVE',
+  'OCCUPIED_IDLE',
+  'OCCUPIED_SLEEPING',
+]);
+
+function shouldRestoreComfortLoads(fromState: string, toState: OccupancyState): boolean {
+  return RESTORE_SOURCE_STATES.has(fromState) && CONFIRMED_OCCUPANCY_STATES.has(toState);
+}
+
 /**
  * Vacancy Cutoff with transition-epoch precedence (grilled decision, CONTEXT.md):
  * the cutoff fires only AT an observed transition into VACANT_CONFIRMED — any
@@ -37,10 +47,11 @@ export type AutomationReport = { cutoffs: number; restores: number; transitions:
  * generate transitions. First-ever observation records state without guessing
  * a transition from null.
  *
- * FR-05 (symmetric restore): at the transition BACK into occupancy (vacant →
- * occupied), the same circuits are restored to on. Both actions are gated by
+ * FR-05 (symmetric restore): after a vacancy/entry candidate advances to
+ * sensor-confirmed occupancy, the same circuits are restored to on. Door-open
+ * ENTRY_DETECTED alone never restores comfort loads. Both actions are gated by
  * settings/automationEnabled and obey transition-epoch precedence — a later
- * manual command stands until the next transition. No stored pre-cut state, no
+ * manual command stands until the next transition. No stored pre-cut state or
  * timers: it restores the configured cutoff subset, not a remembered snapshot.
  */
 export async function runAutomation(
@@ -75,8 +86,9 @@ export async function runAutomation(
           at: nowMs,
         });
         report.cutoffs += 1;
-      } else if (enabled && isOccupied(state) && !isOccupied(lastState as OccupancyState)) {
-        // FR-05: occupancy returned — restore the circuits the cutoff controls.
+      } else if (enabled && shouldRestoreComfortLoads(lastState, state)) {
+        // A door-open candidate is not enough. Restore only after the firmware
+        // reports a sensor-confirmed occupied state.
         await deps.writeRestoreCommands(propertyId, roomId);
         await deps.appendAutomationLog(propertyId, {
           roomId,

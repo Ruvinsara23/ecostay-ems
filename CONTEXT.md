@@ -124,16 +124,18 @@ No background logic ever runs in the browser client.
 - v1 rule: **Vacancy Cutoff** — on `VACANT_CONFIRMED`, write the room's configured subset of
   `devices/*` to false (default: `lights`, `exhaustFan`). Per-room master automation on/off
   toggle, visible to the Owner.
-- v1 rule: **Occupancy Restore (FR-05)** — on the transition back into occupancy
-  (vacant → occupied), write the same configured subset to `true`. Symmetric partner of the
-  cutoff: same `automationEnabled` toggle, same transition-epoch precedence. It restores the
-  configured cutoff circuits, **not** a remembered snapshot (no stored pre-cut state, no timers).
+- v1 rule: **Occupancy Restore (FR-05)** — after a vacancy/entry candidate advances to
+  sensor-confirmed occupancy (`OCCUPIED_ACTIVE`, `OCCUPIED_IDLE`, or `OCCUPIED_SLEEPING`),
+  write the same configured subset to `true`. `ENTRY_DETECTED` alone never restores loads
+  because a door opening does not prove that a person entered. Symmetric partner of the cutoff:
+  same `automationEnabled` toggle, same transition-epoch precedence. It restores the configured
+  cutoff circuits, **not** a remembered snapshot (no stored pre-cut state, no timers).
 - **Transition-epoch precedence**: automation acts only *at the moment* of an occupancy
   transition; any manual command issued after that moment stands until the next transition.
   No sticky override flags, no timers.
 - The firmware's local gas→exhaust-fan override always wins locally; cloud automation never fights it.
-- v1.1 queue: temperature-based fan rules. ("Welcome lights on entry" is delivered by the FR-05
-  Occupancy Restore rule above.)
+- v1.1 queue: temperature-based fan rules. ("Welcome lights after confirmed entry" is delivered
+  by the FR-05 Occupancy Restore rule above.)
 
 ## Alerts (accepted)
 

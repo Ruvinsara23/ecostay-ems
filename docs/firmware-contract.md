@@ -10,6 +10,12 @@ does not replace the repository's canonical `firmware/complete.ino`; reconciliat
 separate firmware task. It changes no RTDB path, telemetry field, type, cadence, or relay
 command semantics.
 
+Comfort-load amendment (ADR-0012): the current flash candidate allows requested fan/light
+commands only after sensor-confirmed occupancy, while preserving the gas override and
+allowing loads through `EXIT_PENDING`. `ENTRY_DETECTED` remains an occupied status but is
+not sufficient to energize comfort loads. No RTDB path, command field, telemetry field,
+type, cadence, or pin assignment changes.
+
 ## Identity
 
 | Item | Value |

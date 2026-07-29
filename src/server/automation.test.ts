@@ -108,17 +108,30 @@ describe('runAutomation', () => {
     expect(lastStates['property_001/room_001']).toBe('VACANT_CONFIRMED');
   });
 
-  it('other transitions update state without any action', async () => {
-    const { deps, commandWrites, lastStates } = makeDeps({
+  it('restores lights + fan when entry becomes sensor-confirmed occupancy', async () => {
+    const { deps, commandWrites, log, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('OCCUPIED_ACTIVE') },
       lastStates: { 'property_001/room_001': 'ENTRY_DETECTED' },
       enabled: { 'property_001/room_001': true },
     });
 
-    await runAutomation(deps, NOW);
+    const report = await runAutomation(deps, NOW);
 
-    expect(commandWrites).toEqual([]);
+    expect(commandWrites).toEqual([
+      { key: 'property_001/room_001', commands: { lights: true, exhaustFan: true } },
+    ]);
+    expect(log).toEqual([
+      {
+        roomId: 'room_001',
+        action: 'occupancy-restore',
+        relays: ['lights', 'exhaustFan'],
+        fromState: 'ENTRY_DETECTED',
+        toState: 'OCCUPIED_ACTIVE',
+        at: NOW,
+      },
+    ]);
     expect(lastStates['property_001/room_001']).toBe('OCCUPIED_ACTIVE');
+    expect(report.restores).toBe(1);
   });
 
   it('ignores stale and never-reported rooms entirely (no state tracking on frozen data)', async () => {
@@ -161,8 +174,9 @@ describe('runAutomation', () => {
     expect(lastStates['property_001/room_001']).toBe('VACANT_CONFIRMED');
   });
 
-  // FR-05: restore the cut circuits when occupancy returns (symmetric with the cutoff).
-  it('restores lights + fan once on the vacant→occupied transition (enabled room)', async () => {
+  // Door-open is only a candidate entry. Presence must be sensor-confirmed
+  // before the comfort loads are restored.
+  it('records vacant to ENTRY_DETECTED without restoring lights or fan', async () => {
     const { deps, commandWrites, log, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('ENTRY_DETECTED') },
       lastStates: { 'property_001/room_001': 'VACANT_CONFIRMED' },
@@ -171,21 +185,10 @@ describe('runAutomation', () => {
 
     const report = await runAutomation(deps, NOW);
 
-    expect(commandWrites).toEqual([
-      { key: 'property_001/room_001', commands: { lights: true, exhaustFan: true } },
-    ]);
-    expect(log).toEqual([
-      {
-        roomId: 'room_001',
-        action: 'occupancy-restore',
-        relays: ['lights', 'exhaustFan'],
-        fromState: 'VACANT_CONFIRMED',
-        toState: 'ENTRY_DETECTED',
-        at: NOW,
-      },
-    ]);
+    expect(commandWrites).toEqual([]);
+    expect(log).toEqual([]);
     expect(lastStates['property_001/room_001']).toBe('ENTRY_DETECTED');
-    expect(report.restores).toBe(1);
+    expect(report.restores).toBe(0);
   });
 
   it('restores on a late-observed return (VACANT_CONFIRMED → OCCUPIED_ACTIVE)', async () => {

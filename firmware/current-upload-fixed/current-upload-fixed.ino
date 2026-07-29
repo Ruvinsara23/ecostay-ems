@@ -458,6 +458,10 @@ bool isOccupiedState(const String &state) {
   return state == "ENTRY_DETECTED" || state == "OCCUPIED_ACTIVE" || state == "OCCUPIED_IDLE" || state == "OCCUPIED_SLEEPING" || state == "EXIT_PENDING";
 }
 
+bool comfortLoadsAllowed(const String &state) {
+  return state == "OCCUPIED_ACTIVE" || state == "OCCUPIED_IDLE" || state == "OCCUPIED_SLEEPING" || state == "EXIT_PENDING";
+}
+
 #if ECOSTAY_WOKWI_SIMULATION
 const char *simScenarioActionName(SimScenarioAction action) {
   switch (action) {
@@ -1206,7 +1210,7 @@ void updateLogic() {
   }
 #endif
 
-  bool occupancyAllowsComfortLoads = isOccupiedState(occupancyState);
+  bool occupancyAllowsComfortLoads = comfortLoadsAllowed(occupancyState);
 
   // The gas-safety override retains priority over dashboard/simulation input.
   relayFan = gasAlarmActive ? true : (occupancyAllowsComfortLoads && requestedFan);

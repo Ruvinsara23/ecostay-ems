@@ -35,4 +35,32 @@ assert.doesNotMatch(
   "Door-close age alone must never confirm vacancy.",
 );
 
+const comfortLoadFunction = sketch.match(
+  /bool comfortLoadsAllowed\(const String &state\) \{[\s\S]*?\n\}/,
+)?.[0];
+
+assert.ok(comfortLoadFunction, "Could not locate comfortLoadsAllowed().");
+assert.doesNotMatch(
+  comfortLoadFunction,
+  /ENTRY_DETECTED/,
+  "Door-open entry detection alone must not energize comfort loads.",
+);
+for (const confirmedState of [
+  "OCCUPIED_ACTIVE",
+  "OCCUPIED_IDLE",
+  "OCCUPIED_SLEEPING",
+  "EXIT_PENDING",
+]) {
+  assert.match(
+    comfortLoadFunction,
+    new RegExp(confirmedState),
+    `${confirmedState} must continue to allow requested comfort loads.`,
+  );
+}
+assert.match(
+  sketch,
+  /bool occupancyAllowsComfortLoads = comfortLoadsAllowed\(occupancyState\);/,
+  "Relay gating must use the confirmed-presence comfort-load policy.",
+);
+
 console.log("Occupancy vacancy policy regression checks passed.");
