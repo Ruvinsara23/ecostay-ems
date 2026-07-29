@@ -138,7 +138,7 @@ describe('tick against the RTDB emulator', () => {
     expect((await db.ref('properties/property_001/automationLog').get()).val()).toBeNull();
   });
 
-  it('comfort-load cutoff: sleeping transition clears lights, fan, and AC but not the pump', async () => {
+  it('sleeping transition retains commands so the device can resume them on wake', async () => {
     await seedRoom({ occupancyState: 'OCCUPIED_IDLE', updatedAt: NOW - 5_000 });
     await db.ref().update({
       [`${ROOM}/settings/automationEnabled`]: true,
@@ -157,26 +157,15 @@ describe('tick against the RTDB emulator', () => {
       .update({ occupancyState: 'OCCUPIED_SLEEPING', updatedAt: NOW + 55_000 });
     const report = await runAutomation(deps, NOW + 60_000);
 
-    expect(report.cutoffs).toBe(1);
+    expect(report.cutoffs).toBe(0);
     expect((await db.ref(`${ROOM}/devices`).get()).val()).toEqual({
-      lights: false,
-      exhaustFan: false,
-      airConditioner: false,
+      lights: true,
+      exhaustFan: true,
+      airConditioner: true,
       waterPump: true,
     });
 
-    const log = Object.values(
-      ((await db.ref('properties/property_001/automationLog').get()).val() ?? {}) as Record<
-        string,
-        AutomationLogEntry
-      >,
-    );
-    expect(log).toHaveLength(1);
-    expect(log[0]).toMatchObject({
-      action: 'comfort-load-cutoff',
-      fromState: 'OCCUPIED_IDLE',
-      toState: 'OCCUPIED_SLEEPING',
-    });
+    expect((await db.ref('properties/property_001/automationLog').get()).val()).toBeNull();
   });
 
   it('occupancy restore: sensor-confirmed return switches the comfort loads back on + logs', async () => {

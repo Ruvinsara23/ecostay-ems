@@ -57,9 +57,9 @@ export function RoomRoutinesView({
           <div className="glass rounded-[1.25rem] p-6 shadow-lg bg-white/60">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-base font-semibold text-ink">Comfort Load Automation</h3>
+                <h3 className="text-base font-semibold text-ink">Server Comfort Automation</h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  Restores lights, fan, and AC after confirmed entry into active/idle occupancy and turns them off during sleep, exit, and vacancy.
+                  Restores commands after entry. Firmware always suspends during sleep, resumes retained settings on wake, and clears on exit.
                 </p>
                 {error && (
                   <p role="alert" className="mt-3 text-xs font-semibold text-alarm">
@@ -71,7 +71,7 @@ export function RoomRoutinesView({
                 <Toggle
                   checked={automationEnabled === true}
                   disabled={automationEnabled === null}
-                  label="Comfort load automation"
+                  label="Comfort load automation (server)"
                   onToggle={toggleAutomation}
                 />
               </div>

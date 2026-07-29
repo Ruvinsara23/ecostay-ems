@@ -260,8 +260,8 @@ struct SimScenarioEntry {
   const char *label;
 };
 
-// Short deterministic verification timeline. It exercises entry, a sustained
-// still period, sleeping without vacancy, and confirmed vacancy after exit.
+// Short deterministic verification timeline. It exercises entry, sleeping,
+// presence-driven wake-up with retained loads, and confirmed vacancy after exit.
 const SimScenarioEntry SIM_SCENARIO_SHORT[] = {
   {     0, SIM_ACTION_MARKER,       0.0f, "scenario_start" },
   {     0, SIM_ACTION_DOOR_CLOSE,   0.0f, nullptr },
@@ -273,6 +273,9 @@ const SimScenarioEntry SIM_SCENARIO_SHORT[] = {
   { 15000, SIM_ACTION_MARKER,       0.0f, "still_period_start" },
   { 15000, SIM_ACTION_SET_DISTANCE, 150.0f, nullptr },
   { 76000, SIM_ACTION_MARKER,       0.0f, "still_period_61s" },
+  { 76000, SIM_ACTION_SET_DISTANCE, 40.0f, nullptr },
+  { 78000, SIM_ACTION_MARKER,       0.0f, "wake_active" },
+  { 79000, SIM_ACTION_SET_DISTANCE, 150.0f, nullptr },
   { 80000, SIM_ACTION_DOOR_OPEN,    1.0f, nullptr },
   { 82000, SIM_ACTION_DOOR_CLOSE,   0.0f, nullptr },
   {122000, SIM_ACTION_MARKER,       0.0f, "vacancy_wait_40s" },
@@ -1213,8 +1216,11 @@ void readDeviceCommands() {
   cmdMainRelay = fbReadBool(pathMainRelay.c_str(), true);
 }
 
-void clearComfortCommandsIfDisallowed(bool allowed) {
-  if (allowed) {
+void clearBlockedComfortCommandsPreservingSleepIntent(
+  bool allowed,
+  const String &state
+) {
+  if (allowed || state == "OCCUPIED_SLEEPING") {
     return;
   }
 
@@ -1239,7 +1245,10 @@ void clearComfortCommandsIfDisallowed(bool allowed) {
 // ======================
 void updateLogic() {
   bool occupancyAllowsComfortLoads = comfortLoadsAllowed(occupancyState);
-  clearComfortCommandsIfDisallowed(occupancyAllowsComfortLoads);
+  clearBlockedComfortCommandsPreservingSleepIntent(
+    occupancyAllowsComfortLoads,
+    occupancyState
+  );
 
   bool requestedFan = cmdExhaust;
   bool requestedLight = cmdLights;

@@ -17,8 +17,9 @@ gives owners live monitoring, control, cost, and savings. **The firmware is an i
   and sensor-confirmed Occupancy Restore now control lights, exhaust fan, and
   AC together. `mainRelay` remains excluded.
 - ADR-0014 narrows comfort loads to `OCCUPIED_ACTIVE`/`OCCUPIED_IDLE`.
-  Sleeping, exit, and vacancy cut lights/fan/AC; the device may clear only
-  those three command leaves to `false` for its own room. The corresponding
+  Sleep suspends lights/fan/AC but retains command intent for immediate wake-up
+  resume; exit and vacancy clear the three commands. The device may write only
+  those command leaves to `false` for its own room. The corresponding
   `database.rules.json` change is implemented and emulator-tested but must be
   published before production firmware command clearing can succeed.
 - `npm run tick:local:watch` explicitly drives the server tick during localhost
@@ -96,6 +97,11 @@ Then the **§10.2 A/B experiment runner** — a new owner **Evaluation** rail ta
 (automation ON), each records its window + the room's MEASURED cumulative energy; the dashboard
 compares them (`compareEvaluationRuns` in `src/tariff/validation.ts`) and shows the ≥20% verdict.
 Runs persist at `properties/{pid}/rooms/{rid}/evaluationRuns` via new `RoomDataSource` methods.
+**ADR-0014 amendment (2026-07-29): do not run or trust this A/B money comparison with
+the current flash candidate.** Its always-on firmware gate suspends outputs during sleep
+and clears commands on exit even when server automation is OFF, so the legacy
+"appliances stay on" baseline cannot be produced. The runner remains historical UI
+until an approved auditable experiment mode or revised baseline protocol replaces it.
 Then an **external audit (2026-07-12)** found real defects, all fixed in the follow-up commit:
 FCM token registration was **impossible** (no `.write` under `users/{uid}` — rules fix, gate #2
 approved); the A/B comparison could **fake a saving** from unequal run lengths (now compared on
@@ -123,7 +129,7 @@ read the simulated signal.
 |---|---|---|
 | **Auth & tenancy** | Email/password login, role from custom claims (owner/admin/device), route guard, per-property membership; owners see assigned rooms, admins see all | `src/auth/*`, `src/rooms/room-data-source.ts` (`listAccessibleRooms`) |
 | **Live telemetry** | Firmware-contract TS types, live `latest` view, occupancy/climate/power(simulated)/gas/water/activity/relays, offline honesty (15 s UI mark, server-corrected clock) | `src/telemetry/*`, `src/rooms/room-live-view.tsx`, `room-scene.tsx` |
-| **Device control** | Owner toggles lights, exhaust fan, AC, water pump, and presence relay; `mainRelay` is excluded. Comfort controls are occupancy-blocked during entry, sleep, exit, and vacancy; pump stays independent and gas may force the fan. | `src/rooms/room-live-view.tsx` (DeviceControls) |
+| **Device control** | Owner toggles lights, exhaust fan, AC, water pump, and presence relay; `mainRelay` is excluded. Comfort controls are occupancy-blocked during entry, sleep, exit, and vacancy; sleep retains settings for wake-up, exit clears them, pump stays independent, and gas may force the fan. | `src/rooms/room-live-view.tsx` (DeviceControls) |
 | **Server workloads** (free runtime, ADR-0010/0014) | 5-min energy **sampler**, 1-min **tick** (offline+gas/temp/water **alerts** lifecycle + occupancy-gated **comfort-load automation**), nightly **rollup** (+ dry-run-gated prune) | `src/server/*`, `src/app/api/cron/{sample,tick,rollup}/route.ts` |
 | **Charts & alerts UI** | 24 h power line + 7-day kWh bars; alert center with acknowledge | `src/rooms/energy-charts.tsx`, `alert-center.tsx` |
 | **Cost (tariff)** (ADR-0008) | Regime/band CEB bill engine; "Estimated bill this month" from month-to-date kWh × tariff (property = **H-1**) | `src/tariff/*`, shown in `energy-charts.tsx` |

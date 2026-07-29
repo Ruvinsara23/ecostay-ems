@@ -29,12 +29,12 @@ terminal because the Next.js API route performs the Admin SDK work; the local
 tick client never reads the service-account file.
 
 Automation is transition-based. `OCCUPIED_ACTIVE` and `OCCUPIED_IDLE` permit
-comfort loads; `OCCUPIED_SLEEPING`, `EXIT_PENDING`, and confirmed vacancy cut
-them off. If the room was already recorded as occupied, first complete a
+comfort loads. `OCCUPIED_SLEEPING` suspends physical outputs while retaining
+their commands for immediate wake-up; `EXIT_PENDING` and confirmed vacancy clear
+them. If the room was already recorded as occupied, first complete a
 simulated exit to `VACANT_CONFIRMED`, then enter and obtain sensor-confirmed
 `OCCUPIED_ACTIVE`; the next local tick restores the comfort loads. Waking from
-sleep does not auto-restore them, which avoids surprising the guest by turning
-lights on.
+sleep resumes only the settings that were already requested before sleep.
 
 ## 0. Prerequisites (once)
 

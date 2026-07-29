@@ -69,7 +69,7 @@ fakes firmware writes exists for development and rehearsal only — it is a dev 
 | `energyHistory` | accepted | `properties/{pid}/rooms/{rid}/energyHistory` — 5-min samples `{energy, power, occupancyState, sampledAt}` written by the scheduled Cloud Function. Cumulative-kWh sampling; reboot resets detected as negative deltas. Raw retention 90 days, then pruned. |
 | Daily aggregates | accepted | Per room per day `{kWhUsed, costLKR, occupiedMinutes}` written by the nightly rollup Function; kept forever. Weekly/monthly views compute from dailies. |
 | `alerts` | accepted | `properties/{pid}/alerts` — lifecycle records `{roomId, type, severity, value, startedAt, resolvedAt, acknowledgedBy, acknowledgedAt}`. |
-| `automationLog` | accepted | Every automation action: room, relays cut, occupancy transition timestamps. Feeds the savings computation. |
+| `automationLog` | accepted | Every server automation command action: room, command leaves changed, occupancy transition timestamps. Feeds the savings computation. Transient on-device sleep suspension is not logged and is excluded from headline savings until a reviewed telemetry/accounting design exists. |
 | Tariff settings | accepted | Per-property, Admin-editable (see Tariff). |
 | `members` / `users` index | accepted | Tenancy records (see Auth & tenancy). |
 
@@ -99,7 +99,7 @@ remain clear continuously for 30 s. Any detection resets the complete vacancy wi
 | Occupied (boolean) | derived | `occupancyState ∈ {ENTRY_DETECTED, OCCUPIED_ACTIVE, OCCUPIED_IDLE, OCCUPIED_SLEEPING, EXIT_PENDING}` — same predicate as firmware's `isOccupiedState()`. |
 | Comfort loads allowed | derived | `occupancyState ∈ {OCCUPIED_ACTIVE, OCCUPIED_IDLE}` (ADR-0014). Lights, exhaust fan, and AC are blocked in every other occupancy state; gas may still force the fan. |
 | Energy cost | derived | **Regime/band tariff engine** over kWh (see Tariff): the month's total selects a regime; within it `method:"flat"` applies the band rate to all units (CEB GP-1/H-1), `method:"slab"` sums incremental blocks (CEB Domestic); fixed charge is per-block; an `sscl` factor grosses up the total. Currency: LKR. Seed rates + full derivation of the model gaps: [ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md) (PUCSL, effective 11 May 2026). |
-| Savings | derived | **Headline: counterfactual avoided energy** — Σ(rated wattage of each cut circuit × time it stayed cut), from `automationLog` × Admin-configured circuit wattages, priced via the tariff engine. **Secondary: kWh per occupied-hour** trend from daily aggregates. |
+| Savings | derived | **Headline: counterfactual avoided energy for logged server command actions only** — Σ(rated wattage of each cut circuit × time it stayed cut), from `automationLog` × Admin-configured circuit wattages, priced via the tariff engine. Transient firmware-only sleep suspension is excluded. **Secondary: kWh per occupied-hour** trend from daily aggregates. |
 | Device online | derived | UI: offline when `now − updatedAt > 15 s` (5 missed write cycles), computed against `.info/serverTimeOffset`. Offline **alert** raised at ~90 s staleness by the 1-min scheduled Function. Offline UI: values grey out with "last seen", **device controls disabled** (no queued commands). |
 
 ## Server runtime (accepted — runtime amended 2026-07-04 by ADR-0010)
@@ -124,19 +124,22 @@ No background logic ever runs in the browser client.
 
 ## Automation (accepted)
 
-- v1 rule: **Comfort Load Cutoff** (ADR-0014) — on `OCCUPIED_SLEEPING` or
-  `EXIT_PENDING`, write `lights`, `exhaustFan`, and `airConditioner` to false.
-  `VACANT_CONFIRMED` remains a server fallback. Firmware gates the physical outputs
-  immediately and clears the same command leaves through its off-only rule.
+- v1 rule: **Comfort Load Suspension/Cutoff** (ADR-0014) — in
+  `OCCUPIED_SLEEPING`, firmware gates lights, exhaust fan, and AC physically off
+  but retains their requested command values so active/idle wake-up resumes the
+  same settings immediately. On `EXIT_PENDING`, clear the three commands to
+  false; `VACANT_CONFIRMED` remains a server fallback.
 - v1 rule: **Occupancy Restore (FR-05)** — after a vacancy/entry candidate advances to
   `OCCUPIED_ACTIVE` or `OCCUPIED_IDLE`, write the same subset to `true`.
-  `ENTRY_DETECTED` and `OCCUPIED_SLEEPING` never restore loads. The shared
-  `automationEnabled` toggle controls server cutoff/restore; the firmware safety gate
-  remains authoritative locally.
+  `ENTRY_DETECTED` never restores loads. `OCCUPIED_SLEEPING` → active/idle
+  requires no server restore because the desired commands were retained. The shared
+  `automationEnabled` controls only server cutoff/restore. The firmware safety gate
+  remains authoritative locally and is not disabled by that toggle.
 - **Transition-epoch precedence**: automation acts only *at the moment* of an occupancy
   transition; any manual command issued after that moment stands until the next transition.
-  ADR-0014 intentionally excepts blocked occupancy states: firmware may clear a later
-  comfort command back to false because the output is not allowed in that state.
+  ADR-0014 intentionally excepts entry, exit, and vacancy: firmware may clear a later
+  comfort command back to false because the output is not allowed there. Sleeping
+  keeps the request but blocks the physical output.
 - The firmware's local gas→exhaust-fan override always wins locally; cloud automation never fights it.
 - v1.1 queue: temperature-based fan rules. ("Welcome lights after confirmed entry" is delivered
   by the FR-05 Occupancy Restore rule above.)

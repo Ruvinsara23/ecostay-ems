@@ -39,10 +39,10 @@ function shouldRestoreComfortLoads(fromState: string, toState: OccupancyState): 
 
 /**
  * Comfort Load Automation restores circuits only when a vacancy/entry
- * candidate advances to OCCUPIED_ACTIVE or OCCUPIED_IDLE. It cuts them when
- * the firmware reports OCCUPIED_SLEEPING or EXIT_PENDING, and retains the
- * VACANT_CONFIRMED cutoff as a fallback. Door-open ENTRY_DETECTED alone never
- * restores comfort loads.
+ * candidate advances to OCCUPIED_ACTIVE or OCCUPIED_IDLE. Sleeping is a local
+ * physical suspension that retains command intent for immediate wake-up;
+ * EXIT_PENDING clears commands, and VACANT_CONFIRMED remains a fallback.
+ * Door-open ENTRY_DETECTED alone never restores comfort loads.
  *
  * Server actions require settings/automationEnabled and use transition-epoch
  * precedence. Frozen telemetry cannot generate transitions, and a first-ever
@@ -82,10 +82,7 @@ export async function runAutomation(
           at: nowMs,
         });
         report.cutoffs += 1;
-      } else if (
-        enabled &&
-        (state === 'OCCUPIED_SLEEPING' || state === 'EXIT_PENDING')
-      ) {
+      } else if (enabled && state === 'EXIT_PENDING') {
         await deps.writeCutoffCommands(propertyId, roomId);
         await deps.appendAutomationLog(propertyId, {
           roomId,

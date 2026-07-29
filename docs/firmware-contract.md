@@ -13,7 +13,8 @@ command semantics.
 Comfort-load amendments (ADR-0012, ADR-0014): the current flash candidate allows
 requested lights, fan, and AC only in `OCCUPIED_ACTIVE` and `OCCUPIED_IDLE`.
 It blocks them during entry, sleep, exit, and vacancy while preserving the gas
-override. When blocked, the device clears its own three Firebase command leaves
+override. Sleep retains requested command values for immediate wake-up resume;
+entry, exit, and vacancy clear the device's own three Firebase command leaves
 to `false` through an off-only, room-scoped RTDB permission.
 
 AC relay amendment (ADR-0013): the approved flash candidate adds the boolean
@@ -68,7 +69,8 @@ contactor/dry-contact/IR interface; GPIO21 never drives mains directly.
 
 ADR-0014 also permits the authenticated device to write boolean `false` to its
 own lights, fan, and AC command leaves. It cannot write `true`, the pump,
-`mainRelay`, or any other room.
+`mainRelay`, or any other room. This local safety policy remains active when
+the dashboard's `settings/automationEnabled` server-automation toggle is off.
 
 | Path | Relay pin | Behavior |
 |---|---|---|
@@ -107,7 +109,7 @@ Runs **on the ESP32** — the dashboard should *display* this state, never re-de
 1. **Single room reality**: `property_001/room_001` is hardcoded — multi-room/multi-hotel UI must be honest about being single-node for now, or the firmware gains a config step.
 2. **Energy data is simulated** until a real PZEM-004T read replaces `updatePzemDummyReading()` — label it in the UI.
 3. Commands are **plain bool leaves** with no relay acknowledgement or queue.
-   The 3D UI combines command state with the occupancy gate; the device may
-   clear disallowed comfort commands to `false`.
+   The 3D UI combines command state with the occupancy gate. Sleep retains
+   blocked command intent; entry, exit, and vacancy may clear commands to `false`.
 4. `latest` is a 3 s snapshot; **history for charts must be recorded by something other than the firmware** (scheduled function / client logger) or the firmware gains an energy-history push.
 5. Canonical `complete.ino` anonymous auth remains a transitional bench-only limitation: it cannot distinguish the node from another anonymous client and cannot clear commands. The credentialed `current-upload-fixed` candidate resolves that identity problem with room-scoped claims.

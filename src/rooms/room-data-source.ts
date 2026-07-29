@@ -76,8 +76,8 @@ export interface RoomDataSource {
   /**
    * The room's comfort-load automation toggle (settings/automationEnabled).
    * A server setting, not a device command — usable regardless of freshness;
-   * Active/idle transitions may restore loads; sleep, exit, and vacancy cut
-   * them off. Absent means OFF.
+   * Active/idle transitions may restore loads; sleep temporarily suspends
+   * physical outputs, while exit and vacancy clear commands. Absent means OFF.
    */
   subscribeAutomationEnabled(
     propertyId: string,

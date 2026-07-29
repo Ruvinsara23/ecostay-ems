@@ -78,8 +78,38 @@ assert.match(
 );
 assert.match(
   sketch,
-  /clearComfortCommandsIfDisallowed\(occupancyAllowsComfortLoads\);/,
-  "The firmware must clear Firebase comfort-load commands when occupancy cuts them off.",
+  /clearBlockedComfortCommandsPreservingSleepIntent\(\s*occupancyAllowsComfortLoads,\s*occupancyState\s*\);/,
+  "The firmware command policy must receive the current occupancy state.",
+);
+assert.match(
+  sketch,
+  /void clearBlockedComfortCommandsPreservingSleepIntent\([\s\S]*?if \(allowed \|\| state == "OCCUPIED_SLEEPING"\) \{\s*return;\s*\}/,
+  "Sleeping must retain requested commands so active occupancy can resume them immediately.",
+);
+assert.doesNotMatch(
+  sketch,
+  /fbWriteBoolIfReady\([^,]+,\s*true\)/,
+  "A device must never rely on an RTDB write-true permission to restore comfort commands.",
+);
+
+const shortScenario = sketch.match(
+  /const SimScenarioEntry SIM_SCENARIO_SHORT\[\] = \{[\s\S]*?\n\};/,
+)?.[0];
+assert.ok(shortScenario, "Could not locate SIM_SCENARIO_SHORT.");
+assert.match(
+  shortScenario,
+  /76000,\s*SIM_ACTION_SET_DISTANCE,\s*40\.0f/,
+  "The short scenario must wake the sleeping guest with ultrasonic presence.",
+);
+assert.match(
+  shortScenario,
+  /78000,\s*SIM_ACTION_MARKER,\s*0\.0f,\s*"wake_active"/,
+  "The short scenario must expose the active wake-up checkpoint.",
+);
+assert.match(
+  shortScenario,
+  /79000,\s*SIM_ACTION_SET_DISTANCE,\s*150\.0f/,
+  "The short scenario must clear presence before its exit sequence.",
 );
 
 console.log("Occupancy vacancy policy regression checks passed.");

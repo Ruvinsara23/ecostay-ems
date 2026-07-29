@@ -402,15 +402,15 @@ export function DeviceControls({
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-hairline pt-4">
         <div className="text-sm font-medium text-ink">
-          Comfort load automation
+          Server comfort automation
           <span className="mt-0.5 block text-xs font-normal text-ink-3">
-            Restores after confirmed entry into active/idle; turns off during sleep, exit, and vacancy.
+            Restores commands after entry. Firmware always suspends during sleep and clears on exit.
           </span>
         </div>
         <Toggle
           checked={automationEnabled === true}
           disabled={automationEnabled === null}
-          label="Comfort load automation"
+          label="Comfort load automation (server)"
           onToggle={toggleAutomation}
         />
       </div>

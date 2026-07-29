@@ -142,9 +142,11 @@ property → scroll to the settings form at the bottom (`src/admin/admin-propert
 ### 1.5 Verify the cron jobs are alive
 
 The comfort-load automation runs **on the server**, once a minute, triggered by cron-job.org
-(`docs/adr/0010` and `0014`). It restores loads on active/idle entry transitions and cuts them
-during sleep, exit, and confirmed vacancy. If the cron job is paused, **the EcoStay window
-silently behaves like a baseline** — no server-side transitions fire.
+(`docs/adr/0010` and `0014`). It restores loads on active/idle entry transitions and clears them
+during exit and confirmed vacancy. Sleep suspension and wake-up resume are immediate on-device
+and retain the requested settings. If the cron job is paused, **the EcoStay window silently
+loses server restore and automation-log actions**, but the firmware still suspends
+comfort outputs during sleep and clears their commands on entry, exit, and vacancy.
 
 1. Log in to your cron-job.org account → check all three jobs are enabled and their execution
    history is green: `tick` (every 1 min), `sample` (every 5 min), `rollup` (daily 00:05
@@ -191,6 +193,13 @@ silently behaves like a baseline** — no server-side transitions fire.
   server-side times for you.
 
 ### 2.2 The Baseline run (automation OFF)
+
+> **Blocked with the ADR-0014 flash candidate.** The dashboard toggle disables
+> server automation only. The firmware still suspends comfort outputs during
+> sleep and clears their commands on exit, so it cannot produce the legacy
+> "appliances left on after exit" baseline. Do not use this procedure for a
+> money-facing comparison until an approved, auditable experiment mode or a
+> revised baseline protocol is documented.
 
 1. **Sign in first** (as the owner), *then* open **Room 1** from Home → left rail →
    **Evaluation**. The deep link
