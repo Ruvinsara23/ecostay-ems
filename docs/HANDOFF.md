@@ -21,8 +21,8 @@ gives owners live monitoring, control, cost, and savings. **The firmware is an i
   PIR or ultrasonic wake-up. `EXIT_PENDING` suspends outputs but retains
   commands for a cancelled exit; `VACANT_CONFIRMED` clears all three. The device may write only
   those command leaves to `false` for its own room. The corresponding
-  `database.rules.json` change is implemented and emulator-tested but must be
-  published before production firmware command clearing can succeed.
+  `database.rules.json` change is implemented, emulator-tested, and **published
+  2026-07-30** (owner-confirmed), so production command clearing is unblocked.
 - `npm run tick:local:watch` explicitly drives the server tick during localhost
   testing. External cron-job.org cannot reach localhost; no automation logic
   has been moved into the browser.
@@ -112,11 +112,15 @@ run start is now an **atomic multi-path write** (a run can't be recorded without
 applied); runs **refuse a stale reading** from an offline device; and FCM now prunes **only tokens
 FCM reports as dead** (transient quota/network failures no longer unsubscribe healthy browsers).
 
-⚠ **UNPUBLISHED RULES — do this before trusting push or the Evaluation tab in production:**
-`database.rules.json` gained `evaluationRuns` (owner/admin write + validation) and
-`users/{uid}/fcmTokens` (self-write, strings only). Republish in the Firebase console. Emulator
-tests: `evaluation-runs-rules.integration.test.ts`, `fcm-token-rules.integration.test.ts`
-(`npm run test:integration` — needs Java **21**; local Java here is 17).
+**RULES PUBLISHED 2026-07-30** (owner-confirmed) — the console publish covers the whole ruleset,
+so all three previously-outstanding changes are now live: `evaluationRuns` (owner/admin write +
+validation), `users/{uid}/fcmTokens` (self-write, strings only), and the ADR-0014 device off-only
+comfort-command clear. Push notifications can therefore register a token, the Evaluation tab's
+atomic multi-path write can succeed, and a production device can clear its own `lights`/
+`exhaustFan`/`airConditioner` leaves. Emulator tests:
+`evaluation-runs-rules.integration.test.ts`, `fcm-token-rules.integration.test.ts`,
+`device-rules.integration.test.ts` (`npm run test:integration` — needs Java **21**; local Java
+here is 17). Not yet re-verified against production by an actual device write.
 
 Known, accepted: `npm audit --omit=dev` reports 2 moderate advisories via Next's bundled
 `postcss@8.4.31` (GHSA-qx2v-qp2m-jg93) — no safe non-breaking fix offered upstream.
@@ -174,10 +178,11 @@ node scripts/simulate-device.ts   # dev-only: write contract-exact telemetry (no
   re-check CEB rates at the Q4 2026 PUCSL revision (the H-1/GP-1/D-1≤180 freeze rides on a subsidy
   ending Sep 2026).
 - **RTDB rules**: `database.rules.json` is the canonical copy — republish in the Firebase console after
-  any change. Everything through the device-scoped rules (ADR-0007 slice 02) **was published
-  2026-07-11**. **UNPUBLISHED (do this):** the two rule changes from the 2026-07-12 audit fixes —
-  `evaluationRuns` (owner/admin write + validation) and `users/{uid}/fcmTokens` (self-write, string
-  values only). Until `fcmTokens` is published, **push notifications cannot register a token at all**.
+  any change. **Nothing outstanding as of 2026-07-30** (owner-confirmed publish): the device-scoped
+  rules (ADR-0007 slice 02) went live 2026-07-11, and the 2026-07-12 audit fixes (`evaluationRuns`,
+  `users/{uid}/fcmTokens`) plus the ADR-0014 device off-only comfort-command clear are now published.
+  The repo copy and the console are only ever in sync because a human published them — re-check
+  after every edit to this file.
 
 ## What to build next (candidate phases)
 

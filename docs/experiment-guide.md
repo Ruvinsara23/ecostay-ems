@@ -54,19 +54,19 @@ Part 1 sets all of this up.
 
 ## Part 1 — One-time setup (do all of this BEFORE experiment day)
 
-### 1.1 ⛔ BLOCKER: republish the database rules
+### 1.1 Confirm the database rules are published
 
-The security rule that allows the Evaluation tab to write runs (`evaluationRuns`) exists only in
-the repo copy of `database.rules.json` — it has **not been published** to Firebase yet
-(`docs/HANDOFF.md:76-80`). Until you publish it, **Start run fails with PERMISSION_DENIED** in
+**Published 2026-07-30 (owner-confirmed)** — including `evaluationRuns` and the ADR-0014 device
+off-only comfort-command clear. This step is now a check, not a blocker. Re-do it whenever the
+repo's `database.rules.json` changes: it is the canonical copy, but only a human publish makes it
+live, and an unpublished `evaluationRuns` rule makes **Start run fail with PERMISSION_DENIED** in
 production.
 
 1. Open the [Firebase console](https://console.firebase.google.com) → project **ecostay-ems** →
    **Realtime Database** → **Rules** tab.
-2. Replace the rules with the full contents of the repo's `database.rules.json` (it is the
-   canonical copy).
-3. Click **Publish**.
-4. Verify: sign in to <https://ecostay-ems.vercel.app> as the owner, open Room 1 → Evaluation
+2. Confirm the live rules match the full contents of the repo's `database.rules.json`. If they
+   differ, replace them with the repo copy and click **Publish**.
+3. Verify: sign in to <https://ecostay-ems.vercel.app> as the owner, open Room 1 → Evaluation
    tab. The Start buttons must not throw a "permission denied" error when pressed (they may
    still be greyed out until the device is online — that is a different, expected gate).
 
