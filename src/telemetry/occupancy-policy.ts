@@ -16,9 +16,18 @@ export function isComfortLoadCommand(key: DeviceCommandKey): key is ComfortLoadC
   return COMFORT_LOAD_COMMAND_KEYS.some((comfortKey) => comfortKey === key);
 }
 
+export function comfortLoadCommandAllowed(
+  state: OccupancyState | undefined,
+  key: DeviceCommandKey,
+): boolean {
+  if (!isComfortLoadCommand(key)) return true;
+  if (comfortLoadsAllowed(state)) return true;
+  return state === 'OCCUPIED_SLEEPING' && key === 'airConditioner';
+}
+
 export function comfortLoadCommandBlocked(
   state: OccupancyState | undefined,
   key: DeviceCommandKey,
 ): boolean {
-  return isComfortLoadCommand(key) && !comfortLoadsAllowed(state);
+  return isComfortLoadCommand(key) && !comfortLoadCommandAllowed(state, key);
 }

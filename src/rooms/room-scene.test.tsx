@@ -74,7 +74,7 @@ describe('RoomScene', () => {
     ).toBeInTheDocument();
   });
 
-  it('blocks comfort controls while sleeping but leaves the water pump independent', () => {
+  it('blocks lights and fan while sleeping but leaves AC and water pump available', () => {
     render(
       <RoomScene
         latest={{ ...LIVE, occupancyState: 'OCCUPIED_SLEEPING' }}
@@ -97,8 +97,8 @@ describe('RoomScene', () => {
       screen.getByRole('button', { name: /fan blocked while occupied sleeping/i }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: /air conditioner blocked while occupied sleeping/i }),
-    ).toBeDisabled();
+      screen.getByRole('button', { name: /turn off air conditioner/i }),
+    ).toBeEnabled();
     expect(screen.getByRole('button', { name: /turn off pump/i })).toBeEnabled();
   });
 });

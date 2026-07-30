@@ -404,7 +404,8 @@ export function DeviceControls({
         <div className="text-sm font-medium text-ink">
           Server comfort automation
           <span className="mt-0.5 block text-xs font-normal text-ink-3">
-            Restores commands after entry. Firmware always suspends during sleep and clears on exit.
+            Restores commands after entry. During sleep, lights and fan pause while AC can remain on;
+            exit clears all three.
           </span>
         </div>
         <Toggle

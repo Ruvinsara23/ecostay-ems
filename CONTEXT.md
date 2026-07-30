@@ -60,7 +60,7 @@ fakes firmware writes exists for development and rehearsal only — it is a dev 
 | `devices/airConditioner` | accepted | Boolean AC command added by ADR-0013 to the approved flash candidate. It uses its own GPIO21 relay/contactor interface and never repurposes `mainRelay`. |
 | `history` | existing | Per-property append log — **written by firmware only when water flows**; carries NO energy fields. |
 | `devices/*` | existing | Per-room command booleans the firmware polls every 500 ms: `exhaustFan`, `motionDetection`, `lights`, `waterPump`, `mainRelay` (read but unused by firmware — no rule or UI may target it until the firmware workstream wires it). |
-| Device comfort-command clear | accepted | ADR-0014 off-only exception: a scoped Device account may set only its own `lights`, `exhaustFan`, and `airConditioner` command leaves to boolean `false` when occupancy blocks comfort loads. It cannot write `true`, pump, `mainRelay`, or another room. |
+| Device comfort-command clear | accepted | ADR-0014 off-only exception: a scoped Device account may set only its own `lights`, `exhaustFan`, and `airConditioner` command leaves to boolean `false` during entry or confirmed vacancy. Sleeping and `EXIT_PENDING` retain command intent. It cannot write `true`, pump, `mainRelay`, or another room. |
 
 ### Dashboard-owned paths (accepted — never written by firmware)
 
@@ -97,7 +97,7 @@ remain clear continuously for 30 s. Any detection resets the complete vacancy wi
 | Term | Status | Meaning |
 |---|---|---|
 | Occupied (boolean) | derived | `occupancyState ∈ {ENTRY_DETECTED, OCCUPIED_ACTIVE, OCCUPIED_IDLE, OCCUPIED_SLEEPING, EXIT_PENDING}` — same predicate as firmware's `isOccupiedState()`. |
-| Comfort loads allowed | derived | `occupancyState ∈ {OCCUPIED_ACTIVE, OCCUPIED_IDLE}` (ADR-0014). Lights, exhaust fan, and AC are blocked in every other occupancy state; gas may still force the fan. |
+| Comfort load allowed | derived | Per-device policy (ADR-0014): lights and exhaust fan are allowed in `OCCUPIED_ACTIVE`/`OCCUPIED_IDLE`; AC is also allowed in `OCCUPIED_SLEEPING`. All three are blocked during entry, exit, and vacancy; gas may still force the fan. |
 | Energy cost | derived | **Regime/band tariff engine** over kWh (see Tariff): the month's total selects a regime; within it `method:"flat"` applies the band rate to all units (CEB GP-1/H-1), `method:"slab"` sums incremental blocks (CEB Domestic); fixed charge is per-block; an `sscl` factor grosses up the total. Currency: LKR. Seed rates + full derivation of the model gaps: [ceb-tariff-schedule.md](docs/research/ceb-tariff-schedule.md) (PUCSL, effective 11 May 2026). |
 | Savings | derived | **Headline: counterfactual avoided energy for logged server command actions only** — Σ(rated wattage of each cut circuit × time it stayed cut), from `automationLog` × Admin-configured circuit wattages, priced via the tariff engine. Transient firmware-only sleep suspension is excluded. **Secondary: kWh per occupied-hour** trend from daily aggregates. |
 | Device online | derived | UI: offline when `now − updatedAt > 15 s` (5 missed write cycles), computed against `.info/serverTimeOffset`. Offline **alert** raised at ~90 s staleness by the 1-min scheduled Function. Offline UI: values grey out with "last seen", **device controls disabled** (no queued commands). |
@@ -125,10 +125,11 @@ No background logic ever runs in the browser client.
 ## Automation (accepted)
 
 - v1 rule: **Comfort Load Suspension/Cutoff** (ADR-0014) — in
-  `OCCUPIED_SLEEPING`, firmware gates lights, exhaust fan, and AC physically off
-  but retains their requested command values so active/idle wake-up resumes the
-  same settings immediately. On `EXIT_PENDING`, clear the three commands to
-  false; `VACANT_CONFIRMED` remains a server fallback.
+  `OCCUPIED_SLEEPING`, firmware gates lights and exhaust fan physically off,
+  retains their requested command values for wake-up, and lets AC continue to
+  follow its retained command. `EXIT_PENDING` blocks outputs but retains the
+  three commands so a cancelled exit can resume immediately.
+  `VACANT_CONFIRMED` clears the commands.
 - v1 rule: **Occupancy Restore (FR-05)** — after a vacancy/entry candidate advances to
   `OCCUPIED_ACTIVE` or `OCCUPIED_IDLE`, write the same subset to `true`.
   `ENTRY_DETECTED` never restores loads. `OCCUPIED_SLEEPING` → active/idle
@@ -137,9 +138,10 @@ No background logic ever runs in the browser client.
   remains authoritative locally and is not disabled by that toggle.
 - **Transition-epoch precedence**: automation acts only *at the moment* of an occupancy
   transition; any manual command issued after that moment stands until the next transition.
-  ADR-0014 intentionally excepts entry, exit, and vacancy: firmware may clear a later
-  comfort command back to false because the output is not allowed there. Sleeping
-  keeps the request but blocks the physical output.
+  ADR-0014 intentionally excepts entry and confirmed vacancy: firmware may
+  clear a later comfort command back to false because the output is not
+  allowed there. Sleeping and `EXIT_PENDING` keep request intent while blocking
+  the relevant physical outputs.
 - The firmware's local gas→exhaust-fan override always wins locally; cloud automation never fights it.
 - v1.1 queue: temperature-based fan rules. ("Welcome lights after confirmed entry" is delivered
   by the FR-05 Occupancy Restore rule above.)

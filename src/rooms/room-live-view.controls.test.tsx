@@ -161,7 +161,7 @@ describe('RoomLiveView — device controls', () => {
     ).toBeDisabled();
   });
 
-  it('blocks comfort commands while sleeping but keeps pump and presence controls available', () => {
+  it('blocks lights and fan while sleeping but keeps AC, pump, and presence controls available', () => {
     setup({
       snapshot: liveSnapshot({ occupancyState: 'OCCUPIED_SLEEPING' }),
       commands: {
@@ -175,10 +175,10 @@ describe('RoomLiveView — device controls', () => {
 
     expect(screen.getByRole('switch', { name: 'Lights' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Exhaust fan' })).toBeDisabled();
-    expect(screen.getByRole('switch', { name: 'Air conditioner' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Air conditioner' })).toBeEnabled();
     expect(screen.getByRole('switch', { name: 'Water pump' })).toBeEnabled();
     expect(screen.getByRole('switch', { name: 'Presence relay' })).toBeEnabled();
-    expect(screen.getAllByText(/blocked while occupied sleeping/i)).toHaveLength(3);
+    expect(screen.getAllByText(/blocked while occupied sleeping/i)).toHaveLength(2);
   });
 
   it('marks the exhaust fan as forced on during a gas alarm', () => {

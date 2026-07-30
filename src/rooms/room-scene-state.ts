@@ -1,6 +1,6 @@
 import type { DeviceCommands, OccupancyState } from '@/telemetry/contract';
 import { GAS_ALARM_THRESHOLD, OCCUPANCY_STATES } from '@/telemetry/contract';
-import { comfortLoadsAllowed } from '@/telemetry/occupancy-policy';
+import { comfortLoadCommandAllowed } from '@/telemetry/occupancy-policy';
 import type { RoomLatest } from './room-data-source';
 
 export type OccupantPose =
@@ -57,17 +57,19 @@ export function deriveRoomSceneState(
   online: boolean,
 ): RoomSceneState {
   const gasAlarm = latest.gas !== undefined && latest.gas > GAS_ALARM_THRESHOLD;
-  const comfortAllowed = comfortLoadsAllowed(latest.occupancyState);
+  const lightsAllowed = comfortLoadCommandAllowed(latest.occupancyState, 'lights');
+  const fanAllowed = comfortLoadCommandAllowed(latest.occupancyState, 'exhaustFan');
+  const acAllowed = comfortLoadCommandAllowed(latest.occupancyState, 'airConditioner');
   const fanCommandedOn = commands.exhaustFan === true;
 
   return {
     doorOpen: latest.doorOpen === true,
     occupantPose: occupantPose(latest.occupancyState),
-    lightsOn: comfortAllowed && commands.lights === true,
+    lightsOn: lightsAllowed && commands.lights === true,
     tvPresenceCueOn: online && latest.humanPresent === true,
-    fanOn: gasAlarm || (comfortAllowed && fanCommandedOn),
+    fanOn: gasAlarm || (fanAllowed && fanCommandedOn),
     fanForcedByGas: gasAlarm,
-    acOn: comfortAllowed && commands.airConditioner === true,
+    acOn: acAllowed && commands.airConditioner === true,
     pumpOn: commands.waterPump === true,
     gasAlarm,
     waterLevel: boundedPercent(latest.waterLevel),

@@ -37,7 +37,6 @@ describe('deriveRoomSceneState', () => {
   it.each([
     'VACANT',
     'ENTRY_DETECTED',
-    'OCCUPIED_SLEEPING',
     'EXIT_PENDING',
     'VACANT_CONFIRMED',
   ] as const)('blocks comfort-load visuals in %s while leaving the pump independent', (occupancyState) => {
@@ -51,6 +50,21 @@ describe('deriveRoomSceneState', () => {
       lightsOn: false,
       fanOn: false,
       acOn: false,
+      pumpOn: true,
+    });
+  });
+
+  it('keeps commanded AC on while sleeping and blocks lights and fan', () => {
+    expect(
+      deriveRoomSceneState(
+        { occupancyState: 'OCCUPIED_SLEEPING', gas: 250 },
+        { lights: true, exhaustFan: true, waterPump: true, airConditioner: true },
+        true,
+      ),
+    ).toMatchObject({
+      lightsOn: false,
+      fanOn: false,
+      acOn: true,
       pumpOn: true,
     });
   });

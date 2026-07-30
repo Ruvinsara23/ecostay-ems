@@ -99,7 +99,7 @@ describe('runAutomation', () => {
     expect(report.cutoffs).toBe(0);
   });
 
-  it('cuts lights + fan + AC as soon as an occupied room enters EXIT_PENDING', async () => {
+  it('retains commands during EXIT_PENDING so a cancelled exit can resume immediately', async () => {
     const { deps, commandWrites, log, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('EXIT_PENDING') },
       lastStates: { 'property_001/room_001': 'OCCUPIED_ACTIVE' },
@@ -108,27 +108,27 @@ describe('runAutomation', () => {
 
     const report = await runAutomation(deps, NOW);
 
-    expect(commandWrites).toEqual([
-      {
-        key: 'property_001/room_001',
-        commands: { lights: false, exhaustFan: false, airConditioner: false },
-      },
-    ]);
-    expect(log).toEqual([
-      {
-        roomId: 'room_001',
-        action: 'comfort-load-cutoff',
-        relays: ['lights', 'exhaustFan', 'airConditioner'],
-        fromState: 'OCCUPIED_ACTIVE',
-        toState: 'EXIT_PENDING',
-        at: NOW,
-      },
-    ]);
+    expect(commandWrites).toEqual([]);
+    expect(log).toEqual([]);
     expect(lastStates['property_001/room_001']).toBe('EXIT_PENDING');
-    expect(report.cutoffs).toBe(1);
+    expect(report.cutoffs).toBe(0);
   });
 
-  it('suspends physical comfort loads without clearing commands when a guest falls asleep', async () => {
+  it('does not overwrite retained commands when EXIT_PENDING returns to active', async () => {
+    const { deps, commandWrites, log } = makeDeps({
+      rooms: { 'property_001/room_001': fresh('OCCUPIED_ACTIVE') },
+      lastStates: { 'property_001/room_001': 'EXIT_PENDING' },
+      enabled: { 'property_001/room_001': true },
+    });
+
+    const report = await runAutomation(deps, NOW);
+
+    expect(commandWrites).toEqual([]);
+    expect(log).toEqual([]);
+    expect(report.restores).toBe(0);
+  });
+
+  it('retains device commands when a guest falls asleep so AC stays on and other requests can resume', async () => {
     const { deps, commandWrites, log, lastStates } = makeDeps({
       rooms: { 'property_001/room_001': fresh('OCCUPIED_SLEEPING') },
       lastStates: { 'property_001/room_001': 'OCCUPIED_IDLE' },

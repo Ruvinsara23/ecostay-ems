@@ -40,8 +40,9 @@ function shouldRestoreComfortLoads(fromState: string, toState: OccupancyState): 
 /**
  * Comfort Load Automation restores circuits only when a vacancy/entry
  * candidate advances to OCCUPIED_ACTIVE or OCCUPIED_IDLE. Sleeping is a local
- * physical suspension that retains command intent for immediate wake-up;
- * EXIT_PENDING clears commands, and VACANT_CONFIRMED remains a fallback.
+ * physical suspension that retains command intent for immediate wake-up.
+ * EXIT_PENDING also retains intent because the guest may remain or return;
+ * VACANT_CONFIRMED is the point that clears commands.
  * Door-open ENTRY_DETECTED alone never restores comfort loads.
  *
  * Server actions require settings/automationEnabled and use transition-epoch
@@ -76,17 +77,6 @@ export async function runAutomation(
         await deps.appendAutomationLog(propertyId, {
           roomId,
           action: 'vacancy-cutoff',
-          relays: [...COMFORT_LOAD_COMMAND_KEYS],
-          fromState: lastState,
-          toState: state,
-          at: nowMs,
-        });
-        report.cutoffs += 1;
-      } else if (enabled && state === 'EXIT_PENDING') {
-        await deps.writeCutoffCommands(propertyId, roomId);
-        await deps.appendAutomationLog(propertyId, {
-          roomId,
-          action: 'comfort-load-cutoff',
           relays: [...COMFORT_LOAD_COMMAND_KEYS],
           fromState: lastState,
           toState: state,

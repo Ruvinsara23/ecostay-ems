@@ -6,7 +6,6 @@ import type { DeviceCommands } from '@/telemetry/contract';
 import {
   COMFORT_LOAD_COMMAND_KEYS,
   comfortLoadCommandBlocked,
-  comfortLoadsAllowed,
 } from '@/telemetry/occupancy-policy';
 import type { RoomLatest } from './room-data-source';
 import { deriveRoomSceneState } from './room-scene-state';
@@ -316,7 +315,9 @@ export function RoomScene({
   }, []);
 
   const disabled = !controlsEnabled || !online || pendingDevice !== undefined;
-  const comfortAllowed = comfortLoadsAllowed(latest.occupancyState);
+  const blockedDevices = COMFORT_LOAD_COMMAND_KEYS.filter((key) =>
+    comfortLoadCommandBlocked(latest.occupancyState, key),
+  );
   const webglActive = webglAvailable && !rendererFailed;
 
   return (
@@ -343,7 +344,7 @@ export function RoomScene({
               state={sceneState}
               reducedMotion={reducedMotion}
               controlsDisabled={disabled}
-              blockedDevices={comfortAllowed ? [] : COMFORT_LOAD_COMMAND_KEYS}
+              blockedDevices={blockedDevices}
               pendingDevice={pendingDevice}
               onDeviceClick={(key) => onDeviceClick?.(key)}
             />
