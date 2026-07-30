@@ -79,7 +79,7 @@ production.
 | Relay IN2 — water pump | GPIO 5 | Not part of this experiment. |
 | Relay IN3 — **exhaust fan** | GPIO 26 | Second controlled circuit. |
 | Relay IN4 — presence indicator | GPIO 14 | Not a savings circuit. |
-| **Door reed switch** | GPIO 33 | **Essential** — vacancy is only ever confirmed through a door event (see 2.4). Pin is plain `INPUT` (line 929) so add an external pull-up to 3V3. The firmware reads **LOW = door open, HIGH = door closed**. Wire/orient the reed so the pin sits HIGH when the door is shut, then **verify on serial that it prints `DOOR … CLOSED` with the door physically closed** before trusting vacancy detection. |
+| **Door reed switch** | GPIO 33 | **Essential** — vacancy is only ever confirmed through a door event (see 2.4). Canonical `complete.ino` uses plain `INPUT` with an external pull-up and reads **LOW = open, HIGH = closed**. The approved Arduino IDE physical upload copy `EcoStay_Physical.ino` instead uses `INPUT_PULLUP` and reads **HIGH = open, LOW = closed**. For either build, **verify on serial that the physical door prints the matching OPEN/CLOSED state** before trusting vacancy detection. |
 | **PIR motion sensor** | GPIO 27 | Presence detection. |
 | Ultrasonic HC-SR04 | TRIG 18 / ECHO 19 | Anything within **50 cm** counts as a person (`complete.ino:502`) — aim it so nothing sits permanently in front of it, or vacancy will never confirm. |
 | Gas sensor (MQ) | GPIO 32 (analog) | Above 300 ppm the firmware **forces the exhaust fan ON** locally (`complete.ino:425,600`) — a warm-up false alarm can corrupt a window. Let it warm up ≥ 10 min and confirm gas < 300 on the Live View before starting. |

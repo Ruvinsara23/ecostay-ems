@@ -11,11 +11,13 @@ separate firmware task. It changes no RTDB path, telemetry field, type, cadence,
 command semantics.
 
 Comfort-load amendments (ADR-0012, ADR-0014): the current flash candidate allows
-requested lights, fan, and AC only in `OCCUPIED_ACTIVE` and `OCCUPIED_IDLE`.
-It blocks them during entry, sleep, exit, and vacancy while preserving the gas
-override. Sleep retains requested command values for immediate wake-up resume;
-entry, exit, and vacancy clear the device's own three Firebase command leaves
-to `false` through an off-only, room-scoped RTDB permission.
+requested lights and fan in `OCCUPIED_ACTIVE` and `OCCUPIED_IDLE`; requested AC
+is also allowed in `OCCUPIED_SLEEPING`. Entry, exit pending, and vacancy block
+all three while preserving the gas override. Sleep retains requested light/fan
+command values for immediate wake-up resume. Exit pending also retains all
+three commands so a cancelled exit can resume immediately; entry and confirmed
+vacancy clear the device's own three Firebase command leaves to `false` through
+an off-only, room-scoped RTDB permission.
 
 AC relay amendment (ADR-0013): the approved flash candidate adds the boolean
 `devices/airConditioner` command on a separate active-low GPIO21 output. It follows the
@@ -45,7 +47,7 @@ contactor/dry-contact/IR interface; GPIO21 never drives mains directly.
 | `energy` | float | ⚠️ DUMMY — integrates dummy power, kWh |
 | `gas` | int | 0–1000 "ppm" (linear map of raw ADC); alarm > 300 |
 | `pir` | bool | raw PIR state |
-| `doorOpen` | bool | reed switch, LOW = open |
+| `doorOpen` | bool | Logical door state (`true` = open). Canonical `complete.ino` reads LOW as open; the approved physical Arduino upload copy `EcoStay_Physical.ino` uses its reed wiring polarity HIGH = open / LOW = closed. Both publish the same logical boolean. |
 | `temperature` | float | DHT11, °C |
 | `humidity` | float | DHT11, % |
 | `lightLevel` | int | **always 0** — no sensor |
@@ -75,7 +77,7 @@ the dashboard's `settings/automationEnabled` server-automation toggle is off.
 | Path | Relay pin | Behavior |
 |---|---|---|
 | `{base}/devices/exhaustFan` | GPIO 26 | Allowed only in active/idle; gas alarm **overrides ON** locally |
-| `{base}/devices/airConditioner` | GPIO 21 (ADR-0013 candidate) | Allowed only in active/idle |
+| `{base}/devices/airConditioner` | GPIO 21 (ADR-0013 candidate) | Allowed in active/idle/sleeping |
 | `{base}/devices/motionDetection` | GPIO 14 | Drives "presence" relay directly |
 | `{base}/devices/lights` | GPIO 13 | Allowed only in active/idle |
 | `{base}/devices/waterPump` | GPIO 5 | Direct |
@@ -109,7 +111,9 @@ Runs **on the ESP32** — the dashboard should *display* this state, never re-de
 1. **Single room reality**: `property_001/room_001` is hardcoded — multi-room/multi-hotel UI must be honest about being single-node for now, or the firmware gains a config step.
 2. **Energy data is simulated** until a real PZEM-004T read replaces `updatePzemDummyReading()` — label it in the UI.
 3. Commands are **plain bool leaves** with no relay acknowledgement or queue.
-   The 3D UI combines command state with the occupancy gate. Sleep retains
-   blocked command intent; entry, exit, and vacancy may clear commands to `false`.
+   The 3D UI combines command state with the per-device occupancy gate. Sleep
+   retains blocked light/fan command intent while commanded AC stays effective.
+   Exit pending blocks outputs while retaining intent; entry and confirmed
+   vacancy may clear commands to `false`.
 4. `latest` is a 3 s snapshot; **history for charts must be recorded by something other than the firmware** (scheduled function / client logger) or the firmware gains an energy-history push.
 5. Canonical `complete.ino` anonymous auth remains a transitional bench-only limitation: it cannot distinguish the node from another anonymous client and cannot clear commands. The credentialed `current-upload-fixed` candidate resolves that identity problem with room-scoped claims.

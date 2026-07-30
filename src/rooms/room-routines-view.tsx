@@ -59,7 +59,10 @@ export function RoomRoutinesView({
               <div>
                 <h3 className="text-base font-semibold text-ink">Server Comfort Automation</h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  Restores commands after entry. Firmware always suspends during sleep, resumes retained settings on wake, and clears on exit.
+                  Restores commands after entry. Firmware suspends lights and fan during sleep and
+                  resumes them on wake, while a commanded AC keeps running. An unresolved exit
+                  pauses all three but keeps them for an immediate return; only confirmed vacancy
+                  clears them.
                 </p>
                 {error && (
                   <p role="alert" className="mt-3 text-xs font-semibold text-alarm">

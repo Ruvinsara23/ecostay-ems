@@ -404,8 +404,9 @@ export function DeviceControls({
         <div className="text-sm font-medium text-ink">
           Server comfort automation
           <span className="mt-0.5 block text-xs font-normal text-ink-3">
-            Restores commands after entry. During sleep, lights and fan pause while AC can remain on;
-            exit clears all three.
+            Restores commands after entry. During sleep, lights and fan pause while AC can remain on.
+            An unresolved exit pauses all three but keeps them, so returning resumes instantly;
+            confirmed vacancy clears them.
           </span>
         </div>
         <Toggle
