@@ -195,7 +195,13 @@ export type DailyAggregateView = {
 };
 
 /** A lifecycle alert record as the tick writes it (src/server/alerts.ts), plus its id. */
-export type CircuitWattages = { lights: number; exhaustFan: number };
+/**
+ * Rated wattage of each automation-controlled circuit (ADR-0013 made the AC the
+ * third). `airConditioner` is optional so a property configured before it
+ * existed still reads back — it simply contributes no savings until an admin
+ * sets it.
+ */
+export type CircuitWattages = { lights: number; exhaustFan: number; airConditioner?: number };
 
 export type AlertView = {
   id: string;

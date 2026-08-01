@@ -55,7 +55,13 @@ describe('AdminPropertySettings (route-scoped, v2 slice 07)', () => {
 
     await waitFor(() => expect(screen.getByText(/saved/i)).toBeInTheDocument());
     expect(seenTariff[seenTariff.length - 1]).toBe('D-TOU');
-    expect(seenWatts[seenWatts.length - 1]).toEqual({ lights: 80, exhaustFan: 45 });
+    // airConditioner (ADR-0013) is the third controlled circuit; unset on this
+    // fixture, so it saves as 0 and claims no savings until an admin sets it.
+    expect(seenWatts[seenWatts.length - 1]).toEqual({
+      lights: 80,
+      exhaustFan: 45,
+      airConditioner: 0,
+    });
   });
 
   it('a property with zero rooms is fully configurable (route decides, not room discovery)', async () => {

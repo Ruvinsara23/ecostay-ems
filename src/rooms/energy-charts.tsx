@@ -262,21 +262,29 @@ export function EnergyHistorySection({
           </p>
         )}
       </div>
-      {saved > 0 && (
-        <div className="mt-2 flex items-baseline justify-between rounded-xl bg-brand-soft px-3 py-2.5">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-deep">
-              Saved this month
-            </p>
-            <p className="text-[11px] text-brand-deep/80">
-              {mtdAvoided.total.toFixed(1)} kWh avoided by vacancy cut-off (estimated)
-            </p>
-          </div>
-          <p className="text-lg font-bold text-brand-deep [font-variant-numeric:tabular-nums]">
-            LKR {LKR.format(saved)}
+      {/* Always rendered: hiding the block at zero read as a broken feature
+          rather than an honest "nothing saved yet". */}
+      <div className="mt-2 flex items-baseline justify-between rounded-xl bg-brand-soft px-3 py-2.5">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-deep">
+            Saved this month
+          </p>
+          <p className="text-[11px] text-brand-deep/80">
+            {mtdAvoided.total <= 0
+              ? 'No savings recorded yet — a circuit must be running while the room is occupied, then be cut when the guest leaves'
+              : tariff
+                ? `${mtdAvoided.total.toFixed(1)} kWh avoided — modelled from the rated wattage of circuits recorded running before the room emptied`
+                : 'Set a tariff in Admin to price this'}
           </p>
         </div>
-      )}
+        {/* Without a tariff the rupees are unknowable — show the energy instead
+            of a zero that would read as "you saved nothing". */}
+        <p className="text-lg font-bold text-brand-deep [font-variant-numeric:tabular-nums]">
+          {tariff
+            ? `LKR ${LKR.format(saved)}`
+            : `${mtdAvoided.total.toFixed(1)} kWh`}
+        </p>
+      </div>
     </section>
   );
 }

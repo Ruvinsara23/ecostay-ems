@@ -1,12 +1,29 @@
 import { OCCUPANCY_STATES, OccupancyState } from '@/telemetry/contract';
 import { isOccupied } from '@/telemetry/is-occupied';
+import {
+  MAX_CREDIT_MS_PER_VACANCY,
+  NOMINAL_SAMPLE_INTERVAL_MS,
+  avoidedEnergyKWh,
+} from './avoided-energy';
 import { colomboDayWindow, colomboTouWindow } from './colombo-time';
 import type { EnergySample } from './sample-energy';
 
 export const SAMPLE_INTERVAL_MINUTES = 5;
 
-/** Circuits the vacancy-cutoff automation controls; their rated wattage prices the savings. */
-export type CircuitWattages = { lights: number; exhaustFan: number };
+/**
+ * How far before the day boundary the rollup reads. A vacancy that began the
+ * previous evening must still be able to prove which circuits were running when
+ * the guest left, so the lookback covers a full credit window plus one sample.
+ * These extra samples ARM only — they are never aggregated or credited.
+ */
+const ARM_LOOKBACK_MS = MAX_CREDIT_MS_PER_VACANCY + NOMINAL_SAMPLE_INTERVAL_MS;
+
+/**
+ * Circuits the comfort-load automation controls; their rated wattage prices the
+ * savings. `airConditioner` (ADR-0013) is optional — a property configured
+ * before it existed keeps working and simply claims nothing for the AC.
+ */
+export type CircuitWattages = { lights: number; exhaustFan: number; airConditioner?: number };
 
 export type DailyAggregate = {
   kWhUsed: number;
@@ -57,9 +74,12 @@ export async function rollupDaily(deps: RollupDeps, dateKey: string): Promise<Ro
 
   for (const { propertyId, roomId } of await deps.listRooms()) {
     report.rooms += 1;
-    const samples = (await deps.readSamplesInWindow(propertyId, roomId, startMs, endMs)).sort(
-      (a, b) => a.sampledAt - b.sampledAt,
-    );
+    // Read back past midnight so a vacancy that began yesterday can still be
+    // armed from the stay that preceded it; only in-day samples are aggregated.
+    const withLookback = (
+      await deps.readSamplesInWindow(propertyId, roomId, startMs - ARM_LOOKBACK_MS, endMs)
+    ).sort((a, b) => a.sampledAt - b.sampledAt);
+    const samples = withLookback.filter((sample) => sample.sampledAt >= startMs);
     if (samples.length === 0) continue;
 
     let kWhUsed = 0;
@@ -87,27 +107,14 @@ export async function rollupDaily(deps: RollupDeps, dateKey: string): Promise<Ro
           isOccupied(s.occupancyState as OccupancyState),
       ).length * SAMPLE_INTERVAL_MINUTES;
 
-    // OBJ-07 savings: while confirmed-vacant, the vacancy cut-off holds the controlled
-    // circuits off, so their rated wattage × that time is the counterfactual avoided energy.
+    // OBJ-07 savings: credit a circuit only where the samples show it was
+    // actually running while the guest was there and physically cut once they
+    // left (see avoided-energy.ts). A room nobody occupied earns nothing.
     const wattages = await deps.readCircuitWattages(propertyId);
-    const controlledW = wattages ? wattages.lights + wattages.exhaustFan : 0;
-    
-    let avoidedKWh = 0;
-    let avoidedKWhPeak = 0;
-    let avoidedKWhDay = 0;
-    let avoidedKWhOffPeak = 0;
-    
-    const avoidedPerSample = (controlledW * (SAMPLE_INTERVAL_MINUTES / 60)) / 1000;
-
-    for (const s of samples) {
-      if (s.occupancyState === 'VACANT_CONFIRMED') {
-        avoidedKWh += avoidedPerSample;
-        const window = colomboTouWindow(s.sampledAt);
-        if (window === 'peak') avoidedKWhPeak += avoidedPerSample;
-        else if (window === 'day') avoidedKWhDay += avoidedPerSample;
-        else avoidedKWhOffPeak += avoidedPerSample;
-      }
-    }
+    const avoided = avoidedEnergyKWh(withLookback, {
+      wattages: wattages ?? {},
+      windowStartMs: startMs,
+    });
 
     await deps.writeDailyAggregate(propertyId, roomId, dateKey, {
       kWhUsed: Number(kWhUsed.toFixed(6)),
@@ -116,10 +123,10 @@ export async function rollupDaily(deps: RollupDeps, dateKey: string): Promise<Ro
       kWhUsedOffPeak: Number(kWhUsedOffPeak.toFixed(6)),
       costLKR: null,
       occupiedMinutes,
-      avoidedKWh: Number(avoidedKWh.toFixed(6)),
-      avoidedKWhPeak: Number(avoidedKWhPeak.toFixed(6)),
-      avoidedKWhDay: Number(avoidedKWhDay.toFixed(6)),
-      avoidedKWhOffPeak: Number(avoidedKWhOffPeak.toFixed(6)),
+      avoidedKWh: Number(avoided.total.toFixed(6)),
+      avoidedKWhPeak: Number(avoided.peak.toFixed(6)),
+      avoidedKWhDay: Number(avoided.day.toFixed(6)),
+      avoidedKWhOffPeak: Number(avoided.offPeak.toFixed(6)),
     });
     report.aggregatesWritten += 1;
   }

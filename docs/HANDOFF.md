@@ -7,6 +7,28 @@ an ESP32 per room writes telemetry to Firebase RTDB; a Next.js dashboard (Fireba
 gives owners live monitoring, control, cost, and savings. **The firmware is an immutable contract
 (`docs/firmware-contract.md`); the dashboard adapts to it, never the reverse.**
 
+## Current 2026-07-30 work — savings accounting (ADR-0015)
+
+- The OBJ-07 savings figure was rebuilt on **recorded evidence**: a circuit earns
+  credit only where samples show it was running while the occupancy policy
+  allowed it and blocked once the guest left, bounded by a 4 h cap per vacancy.
+  The old rule credited every `VACANT_CONFIRMED` sample unconditionally, so a
+  checked-out room minted savings forever.
+- The **air conditioner** is now a controlled circuit for savings
+  (`CircuitWattages.airConditioner`, optional for backward compatibility). It was
+  structurally excluded before, omitting most of the real saving.
+- `computeValidation()` (§10.2 card + `scripts/validate-savings.ts`) now consumes
+  the recorded `avoidedKWh` instead of re-deriving it from vacant hours. **The
+  headline reduction fell from a fabricated 37.5% to a defensible 21.1%** on a
+  representative window, and the card no longer reports a saving when zero
+  cutoffs were recorded.
+- Gate #8 eyeballed on screen: both surfaces price at ~9.23 LKR/kWh (H-1 band ×
+  SSCL) from the same engine; they previously disagreed by ~90×.
+- ⚠ **Publish `database.rules.json` BEFORE deploying the app.** The live ruleset
+  rejects an `airConditioner` key under `circuitWattages`, so the admin Settings
+  form — which now sends it — would have its whole save refused.
+- Plan and slices: `.scratch/savings-accounting/PRD.md`.
+
 ## Current 2026-07-29 work
 
 - The WebGL room, corrected PIR/ultrasonic occupancy policy, confirmed-occupancy
@@ -138,7 +160,7 @@ read the simulated signal.
 | **Server workloads** (free runtime, ADR-0010/0014) | 5-min energy **sampler**, 1-min **tick** (offline+gas/temp/water **alerts** lifecycle + occupancy-gated **comfort-load automation**), nightly **rollup** (+ dry-run-gated prune) | `src/server/*`, `src/app/api/cron/{sample,tick,rollup}/route.ts` |
 | **Charts & alerts UI** | 24 h power line + 7-day kWh bars; alert center with acknowledge | `src/rooms/energy-charts.tsx`, `alert-center.tsx` |
 | **Cost (tariff)** (ADR-0008) | Regime/band CEB bill engine; "Estimated bill this month" from month-to-date kWh × tariff (property = **H-1**) | `src/tariff/*`, shown in `energy-charts.tsx` |
-| **Savings (OBJ-07)** | Nightly `avoidedKWh` = controlled-circuit wattage × confirmed-vacant time; "Saved this month" priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/rollup.ts`, `src/tariff/savings.ts` |
+| **Savings (OBJ-07)** (ADR-0015) | **Evidence-armed, bounded** `avoidedKWh`: a circuit is credited only where samples show it running while the policy allowed it, then blocked once the guest left — capped per vacancy, so an empty room earns nothing. Includes the **AC** as a third controlled circuit. "Saved this month" and the §10.2 card share this one recorded quantity, priced at the **marginal** band rate (NOT bill-delta — that overstates near band edges) | `src/server/avoided-energy.ts`, `rollup.ts`, `src/tariff/savings.ts`, `validation.ts` |
 | **UI** | Owner's redesign: purple/lavender glass, Inter font, 3D-room image (`public/3d-model.png`) with clickable sensor letters, icon rail | `src/app/{page,layout,login}.tsx`, `src/app/globals.css`, `room-scene.tsx` |
 | **Admin Console** | Admin-only `/admin`: fleet **Overview** landing (rooms reporting + open alerts per property), **Properties** registry/detail (rooms, device credential create/reset, owners assign/remove, settings, alert center, per-room live links), **Owners**. Admin API routes verify `role:'admin'`; UI stays behind `AdminOperations`. Device passwords are returned once and not written to RTDB. | `src/admin/*`, `src/app/api/admin/{owners,rooms,devices,properties}/route.ts`, `src/server/admin-*`, `src/server/manage-*` |
 | **Firmware rules draft** | Local ADR-0007/0014 rules allow matching `role:'device'` accounts to write scoped `latest`, append own-room history, read scoped commands, and set only their own lights/fan/AC command leaves to `false`. Device-on, pump, mainRelay, and cross-room writes remain denied. Anonymous bench telemetry bridge remains until cutover and cannot clear commands. | `database.rules.json`, `src/server/device-rules.integration.test.ts` |

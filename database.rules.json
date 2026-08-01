@@ -106,6 +106,7 @@
             ".validate": "newData.hasChildren(['lights', 'exhaustFan'])",
             "lights": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "exhaustFan": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "airConditioner": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "$other": { ".validate": false }
           },
           "alertThresholds": {
@@ -190,6 +191,7 @@
             ".validate": "newData.hasChildren(['lights', 'exhaustFan'])",
             "lights": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "exhaustFan": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "airConditioner": { ".validate": "newData.isNumber() && newData.val() >= 0" },
             "$other": { ".validate": false }
           },
           "alertThresholds": {

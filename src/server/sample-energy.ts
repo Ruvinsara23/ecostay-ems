@@ -7,13 +7,19 @@ export const SAMPLER_STALENESS_LIMIT_MS = 600_000; // 10 min = 2 missed sample p
 /**
  * The controlled-circuit state captured with each energy sample, so a savings
  * claim is AUDITABLE (were the appliances actually off while the room was
- * confirmed-vacant?). `lights`/`exhaustFan` are the vacancy-cutoff circuits —
- * their COMMANDED state (`devices/*`); the firmware doesn't report their actual.
- * `presence` is `latest.relayStatus`, the one relay whose ACTUAL state is known.
+ * confirmed-vacant?). `lights`/`exhaustFan`/`airConditioner` are the comfort-load
+ * cutoff circuits — their COMMANDED state (`devices/*`); the firmware doesn't
+ * report their actual. `presence` is `latest.relayStatus`, the one relay whose
+ * ACTUAL state is known.
+ *
+ * `avoided-energy.ts` arms a circuit from these readings, so a circuit missing
+ * here can never earn savings credit — samples recorded before a circuit was
+ * captured are simply not creditable, and are never backfilled.
  */
 export type SampleRelays = {
   lights?: boolean;
   exhaustFan?: boolean;
+  airConditioner?: boolean;
   presence?: boolean;
 };
 
@@ -67,6 +73,7 @@ export async function sampleEnergy(deps: SamplerDeps, nowMs: number): Promise<Sa
     const relays: SampleRelays = {};
     if (commands?.lights !== undefined) relays.lights = commands.lights;
     if (commands?.exhaustFan !== undefined) relays.exhaustFan = commands.exhaustFan;
+    if (commands?.airConditioner !== undefined) relays.airConditioner = commands.airConditioner;
     if (latest.relayStatus !== undefined) relays.presence = latest.relayStatus;
     if (Object.keys(relays).length > 0) sample.relays = relays;
 

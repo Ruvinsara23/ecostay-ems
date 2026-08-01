@@ -5,12 +5,14 @@
 // truth the dashboard uses); it is inlined here only because that module's
 // import chain uses the `@/` alias, which plain `node` cannot resolve.
 //
-// Real recorded occupancy (recommended):
+// Real recorded occupancy AND recorded cutoff credit (recommended — this is the
+// figure the dashboard shows; the two cannot disagree):
 //   GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json \
 //     node scripts/validate-savings.ts --property property_001 --room room_001
-// Reproducible scenario (no Firebase needed):
+// Reproducible scenario (no Firebase needed). --credited-hours is the vacancy
+// actually cut, NOT all vacant time — there is no default, state it explicitly:
 //   node scripts/validate-savings.ts --window-hours 24 --occupied-hours 10.5 \
-//     --lights 60 --fan 45 --rate 45
+//     --credited-hours 4 --lights 60 --fan 45 --ac 1000 --rate 45
 //
 // Optional: --rate <LKR/kWh> for a flat cost estimate, --target <pct> (default 20).
 
@@ -45,13 +47,27 @@ function readEnvLocal(key: string): string | undefined {
 
 const round = (value: number, dp = 3): number => Number(value.toFixed(dp));
 
-/** Mirrors computeValidation() in src/tariff/validation.ts (energy side). */
-function validate(windowHours: number, occupiedHours: number, watts: number, targetPct: number) {
+/**
+ * Mirrors computeValidation() in src/tariff/validation.ts (energy side).
+ *
+ * `avoidedKWh` is the RECORDED credit from the nightly rollup, not a figure
+ * re-derived from vacant hours. Deriving it assumed the controlled circuits
+ * would have run every vacant hour, which let a room nobody occupied claim
+ * savings it never made.
+ */
+function validate(
+  windowHours: number,
+  occupiedHours: number,
+  watts: number,
+  avoidedKWhInput: number,
+  targetPct: number,
+) {
   const occ = Math.min(Math.max(0, occupiedHours), windowHours);
   const vacantHours = round(windowHours - occ, 2);
-  const baselineKWh = round((watts * windowHours) / 1000);
-  const automatedKWh = round((watts * occ) / 1000);
-  const avoidedKWh = round(baselineKWh - automatedKWh);
+  const avoidedKWh = round(Math.max(0, avoidedKWhInput));
+  const occupiedRuntimeKWh = round((watts * occ) / 1000);
+  const baselineKWh = round(occupiedRuntimeKWh + avoidedKWh);
+  const creditedVacantHours = watts > 0 ? round((avoidedKWh * 1000) / watts, 2) : 0;
   const totalReductionPct = baselineKWh > 0 ? round((avoidedKWh / baselineKWh) * 100, 1) : 0;
   return {
     windowHours: round(windowHours, 2),
@@ -59,8 +75,9 @@ function validate(windowHours: number, occupiedHours: number, watts: number, tar
     vacantHours,
     watts,
     baselineKWh,
-    automatedKWh,
+    occupiedRuntimeKWh,
     avoidedKWh,
+    creditedVacantHours,
     totalReductionPct,
     passed: totalReductionPct >= targetPct,
   };
@@ -69,7 +86,7 @@ function validate(windowHours: number, occupiedHours: number, watts: number, tar
 async function readRealData(
   propertyId: string,
   roomId: string,
-): Promise<{ occupiedMinutes: number; days: number; watts: number }> {
+): Promise<{ occupiedMinutes: number; avoidedKWh: number; days: number; watts: number }> {
   const { applicationDefault, initializeApp } = await import('firebase-admin/app');
   const { getDatabase } = await import('firebase-admin/database');
 
@@ -89,15 +106,18 @@ async function readRealData(
 
   const aggregates = (
     await db.ref(`properties/${propertyId}/dailyAggregates/${roomId}`).get()
-  ).val() as Record<string, { occupiedMinutes?: number }> | null;
+  ).val() as Record<string, { occupiedMinutes?: number; avoidedKWh?: number }> | null;
   const wattages = (
     await db.ref(`properties/${propertyId}/settings/circuitWattages`).get()
-  ).val() as { lights?: number; exhaustFan?: number } | null;
+  ).val() as { lights?: number; exhaustFan?: number; airConditioner?: number } | null;
 
   const dates = Object.keys(aggregates ?? {});
   const occupiedMinutes = dates.reduce((s, d) => s + (aggregates?.[d]?.occupiedMinutes ?? 0), 0);
-  const watts = (wattages?.lights ?? 0) + (wattages?.exhaustFan ?? 0);
-  return { occupiedMinutes, days: dates.length, watts };
+  // The credit the rollup actually recorded — never re-derived here.
+  const avoidedKWh = dates.reduce((s, d) => s + (aggregates?.[d]?.avoidedKWh ?? 0), 0);
+  const watts =
+    (wattages?.lights ?? 0) + (wattages?.exhaustFan ?? 0) + (wattages?.airConditioner ?? 0);
+  return { occupiedMinutes, avoidedKWh, days: dates.length, watts };
 }
 
 async function main() {
@@ -108,6 +128,7 @@ async function main() {
   let windowHours: number;
   let occupiedHours: number;
   let watts: number;
+  let avoidedKWh: number;
   let source: string;
 
   const property = args.get('property');
@@ -130,22 +151,31 @@ async function main() {
     windowHours = real.days * 24;
     occupiedHours = real.occupiedMinutes / 60;
     watts = real.watts;
-    source = `real recorded occupancy — ${property}/${room}, ${real.days} day(s)`;
+    avoidedKWh = real.avoidedKWh;
+    source = `real recorded occupancy + recorded cutoff credit — ${property}/${room}, ${real.days} day(s)`;
   } else {
     windowHours = Number(args.get('window-hours') ?? 24);
     occupiedHours = Number(args.get('occupied-hours') ?? NaN);
-    watts = (Number(args.get('lights') ?? 0) || 0) + (Number(args.get('fan') ?? 0) || 0);
-    if (Number.isNaN(occupiedHours) || watts === 0) {
+    watts =
+      (Number(args.get('lights') ?? 0) || 0) +
+      (Number(args.get('fan') ?? 0) || 0) +
+      (Number(args.get('ac') ?? 0) || 0);
+    // A scenario has no recorded credit, so it must be stated. Defaulting it to
+    // "every vacant hour" is the overstatement this model exists to remove.
+    const creditedHours = Number(args.get('credited-hours') ?? NaN);
+    if (Number.isNaN(occupiedHours) || watts === 0 || Number.isNaN(creditedHours)) {
       console.error(
-        'validate-savings: provide --property/--room for real data, OR --occupied-hours and ' +
-          '--lights/--fan for a scenario.',
+        'validate-savings: provide --property/--room for real data, OR --occupied-hours, ' +
+          '--credited-hours and --lights/--fan/--ac for a scenario.\n' +
+          '  --credited-hours is the vacancy actually cut (bounded), NOT all vacant time.',
       );
       process.exit(1);
     }
+    avoidedKWh = (watts * Math.max(0, creditedHours)) / 1000;
     source = 'scenario (command-line arguments)';
   }
 
-  const r = validate(windowHours, occupiedHours, watts, targetPct);
+  const r = validate(windowHours, occupiedHours, watts, avoidedKWh, targetPct);
   const savedLKR = rate !== null ? round(r.avoidedKWh * rate, 2) : null;
   const pad = (s: string, n: number) => s.padStart(n);
 
@@ -157,8 +187,9 @@ async function main() {
   console.log('  ' + '-'.repeat(46));
   console.log(`  ${'Metric'.padEnd(22)}${pad('Baseline', 11)}${pad('EcoStay', 11)}`);
   console.log('  ' + '-'.repeat(46));
-  console.log(`  ${'Energy (kWh)'.padEnd(22)}${pad(String(r.baselineKWh), 11)}${pad(String(r.automatedKWh), 11)}`);
-  console.log(`  ${'Unoccupied waste (kWh)'.padEnd(22)}${pad(String(r.avoidedKWh), 11)}${pad('~0', 11)}`);
+  console.log(`  ${'Energy (kWh)'.padEnd(22)}${pad(String(r.baselineKWh), 11)}${pad(String(r.occupiedRuntimeKWh), 11)}`);
+  console.log(`  ${'Cut during vacancy'.padEnd(22)}${pad(String(r.avoidedKWh), 11)}${pad('0', 11)}`);
+  console.log(`  ${'Credited vacancy (h)'.padEnd(22)}${pad(String(r.creditedVacantHours), 11)}${pad('-', 11)}`);
   if (savedLKR !== null) {
     console.log(`  ${'Cost avoided (LKR)'.padEnd(22)}${pad('-', 11)}${pad(String(savedLKR), 11)}`);
   }

@@ -3,10 +3,17 @@ import type { Tariff } from './tariff';
 
 /**
  * §10.2 pre/post validation (capstone success indicator: ≥20% reduction in
- * unoccupied-runtime energy). Modelled from MEASURED occupancy + RATED circuit
- * wattage — the reduction is a function of occupancy, so it does not require the
- * power meter; the meter later upgrades rated → measured wattage. Money reuses
- * the gate-#8 savedLKR engine — no new cost math here.
+ * unoccupied-runtime energy).
+ *
+ * The avoided energy is NOT re-derived here from vacant hours. It is the
+ * RECORDED figure the nightly rollup credited (`src/server/avoided-energy.ts`),
+ * where a circuit earns credit only if the samples show it was actually running
+ * while the guest was there and physically cut once they left, bounded by a cap.
+ * Deriving it from "controlled circuits would have run every vacant hour" was
+ * the unbounded counterfactual this model replaced — it let an empty room claim
+ * savings it never made, and disagreed with the owner's "Saved this month".
+ *
+ * Money reuses the gate-#8 savedLKR engine — no new cost math here.
  */
 export type ValidationInput = {
   /** Total hours in the measurement window. */
@@ -15,6 +22,8 @@ export type ValidationInput = {
   occupiedHours: number;
   /** Sum of the automation-controlled circuit wattages (W). */
   controlledWatts: number;
+  /** RECORDED avoided energy over the window, summed from the daily aggregates. */
+  avoidedKWh: number;
   tariff?: Tariff;
   /** Success threshold — the proposal's indicator is 20%. */
   targetPct?: number;
@@ -31,16 +40,16 @@ export type ValidationResult = {
   occupiedHours: number;
   vacantHours: number;
   controlledWatts: number;
-  /** No automation: controlled circuits run the whole window. */
+  /** Modelled draw of the controlled circuits while the room was occupied. */
+  occupiedRuntimeKWh: number;
+  /** occupiedRuntimeKWh + avoidedKWh — what they would have drawn uncut. */
   baselineKWh: number;
-  /** With EcoStay: controlled circuits run only while occupied. */
-  automatedKWh: number;
-  /** Energy avoided by cutting the circuits during vacancy. */
+  /** Recorded avoided energy (input, echoed for display). */
   avoidedKWh: number;
-  /** Reduction in total controlled-circuit energy vs baseline. */
-  totalReductionPct: number;
-  /** Share of the unoccupied-runtime wastage that is eliminated. */
-  wastageReductionPct: number;
+  /** Hours of credited vacancy the avoided energy corresponds to. */
+  creditedVacantHours: number;
+  /** avoidedKWh / baselineKWh — reduction in controlled-circuit energy. */
+  reductionPct: number;
   /** LKR saved at the current tariff (null when no tariff is set). */
   savedLKR: number | null;
   targetPct: number;
@@ -170,14 +179,16 @@ export function computeValidation(input: ValidationInput): ValidationResult {
   const occupiedHours = Math.min(Math.max(0, input.occupiedHours), windowHours);
   const vacantHours = round(windowHours - occupiedHours, 2);
   const watts = Math.max(0, input.controlledWatts);
+  const avoidedKWh = round(Math.max(0, input.avoidedKWh));
 
-  const baselineKWh = round((watts * windowHours) / 1000);
-  const automatedKWh = round((watts * occupiedHours) / 1000);
-  const avoidedKWh = round(baselineKWh - automatedKWh);
+  // What the controlled circuits drew while the guest was in the room. Assuming
+  // they ran the whole occupied period OVERSTATES this denominator, which makes
+  // the reduction percentage conservative — the safe direction for a claim.
+  const occupiedRuntimeKWh = round((watts * occupiedHours) / 1000);
+  const baselineKWh = round(occupiedRuntimeKWh + avoidedKWh);
+  const creditedVacantHours = watts > 0 ? round((avoidedKWh * 1000) / watts, 2) : 0;
 
-  const totalReductionPct = baselineKWh > 0 ? round((avoidedKWh / baselineKWh) * 100, 1) : 0;
-  // Baseline wastage is all the vacant-hour runtime; automation eliminates it.
-  const wastageReductionPct = avoidedKWh > 0 ? 100 : 0;
+  const reductionPct = baselineKWh > 0 ? round((avoidedKWh / baselineKWh) * 100, 1) : 0;
 
   const saved =
     input.tariff && input.monthToDateKWh !== undefined
@@ -191,13 +202,13 @@ export function computeValidation(input: ValidationInput): ValidationResult {
     occupiedHours: round(occupiedHours, 2),
     vacantHours,
     controlledWatts: watts,
+    occupiedRuntimeKWh,
     baselineKWh,
-    automatedKWh,
     avoidedKWh,
-    totalReductionPct,
-    wastageReductionPct,
+    creditedVacantHours,
+    reductionPct,
     savedLKR: saved,
     targetPct,
-    passed: totalReductionPct >= targetPct,
+    passed: reductionPct >= targetPct,
   };
 }

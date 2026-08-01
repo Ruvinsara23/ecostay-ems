@@ -138,11 +138,17 @@ export function createRollupDeps(db: Database): RollupDeps {
     async readCircuitWattages(propertyId) {
       const raw = (
         await db.ref(`properties/${propertyId}/settings/circuitWattages`).get()
-      ).val() as { lights?: number; exhaustFan?: number } | null;
+      ).val() as { lights?: number; exhaustFan?: number; airConditioner?: number } | null;
       if (!raw || typeof raw.lights !== 'number' || typeof raw.exhaustFan !== 'number') {
         return null;
       }
-      return { lights: raw.lights, exhaustFan: raw.exhaustFan };
+      // airConditioner (ADR-0013) may be absent on a property configured before
+      // it existed — omit it rather than inventing a wattage it never claimed.
+      return {
+        lights: raw.lights,
+        exhaustFan: raw.exhaustFan,
+        ...(typeof raw.airConditioner === 'number' ? { airConditioner: raw.airConditioner } : {}),
+      };
     },
 
     async readSamplesInWindow(propertyId, roomId, startMs, endMs) {

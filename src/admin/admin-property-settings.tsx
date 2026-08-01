@@ -56,6 +56,7 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
   const [category, setCategory] = useState('D-1');
   const [lights, setLights] = useState(0);
   const [exhaustFan, setExhaustFan] = useState(0);
+  const [airConditioner, setAirConditioner] = useState(0);
   const [temperatureC, setTemperatureC] = useState(DEFAULT_ALERT_THRESHOLDS.temperatureC);
   const [waterLevelPct, setWaterLevelPct] = useState(DEFAULT_ALERT_THRESHOLDS.waterLevelPct);
   const [acPowerThresholdW, setAcPowerThresholdW] = useState(
@@ -79,6 +80,7 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
     return source.subscribeCircuitWattages(propertyId, (w) => {
       setLights(w?.lights ?? 0);
       setExhaustFan(w?.exhaustFan ?? 0);
+      setAirConditioner(w?.airConditioner ?? 0);
       setLoaded((l) => ({ ...l, wattages: true }));
     });
   }, [source, propertyId]);
@@ -106,7 +108,7 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
     setStatus('saving');
     setError(null);
     try {
-      const wattages: CircuitWattages = { lights, exhaustFan };
+      const wattages: CircuitWattages = { lights, exhaustFan, airConditioner };
       const thresholds: AlertThresholds = { temperatureC, waterLevelPct, acPowerThresholdW };
       await Promise.all([
         source.setTariffCategory(propertyId, category),
@@ -159,7 +161,18 @@ export function AdminPropertySettings({ propertyId }: { propertyId: string }) {
             value={exhaustFan}
             onChange={touched(setExhaustFan)}
           />
+          <NumberField
+            label="Air conditioner (W)"
+            min={0}
+            value={airConditioner}
+            onChange={touched(setAirConditioner)}
+          />
         </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
+          Rated nameplate wattage of each circuit the comfort-load automation switches. These
+          price the savings figure, so a circuit left at 0 claims nothing. A nameplate AC cycles
+          its compressor and averages below this number, so the estimate errs high.
+        </p>
       </SettingsSection>
 
       <SettingsSection icon={<Bell size={18} strokeWidth={2.2} />} title="Alert thresholds">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { colomboDateKey, colomboDayWindow, colomboYesterdayKey } from './colombo-time';
-import type { EnergySample } from './sample-energy';
+import type { EnergySample, SampleRelays } from './sample-energy';
 import { DailyAggregate, pruneSamples, rollupDaily, RollupDeps } from './rollup';
 
 describe('Colombo time helpers (UTC+5:30, no DST)', () => {
@@ -23,14 +23,24 @@ describe('Colombo time helpers (UTC+5:30, no DST)', () => {
   });
 });
 
-function sample(sampledAt: number, energy: number, occupancyState?: string): EnergySample {
+function sample(
+  sampledAt: number,
+  energy: number,
+  occupancyState?: string,
+  relays?: SampleRelays,
+): EnergySample {
   return {
     energy,
     power: 4,
     sampledAt,
     ...(occupancyState ? { occupancyState: occupancyState as EnergySample['occupancyState'] } : {}),
+    ...(relays ? { relays } : {}),
   };
 }
+
+/** Both cutoff circuits commanded on — the evidence that arms a savings claim. */
+const RUNNING: SampleRelays = { lights: true, exhaustFan: true };
+const CUT: SampleRelays = { lights: false, exhaustFan: false };
 
 function makeDeps(
   samplesByRoom: Record<string, EnergySample[]>,
@@ -95,10 +105,12 @@ describe('rollupDaily', () => {
           kWhUsedOffPeak: 0.012,
           costLKR: null,
           occupiedMinutes: 10,
-          avoidedKWh: 0.00875,
+          // No relay readings were recorded, so no circuit can be shown to have
+          // been running — nothing is creditable. Conservative by design.
+          avoidedKWh: 0,
           avoidedKWhPeak: 0,
           avoidedKWhDay: 0,
-          avoidedKWhOffPeak: 0.00875,
+          avoidedKWhOffPeak: 0,
         },
       },
     ]);
@@ -111,12 +123,12 @@ describe('rollupDaily', () => {
       {
         'property_001/room_001': [
           sample(T(330), 1.0), // 05:30 — baseline, no delta
-          sample(T(335), 1.2), // 05:35 → +0.2 lands in day
-          sample(T(1110), 1.5, 'VACANT_CONFIRMED'), // 18:30 → +0.3 lands in peak (boundary sample)
+          sample(T(335), 1.2, 'OCCUPIED_ACTIVE', RUNNING), // 05:35 → +0.2 in day; arms both circuits
+          sample(T(1110), 1.5, 'VACANT_CONFIRMED', CUT), // 18:30 → +0.3 in peak (boundary sample)
           sample(T(1385), 1.9), // 23:05 → +0.4 lands in off-peak
         ],
       },
-      { lights: 100, exhaustFan: 20 }, // 120 W → 0.01 kWh per confirmed-vacant sample
+      { lights: 100, exhaustFan: 20 }, // 120 W → 0.01 kWh per credited 5-min interval
     );
 
     await rollupDaily(deps, '2026-07-04');
@@ -137,14 +149,14 @@ describe('rollupDaily', () => {
     expect(aggregate.avoidedKWhOffPeak).toBeCloseTo(0, 6);
   });
 
-  it('avoided energy = controlled wattage × confirmed-vacant time', async () => {
+  it('credits circuits that were running when the guest left, for the vacancy after', async () => {
     const { deps, written } = makeDeps(
       {
         'property_001/room_001': [
-          sample(T(0), 1.0, 'VACANT_CONFIRMED'),
-          sample(T(5), 1.0, 'VACANT_CONFIRMED'),
-          sample(T(10), 1.0, 'VACANT_CONFIRMED'), // 3 samples = 15 confirmed-vacant minutes
-          sample(T(15), 1.0, 'OCCUPIED_ACTIVE'),
+          sample(T(0), 1.0, 'OCCUPIED_ACTIVE', RUNNING), // arms both circuits
+          sample(T(5), 1.0, 'VACANT_CONFIRMED', CUT),
+          sample(T(10), 1.0, 'VACANT_CONFIRMED', CUT),
+          sample(T(15), 1.0, 'VACANT_CONFIRMED', CUT), // 3 credited 5-min intervals
         ],
       },
       { lights: 100, exhaustFan: 20 }, // 120 W controlled
@@ -156,9 +168,52 @@ describe('rollupDaily', () => {
     expect(written[0].aggregate.avoidedKWh).toBeCloseTo(0.03, 10);
   });
 
+  it('claims nothing for a room that sat vacant without ever being occupied', async () => {
+    // The old model credited every confirmed-vacant sample, so an empty room
+    // minted savings forever. Evidence-armed credit cannot.
+    const { deps, written } = makeDeps(
+      {
+        'property_001/room_001': Array.from({ length: 200 }, (_, i) =>
+          sample(T(i * 5), 1.0, 'VACANT_CONFIRMED', CUT),
+        ),
+      },
+      { lights: 1000, exhaustFan: 20 },
+    );
+
+    await rollupDaily(deps, '2026-07-04');
+
+    expect(written[0].aggregate.avoidedKWh).toBe(0);
+  });
+
+  it('arms from the previous evening so a vacancy across midnight still counts', async () => {
+    const { deps, written } = makeDeps(
+      {
+        'property_001/room_001': [
+          sample(T(-20), 1.0, 'OCCUPIED_ACTIVE', RUNNING), // 23:40 the previous day
+          sample(T(-15), 1.0, 'VACANT_CONFIRMED', CUT), // guest leaves before midnight
+          sample(T(-10), 1.0, 'VACANT_CONFIRMED', CUT),
+          sample(T(0), 1.0, 'VACANT_CONFIRMED', CUT), // 00:00 — first in-day sample
+          sample(T(5), 1.0, 'VACANT_CONFIRMED', CUT),
+        ],
+      },
+      { lights: 100, exhaustFan: 20 },
+    );
+
+    await rollupDaily(deps, '2026-07-04');
+
+    // Only the two in-day intervals are credited (2 × 5 min × 120 W), but the
+    // arm survived the day boundary — without the lookback this would be 0.
+    expect(written[0].aggregate.avoidedKWh).toBeCloseTo(0.02, 10);
+  });
+
   it('avoided energy is 0 when no wattages are configured', async () => {
     const { deps, written } = makeDeps(
-      { 'property_001/room_001': [sample(T(0), 1, 'VACANT_CONFIRMED'), sample(T(5), 1, 'VACANT_CONFIRMED')] },
+      {
+        'property_001/room_001': [
+          sample(T(0), 1, 'OCCUPIED_ACTIVE', RUNNING),
+          sample(T(5), 1, 'VACANT_CONFIRMED', CUT),
+        ],
+      },
       null,
     );
     await rollupDaily(deps, '2026-07-04');

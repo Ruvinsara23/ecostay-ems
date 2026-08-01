@@ -48,7 +48,11 @@ export function SavingsValidation({
 
   const days = byDate ? Object.keys(byDate) : [];
   const occupiedMinutes = days.reduce((sum, d) => sum + (byDate?.[d]?.occupiedMinutes ?? 0), 0);
-  const controlledWatts = wattages ? wattages.lights + wattages.exhaustFan : 0;
+  // The RECORDED credit, over exactly the same days as the occupancy above.
+  const recordedAvoidedKWh = days.reduce((sum, d) => sum + (byDate?.[d]?.avoidedKWh ?? 0), 0);
+  const controlledWatts = wattages
+    ? wattages.lights + wattages.exhaustFan + (wattages.airConditioner ?? 0)
+    : 0;
   const tariff = category ? CEB_TARIFFS[category] : undefined;
 
   const ready = byDate !== null && days.length > 0 && controlledWatts > 0;
@@ -57,6 +61,7 @@ export function SavingsValidation({
         windowHours: days.length * 24,
         occupiedHours: occupiedMinutes / 60,
         controlledWatts,
+        avoidedKWh: recordedAvoidedKWh,
         tariff,
         // Gate #8: the CEB band comes from the month's total, not this window's kWh.
         monthToDateKWh: monthToDateKWh(byDate ?? {}, nowMs).total,
@@ -88,7 +93,7 @@ export function SavingsValidation({
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-xl bg-well/60 p-3">
               <p className="text-2xl font-bold text-ink [font-variant-numeric:tabular-nums]">
-                {result.totalReductionPct}%
+                {result.reductionPct}%
               </p>
               <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
                 Energy reduction
@@ -124,28 +129,33 @@ export function SavingsValidation({
               <tbody className="text-ink">
                 <tr className="border-t border-hairline">
                   <td className="py-1.5 text-ink-2">Runtime</td>
-                  <td className="py-1.5 text-right">{result.windowHours} h</td>
+                  <td className="py-1.5 text-right">
+                    {result.occupiedHours + result.creditedVacantHours} h
+                  </td>
                   <td className="py-1.5 text-right">{result.occupiedHours} h</td>
                 </tr>
                 <tr className="border-t border-hairline">
                   <td className="py-1.5 text-ink-2">Energy</td>
                   <td className="py-1.5 text-right">{result.baselineKWh} kWh</td>
-                  <td className="py-1.5 text-right">{result.automatedKWh} kWh</td>
+                  <td className="py-1.5 text-right">{result.occupiedRuntimeKWh} kWh</td>
                 </tr>
                 <tr className="border-t border-hairline">
-                  <td className="py-1.5 text-ink-2">Unoccupied waste</td>
+                  <td className="py-1.5 text-ink-2">Cut during vacancy</td>
                   <td className="py-1.5 text-right">{result.avoidedKWh} kWh</td>
-                  <td className="py-1.5 text-right">≈ 0 kWh</td>
+                  <td className="py-1.5 text-right">0 kWh</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
-            Modelled over {result.vacantHours} vacant of {result.windowHours} h ({days.length} recorded
-            day{days.length === 1 ? '' : 's'}) from measured occupancy and the rated wattages of the
-            controlled circuits ({result.controlledWatts} W). Absolute energy is confirmed once the
-            PZEM meter is wired.
+            Over {days.length} recorded day{days.length === 1 ? '' : 's'} ({result.windowHours} h,
+            {' '}{result.vacantHours} of them vacant), the nightly rollup credited{' '}
+            {result.creditedVacantHours} h of vacancy where a controlled circuit was recorded
+            running while the guest was there and cut once they left. Credit is capped per vacancy,
+            so an empty room claims nothing. Energy is the rated wattage of those circuits
+            ({result.controlledWatts} W) — an estimate, evaluated here in simulation with a modelled
+            meter, not a physical PZEM.
           </p>
         </>
       )}
