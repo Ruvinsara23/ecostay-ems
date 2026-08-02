@@ -41,7 +41,7 @@ export function RoomRoutinesView({
   };
 
   return (
-    <section aria-label={`Routines in ${roomName ?? roomId}`} className="relative min-h-full w-full bg-transparent">
+    <section aria-label={`Routines in ${roomName ?? roomId}`} className="relative h-full w-full overflow-hidden bg-transparent">
       {/* Background decoration */}
       <div className="absolute inset-0 z-0 bg-gradient-to-br from-brand/5 to-transparent opacity-50" />
 
@@ -50,7 +50,7 @@ export function RoomRoutinesView({
         <span className="text-[11px] font-medium text-ink-3">Routines & Automations</span>
       </div>
 
-      <div className="relative z-10 flex min-h-full flex-col p-6 pt-24">
+      <div className="relative z-10 flex h-full flex-col p-6 pt-24 overflow-y-auto">
         <div className="mx-auto w-full max-w-lg">
           <h2 className="mb-6 text-xl font-bold tracking-tight text-ink">Active Routines</h2>
           

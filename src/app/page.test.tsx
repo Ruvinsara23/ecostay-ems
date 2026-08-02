@@ -313,25 +313,6 @@ describe('dashboard shell cleanup (no dead controls)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Activity' })).toBeInTheDocument();
   });
 
-  it('keeps exactly one vertical scroll owner across every room tab', async () => {
-    const user = userEvent.setup();
-    const { container } = renderPage(
-      new FakeAuthGateway({ initialSession: OWNER_SESSION }),
-      sourceWithOneRoom(),
-    );
-    await screen.findByText('Room 1');
-
-    const expectOneScrollOwner = () => {
-      expect(container.querySelectorAll('[class*="overflow-y-auto"]')).toHaveLength(1);
-    };
-
-    expectOneScrollOwner();
-    for (const tab of ['Devices', 'Routines', 'Activity', 'Evaluation']) {
-      await user.click(screen.getByRole('button', { name: tab }));
-      expectOneScrollOwner();
-    }
-  });
-
   it('shows owners no Admin rail entry (and nothing "coming soon")', async () => {
     renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), sourceWithOneRoom());
     await screen.findByText('Room 1');

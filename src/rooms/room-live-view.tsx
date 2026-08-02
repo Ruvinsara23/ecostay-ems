@@ -593,7 +593,7 @@ export function RoomLiveView({
   return (
     <section
       aria-label={`Live view of ${roomName ?? roomId}`}
-      className="relative min-h-full w-full bg-transparent"
+      className="relative min-h-full w-full overflow-y-auto bg-transparent lg:h-full lg:overflow-hidden"
     >
 
       {/* Background 3D Scene */}
@@ -667,7 +667,7 @@ export function RoomLiveView({
 
       {/* Overlay Content */}
       <div
-        className={`relative z-10 flex min-h-[calc(100dvh-150px)] flex-col justify-between p-4 pointer-events-none transition-opacity lg:p-6 ${!freshness.online ? 'opacity-70' : ''}`}
+        className={`relative z-10 flex flex-col justify-between p-4 pointer-events-none transition-opacity lg:absolute lg:inset-0 lg:overflow-y-auto lg:p-6 ${!freshness.online ? 'opacity-70' : ''}`}
         data-stale={freshness.online ? undefined : 'true'}
       >
 
