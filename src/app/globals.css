@@ -125,6 +125,50 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Scrollbars. The room views nest a scroll region inside the dashboard shell,
+   so the default OS bars read as heavy chrome against the glass surfaces. Thin,
+   translucent, brand-tinted — visible enough to signal "there is more below",
+   quiet enough not to compete with the floating cards.
+--------------------------------------------------------------------------- */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(124 58 237 / 0.32) transparent;
+}
+
+/* WebKit / Chromium */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(124 58 237 / 0.28);
+  border-radius: 9999px;
+  /* Transparent border + background-clip keeps the thumb visually inset. */
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(124 58 237 / 0.45);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: rgb(91 33 182 / 0.6);
+}
+
+/* The two bars meeting in a corner otherwise render as a grey block. */
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .pulse-dot {
     animation: ecostay-blink 2.2s ease-in-out infinite;
