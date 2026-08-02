@@ -81,7 +81,7 @@ export function RoomDevicesView({
   return (
     <section
       aria-label={`Devices in ${roomName ?? roomId}`}
-      className="relative h-full w-full overflow-y-auto bg-transparent"
+      className="relative min-h-full w-full bg-transparent"
     >
       <div className="absolute inset-0 z-0 bg-gradient-to-br from-brand/5 to-transparent opacity-50" />
 

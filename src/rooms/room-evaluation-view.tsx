@@ -130,7 +130,7 @@ export function RoomEvaluationView({
   return (
     <section
       aria-label={`Evaluation for ${roomName ?? roomId}`}
-      className="relative h-full w-full overflow-y-auto bg-transparent"
+      className="relative min-h-full w-full bg-transparent"
     >
       <div className="absolute inset-0 z-0 bg-gradient-to-br from-brand/5 to-transparent opacity-50" />
       <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1">

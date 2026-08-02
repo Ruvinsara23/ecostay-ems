@@ -158,9 +158,9 @@ function RoomArea({
           </button>
         </div>
       )}
-      {/* The 3D stage keeps a full-height feel; alerts live BELOW it in normal
-          flow so the Alert Center is actually reachable (audit A2). */}
-      <div className="relative h-[calc(100dvh-150px)] min-h-[560px] flex-none">
+      {/* The room view owns a minimum stage height but may grow with its content.
+          The dashboard shell remains the single vertical scroll owner. */}
+      <div className="relative min-h-[max(560px,calc(100dvh-150px))] flex-none">
       {view === 'Live View' && (
         <RoomLiveView
           propertyId={active.propertyId}

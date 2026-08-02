@@ -74,7 +74,7 @@ export function RoomActivityView({
   const presence = latest.humanPresent === true;
 
   return (
-    <section aria-label={`Activity in ${roomName ?? roomId}`} className="relative h-full w-full overflow-hidden bg-transparent">
+    <section aria-label={`Activity in ${roomName ?? roomId}`} className="relative min-h-full w-full bg-transparent">
       {/* Background decoration */}
       <div className="absolute inset-0 z-0 bg-gradient-to-tr from-brand/5 to-transparent opacity-50" />
 
@@ -83,7 +83,7 @@ export function RoomActivityView({
         <span className="text-[11px] font-medium text-ink-3">Activity & Telemetry</span>
       </div>
 
-      <div className="relative z-10 flex h-full flex-col p-6 pt-24 overflow-y-auto">
+      <div className="relative z-10 flex min-h-full flex-col p-6 pt-24">
         <div className="mx-auto w-full max-w-2xl">
           
           <div className="mb-6 flex items-center justify-between">
