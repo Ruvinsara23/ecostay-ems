@@ -85,18 +85,23 @@ function RoomArea({
   }, [source, session, attempt]);
 
   const rooms = roomsState.status === 'ready' ? roomsState.rooms : [];
-  // One room → straight in. Otherwise the active room is whichever the URL/Home
-  // selection points at (null = show the overview).
+  const pickedRoom = pick
+    ? (rooms.find((r) => r.propertyId === pick.propertyId && r.roomId === pick.roomId) ?? null)
+    : null;
+  // One room → straight in. With several rooms, use the picked one; if a room-scoped
+  // tab is active but nothing is picked (e.g. the rail was used straight from the
+  // overview), fall back to the first room so the tab actually renders instead of
+  // silently leaving the overview on screen.
   const activeRoom =
     rooms.length === 1
       ? rooms[0]
-      : pick
-        ? (rooms.find((r) => r.propertyId === pick.propertyId && r.roomId === pick.roomId) ?? null)
-        : null;
+      : (pickedRoom ?? (activeTab === 'Home' ? null : (rooms[0] ?? null)));
+  // The overview owns the Home tab (multi-room accounts) and any state where no
+  // room can be resolved.
   const showOverview =
     roomsState.status === 'ready' &&
-    rooms.length > 0 &&
-    (!activeRoom || (activeTab === 'Home' && rooms.length > 1));
+    rooms.length > 1 &&
+    (activeTab === 'Home' || !activeRoom);
 
   // Tell the shell whether the overview (vs a room) is on screen, so the header
   // title matches. Depends only on the boolean — the callback is stable enough.

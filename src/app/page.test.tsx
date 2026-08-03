@@ -183,6 +183,40 @@ describe('dashboard tenancy', () => {
     expect(await screen.findByRole('button', { name: /room 1/i })).toBeInTheDocument();
   });
 
+  it('navigates a room-scoped rail tab straight from the multi-room overview', async () => {
+    // Regression: with several rooms and nothing picked, clicking Routines/Devices/etc.
+    // in the rail used to be a no-op — the overview stayed put because no room resolved.
+    const user = userEvent.setup();
+    const source = new FakeRoomDataSource();
+    source.setAccessibleRooms([
+      {
+        propertyId: 'property_001',
+        roomId: 'room_001',
+        propertyName: 'EcoStay Property',
+        roomName: 'Garden Room',
+      },
+      {
+        propertyId: 'property_001',
+        roomId: 'room_002',
+        propertyName: 'EcoStay Property',
+        roomName: 'Garden Room_sim',
+      },
+    ]);
+    source.emitLatest('property_001', 'room_001', {
+      occupancyState: 'VACANT',
+      updatedAt: Date.now(),
+    });
+    renderPage(new FakeAuthGateway({ initialSession: OWNER_SESSION }), source);
+
+    // The multi-room overview lists both rooms first.
+    expect(await screen.findByRole('button', { name: /garden room_sim/i })).toBeInTheDocument();
+
+    // Clicking a room-scoped tab from the overview must render that tab (falls back
+    // to the first room), not silently stay on the overview.
+    await user.click(screen.getByRole('button', { name: /Routines/i }));
+    expect(await screen.findByText(/Routines & Automations/i)).toBeInTheDocument();
+  });
+
   it('shows an error with a retry instead of an endless spinner when the room list fails', async () => {
     const user = userEvent.setup();
     const source = new FakeRoomDataSource();
